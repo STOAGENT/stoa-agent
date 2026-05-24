@@ -149,9 +149,9 @@ stoa webhook subscribe pr-review \
   --deliver github_comment
 ```
 
-Full automation templates gallery: [stoa-agent.nousresearch.com/docs/guides/automation-templates](https://stoa-agent.nousresearch.com/docs/guides/automation-templates)
+Full automation templates gallery: [stoax.xyz/docs/guides/automation-templates](https://stoax.xyz/docs/guides/automation-templates)
 
-Documentation: [stoa-agent.nousresearch.com](https://stoa-agent.nousresearch.com)
+Documentation: [stoax.xyz](https://stoax.xyz)
 
 GitHub: [github.com/STOAGENT/stoa-agent](https://github.com/STOAGENT/stoa-agent)
 

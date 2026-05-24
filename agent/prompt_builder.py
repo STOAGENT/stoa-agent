@@ -144,7 +144,7 @@ DEFAULT_AGENT_IDENTITY = (
 STOA_AGENT_HELP_GUIDANCE = (
     "If the user asks about configuring, setting up, or using STOA Agent "
     "itself, load the `stoa-agent` skill with skill_view(name='stoa-agent') "
-    "before answering. Docs: https://stoa-agent.nousresearch.com/docs"
+    "before answering. Docs: https://stoax.xyz/docs"
 )
 
 MEMORY_GUIDANCE = (
