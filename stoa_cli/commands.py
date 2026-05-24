@@ -215,6 +215,20 @@ COMMAND_REGISTRY: list[CommandDef] = [
     CommandDef("update", "Update STOA Agent to the latest version", "Info"),
     CommandDef("debug", "Upload debug report (system info + logs) and get shareable links", "Info"),
 
+    # STOA — the chamber (council mode is the project's core differentiator)
+    CommandDef("council", "Dispatch a task to all 6 sovereign LLMs, return 5-of-6 verdict",
+               "STOA Chamber", args_hint='"<task>"',
+               aliases=("c",)),
+    CommandDef("persona", "Switch your active voice to a council persona "
+               "(sokrates/mira/veritas/drax/lyra/echo)",
+               "STOA Chamber", args_hint="<name>",
+               subcommands=("sokrates", "mira", "veritas", "drax", "lyra", "echo", "off")),
+    CommandDef("verdict", "Show the most recent council verdict in this session",
+               "STOA Chamber"),
+    CommandDef("attest", "Stamp the most recent response hash on Monad mainnet "
+               "(opt-in, requires wallet bind)",
+               "STOA Chamber"),
+
     # Exit
     CommandDef("quit", "Exit the CLI (use --delete to also remove session history)", "Exit",
                cli_only=True, aliases=("exit",), args_hint="[--delete]"),
