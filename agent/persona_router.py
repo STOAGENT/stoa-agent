@@ -44,13 +44,20 @@ included in council dispatches — STOA composes the verdict over the six."""
 
 
 DEFAULT_PERSONAS: dict[str, dict[str, str]] = {
-    "sokrates": {"provider": "anthropic",  "model": "claude-opus-4-7",     "api_mode": "anthropic"},
-    "mira":     {"provider": "openrouter", "model": "openai/gpt-5",         "api_mode": "chat_completions"},
-    "veritas":  {"provider": "openrouter", "model": "google/gemini-2.5-pro", "api_mode": "chat_completions"},
-    "drax":     {"provider": "openrouter", "model": "xai/grok-4",            "api_mode": "chat_completions"},
-    "lyra":     {"provider": "openrouter", "model": "meta-llama/llama-3.3-405b", "api_mode": "chat_completions"},
-    "echo":     {"provider": "openrouter", "model": "mistralai/mistral-large-3", "api_mode": "chat_completions"},
-    "stoa":   {"provider": "deepseek",   "model": "deepseek-chat",        "api_mode": "chat_completions"},
+    # All chamber personas + dispatcher default to OpenRouter so a single
+    # ``OPENROUTER_API_KEY`` unlocks the whole chamber. OpenRouter
+    # proxies to every sovereign provider (Anthropic, OpenAI, Google,
+    # xAI, Meta, Mistral, DeepSeek) and tracks pricing per-call. Operators
+    # who want to hit a provider natively (e.g. anthropic direct for the
+    # 4M-context Claude Opus path) can override per-persona in
+    # ~/.stoa/cli-config.yaml under `personas:`.
+    "sokrates": {"provider": "openrouter", "model": "anthropic/claude-opus-4",    "api_mode": "chat_completions"},
+    "mira":     {"provider": "openrouter", "model": "openai/gpt-5",                "api_mode": "chat_completions"},
+    "veritas":  {"provider": "openrouter", "model": "google/gemini-2.5-pro",       "api_mode": "chat_completions"},
+    "drax":     {"provider": "openrouter", "model": "x-ai/grok-4",                 "api_mode": "chat_completions"},
+    "lyra":     {"provider": "openrouter", "model": "meta-llama/llama-3.3-70b-instruct", "api_mode": "chat_completions"},
+    "echo":     {"provider": "openrouter", "model": "mistralai/mistral-large",     "api_mode": "chat_completions"},
+    "stoa":     {"provider": "openrouter", "model": "deepseek/deepseek-chat",      "api_mode": "chat_completions"},
 }
 
 
