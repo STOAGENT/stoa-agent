@@ -32,16 +32,19 @@ from stoa_constants import get_stoa_home
 logger = logging.getLogger(__name__)
 
 
-STOA_TOKEN_CONTRACT = os.getenv(
-    "STOA_TOKEN_CONTRACT",
-    "0xd645C10050551E93e40c4C06aF4b24F790067777",  # STOA on Monad mainnet
-)
+# V-AGENT-006 — STOA token launch was dropped per the 2026-05-17 product
+# decision. No STOA token is deployed on Monad mainnet. The contract
+# address default is now empty so the gate auto-disables; council mode
+# is free in v0.x. When/if a token launches, set STOA_TOKEN_CONTRACT in
+# env + STOA_COUNCIL_MIN_HOLDING_WEI to enable real gating.
+STOA_TOKEN_CONTRACT = os.getenv("STOA_TOKEN_CONTRACT", "")
 MONAD_RPC = os.getenv("STOA_MONAD_RPC", "https://rpc.monad.xyz")
 
 # Minimum STOA holding (in wei-equivalent 18-decimal units) to unlock
-# council mode + on-chain attestation. Default is a low non-zero floor —
-# the point is "skin in the game", not "must be whale".
-COUNCIL_MIN_HOLDING = int(os.getenv("STOA_COUNCIL_MIN_HOLDING_WEI", "1000000000000000000"))  # 1 STOA
+# council mode + on-chain attestation. v0.x default is 0 (no gate);
+# set in env to enforce. The point when enforced is "skin in the game",
+# not "must be whale".
+COUNCIL_MIN_HOLDING = int(os.getenv("STOA_COUNCIL_MIN_HOLDING_WEI", "0"))
 
 WALLET_FILE = "wallet.json"
 
@@ -71,23 +74,88 @@ def _wallet_path() -> Path:
 # Bind
 # ──────────────────────────────────────────────────────────────────────────
 
+# V-AGENT-018 fix: SIWE signature recovery + verification.
+# Before this patch, `bind_wallet` accepted any (address, signature) pair
+# and persisted them without proving custody — so anyone could bind a
+# whale's address and pass the council gate without owning the key.
+def _canonical_bind_message(address: str, bound_at_ms: int) -> str:
+    """The exact UTF-8 string the caller must sign to bind ``address``.
+
+    EIP-4361-style — domain + address + chain + monotonic timestamp so a
+    signature captured from one session can't be replayed in another.
+    """
+    return (
+        "stoa-agent wants you to sign in with your Ethereum account:\n"
+        f"{address}\n\n"
+        "Bind this address to STOA Agent for council mode.\n\n"
+        f"URI: https://stoax.xyz\n"
+        f"Version: 1\n"
+        f"Chain ID: 143\n"
+        f"Issued At: {bound_at_ms}\n"
+    )
+
+
+def _verify_siwe_signature(address: str, signature: str, message: str) -> bool:
+    """Recover the signer from ``signature`` over ``message`` and compare
+    to ``address``. Returns True iff they match (case-insensitive).
+
+    Uses ``eth-account`` if available; falls back to refusing the bind
+    when the dep isn't installed (fail closed — pre-fix behavior was
+    silently accepting everything, which is what we're fixing).
+    """
+    try:
+        from eth_account import Account  # type: ignore
+        from eth_account.messages import encode_defunct  # type: ignore
+    except ImportError:
+        logger.error(
+            "eth-account not installed; cannot verify SIWE signature. "
+            "Install with `pip install eth-account` or set "
+            "STOA_GATING_BYPASS=1 if you're intentionally running ungated."
+        )
+        return False
+    try:
+        recovered = Account.recover_message(
+            encode_defunct(text=message),
+            signature=signature,
+        )
+        return recovered.lower() == address.lower()
+    except Exception as e:
+        logger.warning("SIWE recovery failed for %s: %s", address, e)
+        return False
+
+
 def bind_wallet(address: str, signature: str, note: str = "") -> WalletBinding:
     """Persist a wallet binding to ``~/.stoa/wallet.json``.
 
-    SIWE-style: the caller signed a canonical message with their wallet,
-    proving custody. The signature is stored alongside the address so the
-    operator can later prove they bound this wallet (useful for audit
-    trails). This function does NOT verify the signature — that happens
-    in M5+ when ``ecdsa`` recovery lands. For now it persists as
-    declared and lets the operator move forward.
+    V-AGENT-018 fix: the signature is now verified before persistence.
+    The caller must have signed the canonical bind message
+    (``_canonical_bind_message``) with the private key that controls the
+    claimed address. ``eth-account`` recovers the signer from the
+    signature; we require recovered == claimed before writing the file.
+
+    Raises ``ValueError`` on:
+      - malformed address (not 0x + 40 hex chars)
+      - signature that doesn't recover to ``address``
+      - eth-account not installed (fail closed)
     """
     address = address.lower()
     if not address.startswith("0x") or len(address) != 42:
         raise ValueError(f"not a valid EOA: {address}")
 
+    bound_at = int(__import__("time").time() * 1000)
+    canonical = _canonical_bind_message(address, bound_at)
+    if not _verify_siwe_signature(address, signature, canonical):
+        raise ValueError(
+            f"signature does not recover to {address}. "
+            "Re-sign the canonical bind message with the wallet's private "
+            "key and pass the result as `--signature 0x...`. "
+            "The exact message to sign is logged at DEBUG level."
+        )
+    logger.debug("SIWE signature OK for %s", address)
+
     binding = WalletBinding(
         address=address,
-        bound_at=int(__import__("time").time() * 1000),
+        bound_at=bound_at,
         signature=signature,
         note=note,
     )
@@ -181,11 +249,22 @@ def gate_council() -> GatingDecision:
 def gate_council_with_fallback() -> tuple[GatingDecision, bool]:
     """Same as ``gate_council`` but honors ``STOA_GATING_BYPASS=1``.
 
-    The bypass exists for:
+    V-AGENT-006 — when no STOA token contract is configured (default for
+    v0.x post-token-launch-cancellation), the gate auto-disables and the
+    decision is always "allowed". Operators who wire a token contract +
+    min holding take responsibility for enforcement.
+
+    The explicit bypass via env still exists for:
       - free tier (operator chooses to disable gating for their users)
       - local dev (no wallet, no RPC, but want to test council)
       - emergency unlock if the contract is being migrated
     """
+    if not STOA_TOKEN_CONTRACT:
+        # No token deployed → council mode is free in v0.x.
+        return (
+            GatingDecision(allowed=True, reason="gate_disabled"),
+            True,
+        )
     decision = gate_council()
     bypass = os.getenv("STOA_GATING_BYPASS") == "1"
     return decision, bypass
