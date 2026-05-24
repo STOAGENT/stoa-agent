@@ -67,12 +67,15 @@ def _skin_branding(key: str, fallback: str) -> str:
 
 from stoa_cli import __version__ as VERSION, __release_date__ as RELEASE_DATE
 
+# Single solid cream color across the whole logo — no gradient. The
+# cream→amber→deep-amber ramp read as "classical gold" (Hermes look).
+# Site palette is cream-on-dark, NOT gold-gradient-on-dark.
 STOA_AGENT_LOGO = f"""[bold #ffe6cb]    ███████╗████████╗ ██████╗  █████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
 [bold #ffe6cb]    ██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗     ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]
-[bold #FFBD38]    ███████╗   ██║   ██║   ██║███████║     ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   [/]
-[bold #FFBD38]    ╚════██║   ██║   ██║   ██║██╔══██║     ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   [/]
-[bold #C89222]    ███████║   ██║   ╚██████╔╝██║  ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   [/]
-[bold #C89222]    ╚══════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   [/]
+[bold #ffe6cb]    ███████╗   ██║   ██║   ██║███████║     ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   [/]
+[bold #ffe6cb]    ╚════██║   ██║   ██║   ██║██╔══██║     ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   [/]
+[bold #ffe6cb]    ███████║   ██║   ╚██████╔╝██║  ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   [/]
+[bold #ffe6cb]    ╚══════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   [/]
 [dim #9a968e]    v{VERSION}  ·  six sovereign LLMs  ·  one agent  ·  on-chain verifiable[/]"""
 
 # STOA Portico (replacing the upstream Hermes Caduceus). Greek hexastyle —

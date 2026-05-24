@@ -173,13 +173,13 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
             #   --background-base: #041c1c  (deep teal-black)
             # Borders: faint warm-cream on dark, NOT bronze/gold (which is
             # the upstream Hermes look).
-            "banner_border": "#3a2f1f",      # subtle warm-brown, almost-black
+            "banner_border": "#2a2620",      # very subtle, near-black warm
             "banner_title": "#ffe6cb",       # cream — site primary
-            "banner_accent": "#FFBD38",      # warm amber glow
+            "banner_accent": "#ffe6cb",      # cream, NOT amber — avoids "gold gradient" Hermes look
             "banner_dim": "#9a968e",         # secondary text — warm gray
             "banner_text": "#ffe6cb",        # cream — site primary
-            "ui_accent": "#FFBD38",
-            "ui_label": "#ffe6cb",
+            "ui_accent": "#ffe6cb",          # cream, was amber
+            "ui_label": "#9a968e",           # dim warm gray for category labels
             "ui_ok": "#7DC474",              # softened green (less neon)
             "ui_error": "#E06C5F",           # softened red
             "ui_warn": "#FFBD38",            # warm amber (same as accent)
