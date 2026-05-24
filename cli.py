@@ -3352,12 +3352,13 @@ class STOACLI:
             59m 59s → 1h → 1h 0m 1s → ...
             23h 59m 59s → 1d → 1d 0h 1m → ...
 
-        Emoji prefix: ⏱ when turn is live, ⏲ when frozen or fresh start.
-        Uses width-1 (no variation selector) glyphs so the status bar stays
-        aligned in monospace terminals.
+        Glyph prefix: ◆ when turn is live, ◇ when frozen or fresh start
+        (STOA-specific replacement for the upstream ⏱/⏲ clock emoji —
+        both glyphs are width-1 unambiguous so the status bar stays
+        aligned in monospace terminals).
         """
         if prompt_start_time is None and prompt_duration == 0.0:
-            return "⏲ 0s"
+            return "◇ 0s"
         elapsed = time.time() - prompt_start_time if prompt_start_time is not None else prompt_duration
         elapsed = max(0.0, elapsed)
 
@@ -3377,7 +3378,7 @@ class STOACLI:
         else:
             time_str = f"{int(elapsed)}s"
 
-        emoji = "⏱" if live else "⏲"
+        emoji = "◆" if live else "◇"
         return f"{emoji} {time_str}"
 
     def _get_status_bar_snapshot(self) -> Dict[str, Any]:
