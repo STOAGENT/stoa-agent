@@ -13,7 +13,7 @@ required_credential_files:
 metadata:
   hermes:
     tags: [Google, Gmail, Calendar, Drive, Sheets, Docs, Contacts, Email, OAuth]
-    homepage: https://github.com/stoa-xyz/stoa-agent
+    homepage: https://github.com/STOAGENT/stoa-agent
     related_skills: [himalaya]
 ---
 

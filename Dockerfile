@@ -7,11 +7,11 @@ ENV PYTHONUNBUFFERED=1
 
 # Store Playwright browsers outside the volume mount so the build-time
 # install survives the /opt/data volume overlay at runtime.
-ENV PLAYWRIGHT_BROWSERS_PATH=/opt/hermes/.playwright
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/stoa/.playwright
 
 # Install system dependencies in one layer, clear APT cache
 # tini reaps orphaned zombie processes (MCP stdio subprocesses, git, bun, etc.)
-# that would otherwise accumulate when hermes runs as PID 1. See #15012.
+# that would otherwise accumulate when stoa runs as PID 1. See #15012.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential curl nodejs npm python3 ripgrep ffmpeg gcc python3-dev libffi-dev procps git openssh-client docker-cli tini && \
@@ -23,7 +23,7 @@ RUN useradd -u 10000 -m -d /opt/data hermes
 COPY --chmod=0755 --from=gosu_source /gosu /usr/local/bin/
 COPY --chmod=0755 --from=uv_source /usr/local/bin/uv /usr/local/bin/uvx /usr/local/bin/
 
-WORKDIR /opt/hermes
+WORKDIR /opt/stoa
 
 # ---------- Layer-cached dependency install ----------
 # Copy only package manifests first so npm install + Playwright are cached
@@ -93,7 +93,7 @@ RUN cd web && npm run build && \
 # The venv needs to be traversable too.
 # node_modules trees additionally need to be writable by the hermes user
 # so the runtime `npm install` triggered by _tui_need_npm_install() in
-# stoa_cli/main.py succeeds (see #18800). /opt/hermes/web is build-time
+# stoa_cli/main.py succeeds (see #18800). /opt/stoa/web is build-time
 # only (STOA_WEB_DIST points at stoa_cli/web_dist) and is intentionally
 # not chowned here.
 # The .venv MUST remain hermes-writable so lazy_deps.py can install
@@ -101,8 +101,8 @@ RUN cd web && npm run build && \
 # Without this, `uv pip install` fails with EACCES and adapters silently
 # fail to load.  See tools/lazy_deps.py.
 USER root
-RUN chmod -R a+rX /opt/hermes && \
-    chown -R hermes:hermes /opt/hermes/.venv /opt/hermes/ui-tui /opt/hermes/node_modules
+RUN chmod -R a+rX /opt/stoa && \
+    chown -R hermes:hermes /opt/stoa/.venv /opt/stoa/ui-tui /opt/stoa/node_modules
 # Start as root so the entrypoint can usermod/groupmod + gosu.
 # If STOA_UID is unset, the entrypoint drops to the default hermes user (10000).
 
@@ -112,9 +112,9 @@ RUN chmod -R a+rX /opt/hermes && \
 RUN uv pip install --no-cache-dir --no-deps -e "."
 
 # ---------- Runtime ----------
-ENV STOA_WEB_DIST=/opt/hermes/stoa_cli/web_dist
+ENV STOA_WEB_DIST=/opt/stoa/stoa_cli/web_dist
 ENV STOA_HOME=/opt/data
 ENV PATH="/opt/data/.local/bin:${PATH}"
 RUN mkdir -p /opt/data
 VOLUME [ "/opt/data" ]
-ENTRYPOINT [ "/usr/bin/tini", "-g", "--", "/opt/hermes/docker/entrypoint.sh" ]
+ENTRYPOINT [ "/usr/bin/tini", "-g", "--", "/opt/stoa/docker/entrypoint.sh" ]

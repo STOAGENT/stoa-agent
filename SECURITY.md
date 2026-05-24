@@ -6,7 +6,7 @@ scope for vulnerability reports.
 
 ## 1. Reporting a Vulnerability
 
-Report privately via [GitHub Security Advisories](https://github.com/stoa-xyz/stoa-agent/security/advisories/new)
+Report privately via [GitHub Security Advisories](https://github.com/STOAGENT/stoa-agent/security/advisories/new)
 or **security@nousresearch.com**. Do not open public issues for
 security vulnerabilities. **STOA Agent does not operate a bug
 bounty program.**

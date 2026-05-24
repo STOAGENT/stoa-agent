@@ -234,7 +234,7 @@ def rewrite_relative_links(body: str, meta: dict[str, Any]) -> str:
     pointing to the file in the repo.
     """
     source_dir = "skills" if meta["source_kind"] == "bundled" else "optional-skills"
-    base = f"https://github.com/stoa-xyz/stoa-agent/blob/main/{source_dir}/{meta['rel_path']}"
+    base = f"https://github.com/STOAGENT/stoa-agent/blob/main/{source_dir}/{meta['rel_path']}"
 
     def sub_link(m: re.Match) -> str:
         text = m.group(1)

@@ -41,7 +41,7 @@ We value contributions in this order:
 ### Clone and Install
 
 ```bash
-git clone --recurse-submodules https://github.com/stoa-xyz/stoa-agent.git
+git clone --recurse-submodules https://github.com/STOAGENT/stoa-agent.git
 cd stoa-agent
 
 # Create venv with Python 3.11
@@ -90,7 +90,7 @@ pytest tests/ -v
 - **Comments**: Only when explaining non-obvious intent, trade-offs, or API quirks
 - **Error handling**: Catch specific exceptions. Use `logger.warning()`/`logger.error()` with `exc_info=True` for unexpected errors
 - **Cross-platform**: Never assume Unix (see below)
-- **Profile-safe paths**: Never hardcode `~/.stoa` — use `get_stoa_home()` from `stoa_constants` for code paths and `display_stoa_home()` for user-facing messages. See [AGENTS.md](https://github.com/stoa-xyz/stoa-agent/blob/main/AGENTS.md#profiles-multi-instance-support) for full rules.
+- **Profile-safe paths**: Never hardcode `~/.stoa` — use `get_stoa_home()` from `stoa_constants` for code paths and `display_stoa_home()` for user-facing messages. See [AGENTS.md](https://github.com/STOAGENT/stoa-agent/blob/main/AGENTS.md#profiles-multi-instance-support) for full rules.
 
 ## Cross-Platform Compatibility
 
@@ -226,7 +226,7 @@ fix(security): prevent shell injection in sudo password piping
 
 ## Reporting Issues
 
-- Use [GitHub Issues](https://github.com/stoa-xyz/stoa-agent/issues)
+- Use [GitHub Issues](https://github.com/STOAGENT/stoa-agent/issues)
 - Include: OS, Python version, Hermes version (`hermes version`), full error traceback
 - Include steps to reproduce
 - Check existing issues before creating duplicates
@@ -240,4 +240,4 @@ fix(security): prevent shell injection in sudo password piping
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [MIT License](https://github.com/stoa-xyz/stoa-agent/blob/main/LICENSE).
+By contributing, you agree that your contributions will be licensed under the [MIT License](https://github.com/STOAGENT/stoa-agent/blob/main/LICENSE).

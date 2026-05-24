@@ -27,7 +27,7 @@ iex (irm https://stoax.xyz/install.ps1)
 
 **Direct from source**
 ```sh
-git clone https://github.com/stoa-xyz/stoa-agent
+git clone https://github.com/STOAGENT/stoa-agent
 cd stoa-agent
 uv venv && uv pip install -e .
 stoa setup
@@ -143,5 +143,5 @@ MIT. See [LICENSE](LICENSE). The original Hermes Agent license is preserved unch
 - Docs · https://stoax.xyz/cli
 - Chamber · https://stoax.xyz
 - Token · [STOA on nad.fun](https://nad.fun/tokens/0xd645C10050551E93e40c4C06aF4b24F790067777)
-- Source · https://github.com/stoa-xyz/stoa-agent
+- Source · https://github.com/STOAGENT/stoa-agent
 - Upstream · https://github.com/NousResearch/hermes-agent

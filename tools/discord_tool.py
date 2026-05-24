@@ -79,7 +79,7 @@ def _discord_request(
         headers={
             "Authorization": f"Bot {token}",
             "Content-Type": "application/json",
-            "User-Agent": "Stoa-Agent (https://github.com/stoa-xyz/stoa-agent)",
+            "User-Agent": "Stoa-Agent (https://github.com/STOAGENT/stoa-agent)",
         },
     )
 

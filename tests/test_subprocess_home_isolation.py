@@ -4,7 +4,7 @@ Verifies that subprocesses (terminal, execute_code, background processes)
 receive a per-profile HOME directory while the Python process's own HOME
 and Path.home() remain unchanged.
 
-See: https://github.com/stoa-xyz/stoa-agent/issues/4426
+See: https://github.com/STOAGENT/stoa-agent/issues/4426
 """
 
 import os

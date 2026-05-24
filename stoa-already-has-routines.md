@@ -153,7 +153,7 @@ Full automation templates gallery: [stoa-agent.nousresearch.com/docs/guides/auto
 
 Documentation: [stoa-agent.nousresearch.com](https://stoa-agent.nousresearch.com)
 
-GitHub: [github.com/stoa-xyz/stoa-agent](https://github.com/stoa-xyz/stoa-agent)
+GitHub: [github.com/STOAGENT/stoa-agent](https://github.com/STOAGENT/stoa-agent)
 
 ---
 

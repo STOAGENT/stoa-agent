@@ -6,7 +6,7 @@ Usage (via cron with --no-agent):
     hermes cron create hermes-issues \\
       --schedule "*/5 * * * *" --no-agent \\
       --script "$STOA_HOME/skills/devops/watchers/scripts/watch_github.py" \\
-      --script-args "--name hermes-issues --repo stoa-xyz/stoa-agent --scope issues"
+      --script-args "--name hermes-issues --repo STOAGENT/stoa-agent --scope issues"
 
 Set GITHUB_TOKEN (or GH_TOKEN) in ~/.stoa/.env to avoid the 60 req/hr
 anonymous rate limit.

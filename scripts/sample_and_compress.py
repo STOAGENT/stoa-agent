@@ -29,7 +29,7 @@ load_dotenv()
 # Default datasets to sample from
 DEFAULT_DATASETS = [
     "stoa-xyz/swe-terminus-agent-glm-kimi-minimax",
-    "stoa-xyz/stoa-agent-megascience-sft1",
+    "STOAGENT/stoa-agent-megascience-sft1",
     "stoa-xyz/Stoa-Agent-Thinking-GLM-4.7-SFT2",
     "stoa-xyz/Stoa-Agent-Thinking-GLM-4.7-SFT1",
     "stoa-xyz/terminal-tasks-glm-stoa-agent"

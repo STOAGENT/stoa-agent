@@ -6954,7 +6954,7 @@ def _update_via_zip(args):
 
     branch = "main"
     zip_url = (
-        f"https://github.com/stoa-xyz/stoa-agent/archive/refs/heads/{branch}.zip"
+        f"https://github.com/STOAGENT/stoa-agent/archive/refs/heads/{branch}.zip"
     )
 
     print("→ Downloading latest version...")
@@ -7280,12 +7280,12 @@ def _restore_stashed_changes(
 # =========================================================================
 
 OFFICIAL_REPO_URLS = {
-    "https://github.com/stoa-xyz/stoa-agent.git",
-    "git@github.com:stoa-xyz/stoa-agent.git",
-    "https://github.com/stoa-xyz/stoa-agent",
-    "git@github.com:stoa-xyz/stoa-agent",
+    "https://github.com/STOAGENT/stoa-agent.git",
+    "git@github.com:STOAGENT/stoa-agent.git",
+    "https://github.com/STOAGENT/stoa-agent",
+    "git@github.com:STOAGENT/stoa-agent",
 }
-OFFICIAL_REPO_URL = "https://github.com/stoa-xyz/stoa-agent.git"
+OFFICIAL_REPO_URL = "https://github.com/STOAGENT/stoa-agent.git"
 SKIP_UPSTREAM_PROMPT_FILE = ".skip_upstream_prompt"
 
 
@@ -7419,7 +7419,7 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
         # Ask user if they want to add upstream
         print()
         print("ℹ Your fork is not tracking the official Hermes repository.")
-        print("  This means you may miss updates from stoa-xyz/stoa-agent.")
+        print("  This means you may miss updates from STOAGENT/stoa-agent.")
         print()
         try:
             response = (
@@ -7433,7 +7433,7 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
             print("→ Adding upstream remote...")
             if _add_upstream_remote(git_cmd, cwd):
                 print(
-                    "  ✓ Added upstream: https://github.com/stoa-xyz/stoa-agent.git"
+                    "  ✓ Added upstream: https://github.com/STOAGENT/stoa-agent.git"
                 )
                 has_upstream = True
             else:
@@ -7441,7 +7441,7 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
                 return
         else:
             print(
-                "  Skipped. Run 'git remote add upstream https://github.com/stoa-xyz/stoa-agent.git' to add later."
+                "  Skipped. Run 'git remote add upstream https://github.com/STOAGENT/stoa-agent.git' to add later."
             )
             _mark_skip_upstream_prompt()
             return
@@ -8677,7 +8677,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
                 return
             print("✗ Not a git repository. Please reinstall:")
             print(
-                "  curl -fsSL https://raw.githubusercontent.com/stoa-xyz/stoa-agent/main/scripts/install.sh | bash"
+                "  curl -fsSL https://raw.githubusercontent.com/STOAGENT/stoa-agent/main/scripts/install.sh | bash"
             )
             sys.exit(1)
 
@@ -11479,7 +11479,7 @@ def main():
     slack_manifest.add_argument(
         "--name",
         default=None,
-        help='Bot display name (default: "Hermes")',
+        help='Bot display name (default: "STOA")',
     )
     slack_manifest.add_argument(
         "--description",

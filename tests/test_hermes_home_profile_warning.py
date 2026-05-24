@@ -1,6 +1,6 @@
 """Tests for get_stoa_home() profile-mode fallback warning.
 
-Regression test for https://github.com/stoa-xyz/stoa-agent/issues/18594.
+Regression test for https://github.com/STOAGENT/stoa-agent/issues/18594.
 
 When STOA_HOME is unset but an active_profile file indicates a non-default
 profile is active, get_stoa_home() should:

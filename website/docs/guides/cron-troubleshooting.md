@@ -214,7 +214,7 @@ If you've worked through this guide and the issue persists:
 
 1. Run the job with `hermes cron run <job_id>` (fires on next gateway tick) and watch for errors in the chat output
 2. Check `~/.stoa/logs/agent.log` for scheduler messages and `~/.stoa/logs/errors.log` for warnings
-3. Open an issue at [github.com/stoa-xyz/stoa-agent](https://github.com/stoa-xyz/stoa-agent) with:
+3. Open an issue at [github.com/STOAGENT/stoa-agent](https://github.com/STOAGENT/stoa-agent) with:
    - The job ID and schedule
    - The delivery target
    - What you expected vs. what happened

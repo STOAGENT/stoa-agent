@@ -215,7 +215,7 @@ def emit_llms_index() -> str:
         "(Linux, macOS, WSL2, Termux)"
     )
     lines.append("")
-    lines.append("Repo: https://github.com/stoa-xyz/stoa-agent")
+    lines.append("Repo: https://github.com/STOAGENT/stoa-agent")
     lines.append("")
 
     for section, items in SECTIONS:

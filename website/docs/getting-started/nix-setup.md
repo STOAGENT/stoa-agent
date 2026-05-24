@@ -35,11 +35,11 @@ No clone needed. Nix fetches, builds, and runs everything:
 
 ```bash
 # Run directly (builds on first use, cached after)
-nix run github:stoa-xyz/stoa-agent -- setup
-nix run github:stoa-xyz/stoa-agent -- chat
+nix run github:STOAGENT/stoa-agent -- setup
+nix run github:STOAGENT/stoa-agent -- chat
 
 # Or install persistently
-nix profile install github:stoa-xyz/stoa-agent
+nix profile install github:STOAGENT/stoa-agent
 hermes setup
 hermes chat
 ```
@@ -50,7 +50,7 @@ After `nix profile install`, `hermes`, `stoa-agent`, and `hermes-acp` are on you
 <summary><strong>Building from a local clone</strong></summary>
 
 ```bash
-git clone https://github.com/stoa-xyz/stoa-agent.git
+git clone https://github.com/STOAGENT/stoa-agent.git
 cd stoa-agent
 nix build
 ./result/bin/hermes setup
@@ -75,7 +75,7 @@ This module requires NixOS. For non-NixOS systems (macOS, other Linux distros), 
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    stoa-agent.url = "github:stoa-xyz/stoa-agent";
+    stoa-agent.url = "github:STOAGENT/stoa-agent";
   };
 
   outputs = { nixpkgs, stoa-agent, ... }: {
@@ -685,7 +685,7 @@ External flakes can override the package directly:
 
 ```nix
 {
-  inputs.stoa-agent.url = "github:stoa-xyz/stoa-agent";
+  inputs.stoa-agent.url = "github:STOAGENT/stoa-agent";
   outputs = { stoa-agent, nixpkgs, ... }: {
     nixpkgs.overlays = [ stoa-agent.overlays.default ];
     # Then:

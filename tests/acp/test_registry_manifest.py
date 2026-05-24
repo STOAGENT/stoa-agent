@@ -32,7 +32,7 @@ def test_agent_json_matches_official_registry_required_fields():
     assert re.fullmatch(r"[a-z][a-z0-9-]*", data["id"])
     assert data["name"] == "STOA Agent"
     assert data["description"]
-    assert data["repository"] == "https://github.com/stoa-xyz/stoa-agent"
+    assert data["repository"] == "https://github.com/STOAGENT/stoa-agent"
     assert data["website"].startswith("https://stoa-agent.nousresearch.com/")
     assert data["authors"] == ["STOA"]
     assert data["license"] == "MIT"

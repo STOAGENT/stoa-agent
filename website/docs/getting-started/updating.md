@@ -140,7 +140,7 @@ You no longer need to wrap `hermes update` in `screen` or `tmux` to survive a te
 hermes version
 ```
 
-Compare against the latest release at the [GitHub releases page](https://github.com/stoa-xyz/stoa-agent/releases).
+Compare against the latest release at the [GitHub releases page](https://github.com/STOAGENT/stoa-agent/releases).
 
 ### Updating from Messaging Platforms
 
