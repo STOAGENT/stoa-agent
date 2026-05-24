@@ -89,21 +89,17 @@ STOA_AGENT_LOGO = f"""[bold #ffe6cb]    ███████╗█████�
 # Colors map to provider brand: top/Sokrates blue, UL/Lyra yellow,
 # UR/Mira lavender, center/Hermes cream, LL/Veritas cyan, LR/Drax red,
 # bottom/Echo violet.
-# Big "S" monogram — STOA's first letter rendered in ANSI_SHADOW
-# figlet style, scaled to fill the left panel width. Gradient cream
-# → amber → deep amber from top to bottom (web app brand palette).
-# Wordmark + tagline below.
-STOA_CADUCEUS = """[bold #ffe6cb]      ██████████████╗      [/]
-[bold #ffe6cb]      ██╔═══════════╝      [/]
-[bold #FFBD38]      ██║                  [/]
-[bold #FFBD38]      ██████████████╗      [/]
-[bold #FFBD38]      ╚═══════════██║      [/]
-[bold #C89222]                  ██║      [/]
-[bold #C89222]      ██████████████║      [/]
-[bold #C89222]      ╚══════════════╝      [/]
+# Minimal wordmark only. User iterated through 7-orb hexagon, big
+# asterism, and ANSI-shadow S monogram — all stripped. The left panel
+# now reads as just the brand line. Right panel (tools + skills) does
+# the heavy visual lifting.
+STOA_CADUCEUS = """
 
 [bold #ffe6cb]      ⁂  S T O A      [/]
 [dim #9a968e]   the chamber of seven   [/]
+
+
+
 """
 
 
