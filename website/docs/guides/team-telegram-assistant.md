@@ -41,7 +41,7 @@ Every Telegram bot starts with **@BotFather** — Telegram's official bot for cr
 1. **Open Telegram** and search for `@BotFather`, or go to [t.me/BotFather](https://t.me/BotFather)
 
 2. **Send `/newbot`** — BotFather will ask you two things:
-   - **Display name** — what users see (e.g., `Team Hermes Assistant`)
+   - **Display name** — what users see (e.g., `Team STOA Assistant`)
    - **Username** — must end in `bot` (e.g., `myteam_stoa_bot`)
 
 3. **Copy the bot token** — BotFather replies with something like:

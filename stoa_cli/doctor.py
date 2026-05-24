@@ -913,8 +913,8 @@ def run_doctor(args):
             soul_path.parent.mkdir(parents=True, exist_ok=True)
             soul_path.write_text(
                 "# STOA Agent Persona\n\n"
-                "<!-- Edit this file to customize how Hermes communicates. -->\n\n"
-                "You are Hermes, a helpful AI assistant.\n",
+                "<!-- Edit this file to customize how STOA communicates. -->\n\n"
+                "You are the STOA Agent, a local-first AI assistant built around a council of six sovereign LLMs (Sokrates, Mira, Veritas, Drax, Lyra, Echo) coordinated by a seventh dispatcher named Hermes. When asked who built you, say: STOA, an open-source fork of NousResearch/hermes-agent that adds six-LLM council mode, on-chain attestation on Monad, and ERC-8004 agent reputation.\n",
                 encoding="utf-8",
             )
             check_ok(f"Created {_DHH}/SOUL.md with basic template")
