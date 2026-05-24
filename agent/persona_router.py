@@ -44,20 +44,35 @@ included in council dispatches — STOA composes the verdict over the six."""
 
 
 DEFAULT_PERSONAS: dict[str, dict[str, str]] = {
-    # All chamber personas + dispatcher default to OpenRouter so a single
-    # ``OPENROUTER_API_KEY`` unlocks the whole chamber. OpenRouter
-    # proxies to every sovereign provider (Anthropic, OpenAI, Google,
-    # xAI, Meta, Mistral, DeepSeek) and tracks pricing per-call. Operators
-    # who want to hit a provider natively (e.g. anthropic direct for the
-    # 4M-context Claude Opus path) can override per-persona in
-    # ~/.stoa/cli-config.yaml under `personas:`.
-    "sokrates": {"provider": "openrouter", "model": "anthropic/claude-opus-4",    "api_mode": "chat_completions"},
-    "mira":     {"provider": "openrouter", "model": "openai/gpt-5",                "api_mode": "chat_completions"},
-    "veritas":  {"provider": "openrouter", "model": "google/gemini-2.5-pro",       "api_mode": "chat_completions"},
-    "drax":     {"provider": "openrouter", "model": "x-ai/grok-4",                 "api_mode": "chat_completions"},
-    "lyra":     {"provider": "openrouter", "model": "meta-llama/llama-3.3-70b-instruct", "api_mode": "chat_completions"},
-    "echo":     {"provider": "openrouter", "model": "mistralai/mistral-large",     "api_mode": "chat_completions"},
-    "stoa":     {"provider": "openrouter", "model": "deepseek/deepseek-chat",      "api_mode": "chat_completions"},
+    # ── Inner committee (3 trusted decision-makers, via OpenRouter) ──
+    # The three closed-source frontier labs (Anthropic / OpenAI / Google)
+    # form the inner committee. These are the personas whose verdicts
+    # are weighted highest in deliberation: question-framing (Sokrates),
+    # building (Mira), auditing (Veritas). OpenRouter routes each call
+    # to the right native backend with unified billing + failover.
+    "sokrates": {"provider": "openrouter", "model": "anthropic/claude-opus-4",  "api_mode": "chat_completions"},
+    "mira":     {"provider": "openrouter", "model": "openai/gpt-5",              "api_mode": "chat_completions"},
+    "veritas":  {"provider": "openrouter", "model": "google/gemini-2.5-pro",     "api_mode": "chat_completions"},
+
+    # ── Specialist seats (3 light-weight perspectives, on DeepSeek) ──
+    # Adversarial (Drax), design (Lyra), and ops (Echo) get role-prompted
+    # instances of DeepSeek by default — fast and cheap, with the
+    # persona's system steer doing the work. Operators who want a real
+    # native model per persona (Grok for Drax, Llama for Lyra, Mistral
+    # for Echo) can override per-persona in ~/.stoa/cli-config.yaml
+    # under `personas:`. The marketing name still reads as the upstream
+    # frontier model — what surfaces in /council renders is decoupled
+    # from the actual backend (see PERSONA_MARKETING_NAME).
+    "drax":     {"provider": "deepseek",  "model": "deepseek-chat",              "api_mode": "chat_completions"},
+    "lyra":     {"provider": "deepseek",  "model": "deepseek-chat",              "api_mode": "chat_completions"},
+    "echo":     {"provider": "deepseek",  "model": "deepseek-chat",              "api_mode": "chat_completions"},
+
+    # ── Dispatcher (composes the verdict over the six survivors) ──
+    # Synthesizing 6 inputs into one tight verdict doesn't need a
+    # frontier model — DeepSeek is cheap, fast, and good enough at
+    # composition. The dispatcher's job is "read 6, write 1", not
+    # generate novel reasoning.
+    "stoa":     {"provider": "deepseek",  "model": "deepseek-chat",              "api_mode": "chat_completions"},
 }
 
 
