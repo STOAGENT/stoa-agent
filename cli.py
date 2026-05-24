@@ -2586,15 +2586,20 @@ STOA_AGENT_LOGO = """[bold #ffe6cb]    ███████╗█████�
 [dim #9a968e]    v0.14.0  ·  six sovereign LLMs  ·  one agent  ·  on-chain verifiable[/]"""
 
 # ASCII Art - STOA Caduceus (compact, fits in left panel)
-STOA_CADUCEUS = """
+STOA_CADUCEUS = """[bold #ffe6cb]            ✦            [/]
+[bold #FFBD38]          ╲ │ ╱          [/]
+[bold #ffe6cb]          ─ ✸ ─          [/]
+[bold #FFBD38]          ╱ │ ╲          [/]
+[bold #ffe6cb]            ✦            [/]
 
-[bold #ffe6cb]    ⁂  S T O A    [/]
-[dim #9a968e]  the chamber of seven  [/]
+[bold #ffe6cb]      ✦              ✦      [/]
+[bold #FFBD38]    ╲ │ ╱          ╲ │ ╱    [/]
+[bold #ffe6cb]    ─ ✸ ─          ─ ✸ ─    [/]
+[bold #FFBD38]    ╱ │ ╲          ╱ │ ╲    [/]
+[bold #ffe6cb]      ✦              ✦      [/]
 
-
-
-
-
+[bold #ffe6cb]      ⁂  S T O A      [/]
+[dim #9a968e]   the chamber of seven   [/]
 """
 
 
