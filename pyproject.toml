@@ -215,9 +215,11 @@ all = [
 stoa = "stoa_cli.main:main"
 stoa-agent = "run_agent:main"
 stoa-acp = "acp_adapter.entry:main"
-# Legacy aliases — keep working during the STOA → STOA muscle-memory transition.
-stoa = "stoa_cli.main:main"
-stoa-acp = "acp_adapter.entry:main"
+# Legacy aliases — keep working during the Hermes → STOA muscle-memory transition.
+# The bulk Hermes→STOA sweep collapsed both `hermes` and `stoa` aliases into
+# the same key, which is a TOML duplicate-key error. Legacy `hermes` /
+# `hermes-acp` names were dropped intentionally since the migration shim
+# in stoa_cli/hermes_migrate.py provides the one-time port path.
 
 [tool.setuptools]
 py-modules = ["run_agent", "model_tools", "toolsets", "batch_runner", "trajectory_compressor", "toolset_distributions", "cli", "stoa_bootstrap", "stoa_constants", "stoa_state", "stoa_time", "stoa_logging", "utils"]
