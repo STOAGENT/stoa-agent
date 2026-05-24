@@ -629,25 +629,44 @@ class DockerEnvironment(BaseEnvironment):
     def cleanup(self):
         """Stop and remove the container. Bind-mount dirs persist if persistent=True."""
         if self._container_id:
+            # V-AGENT-012 — list-form subprocess (no shell=True). Eliminates
+            # the template-string interpolation footgun where any future
+            # contributor copying this pattern with untrusted values would
+            # introduce a shell-injection vector. Today's call sites already
+            # come from trusted sources (docker run stdout = hex container
+            # ID; docker_exe = PATH lookup of trusted binary), but the
+            # defense-in-depth here closes the pattern.
             try:
-                # Stop in background so cleanup doesn't block
-                stop_cmd = (
-                    f"(timeout 60 {self._docker_exe} stop {self._container_id} || "
-                    f"{self._docker_exe} rm -f {self._container_id}) >/dev/null 2>&1 &"
+                # Stop in background (Popen doesn't wait by default).
+                subprocess.Popen(
+                    ["timeout", "60", self._docker_exe, "stop", self._container_id],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
                 )
-                subprocess.Popen(stop_cmd, shell=True)
+                # Belt-and-suspenders: force-remove in parallel; rm -f on a
+                # still-stopping container is idempotent.
+                subprocess.Popen(
+                    [self._docker_exe, "rm", "-f", self._container_id],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
             except Exception as e:
                 logger.warning("Failed to stop container %s: %s", self._container_id, e)
 
             if not self._persistent:
-                # Also schedule removal (stop only leaves it as stopped)
-                try:
-                    subprocess.Popen(
-                        f"sleep 3 && {self._docker_exe} rm -f {self._container_id} >/dev/null 2>&1 &",
-                        shell=True,
-                    )
-                except Exception:
-                    pass
+                # Also schedule removal as a fallback after a short delay.
+                # Use threading.Timer instead of a shell `sleep && ...` pipe.
+                import threading as _threading
+                def _delayed_rm(docker_exe: str, container_id: str) -> None:
+                    try:
+                        subprocess.Popen(
+                            [docker_exe, "rm", "-f", container_id],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                        )
+                    except Exception:
+                        pass
+                _threading.Timer(3.0, _delayed_rm, args=(self._docker_exe, self._container_id)).start()
             self._container_id = None
 
         if not self._persistent:
