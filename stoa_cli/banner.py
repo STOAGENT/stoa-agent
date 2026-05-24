@@ -80,30 +80,30 @@ STOA_AGENT_LOGO = f"""[bold #ffe6cb]    ███████╗█████�
 # under one roof". Width: 30 chars to match the legacy caduceus envelope.
 # Kept the legacy symbol name so existing call sites (banner.py:507/510)
 # don't need to change.
-# STOA brand mark — seven-orb chamber. 6 sovereign LLMs in hexagonal
-# arrangement around 1 center dispatcher (Hermes). Each outer orb's
-# color maps to its provider's brand color (Sokrates/Claude blue,
-# Mira/GPT lavender, Drax/Grok red, Echo/Mistral violet, Veritas/Gemini
-# cyan, Lyra/Llama warm yellow), center is STOA cream. Wordmark + tagline
-# sit ABOVE the orbs so the brand reads first; orbs are the supporting
-# visual underneath.
-STOA_CADUCEUS = """[bold #ffe6cb]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⁂  S T O A⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[dim #9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀the chamber of seven⠀⠀⠀⠀⠀⠀[/]
-[#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #5DB8F5]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⬤⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[dim #5a3a18]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╲⠀│⠀╱⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #F0D585]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⬤[/][dim #5a3a18]⠀⠀⠀⠀⠀⠀⠀⠀[/][bold #C28BFF]⬤[/]
-[dim #5a3a18]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╲⠀⠀⠀│⠀⠀⠀╱⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #ffe6cb]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⬤⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[dim #5a3a18]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╱⠀⠀⠀│⠀⠀⠀╲⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #7DC4FF]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⬤[/][dim #5a3a18]⠀⠀⠀⠀⠀⠀⠀⠀[/][bold #FF6B6B]⬤[/]
-[dim #5a3a18]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╱⠀│⠀╲⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #A878FF]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⬤⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]"""
+# STOA brand mark — seven-orb chamber, hexagonal layout (1 center +
+# 6 around). Rewritten v2 after the braille-padding + mixed-color-spans
+# version rendered as a broken vertical stack on the user's terminal.
+# Now: plain ASCII spaces (no U+2800), each orb on its own line with
+# a single color span, fixed-width single-cell `●` chars throughout.
+# Colors map to provider brand: Sokrates/Claude blue, Mira/GPT
+# lavender, Drax/Grok red, Echo/Mistral violet, Veritas/Gemini cyan,
+# Lyra/Llama warm yellow, center is STOA cream.
+STOA_CADUCEUS = """[bold #ffe6cb]            ⁂  S T O A             [/]
+[dim #9a968e]         the chamber of seven       [/]
+
+[bold #5DB8F5]                  ●                [/]
+[dim #5a3a18]                ╲ │ ╱              [/]
+[bold #F0D585]            ●         [/][bold #C28BFF]●            [/]
+[dim #5a3a18]             ╲   │   ╱             [/]
+[bold #ffe6cb]                  ●                [/]
+[dim #5a3a18]             ╱   │   ╲             [/]
+[bold #7DC4FF]            ●         [/][bold #FF6B6B]●            [/]
+[dim #5a3a18]                ╱ │ ╲              [/]
+[bold #A878FF]                  ●                [/]
+
+
+
+"""
 
 
 
@@ -626,7 +626,14 @@ def build_welcome_banner(console: Console, model: str, cwd: str,
     total_skills = sum(len(s) for s in skills_by_category.values())
 
     if skills_by_category:
-        for category in sorted(skills_by_category.keys()):
+        # STOA-native skill categories lead, then the rest alphabetically.
+        # These categories are the differentiator (council, monad, erc8004,
+        # solidity audit pipeline, MEV watchdog, etc.) and should not be
+        # buried after 'autonomous-ai-agents' / 'creative' / 'data-science'.
+        _PRIORITY_CATEGORIES = ("stoa",)
+        _priority_present = [c for c in _PRIORITY_CATEGORIES if c in skills_by_category]
+        _rest = sorted(c for c in skills_by_category if c not in _PRIORITY_CATEGORIES)
+        for category in (*_priority_present, *_rest):
             skill_names = sorted(skills_by_category[category])
             if len(skill_names) > 8:
                 display_names = skill_names[:8]
