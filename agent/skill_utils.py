@@ -329,9 +329,28 @@ def get_all_skills_dirs() -> List[Path]:
 
     The local dir is always first (and always included even if it doesn't exist
     yet — callers handle that).  External dirs follow in config order.
+
+    V-AGENT-014 — opt-in: skills under ``optional-skills/`` (e.g. the
+    red-teaming bundle that bypasses LLM safety filters) are NOT
+    auto-loaded. The user must explicitly set ``STOA_ENABLE_REDTEAM=1``
+    (or, more generally, ``STOA_ENABLE_OPTIONAL_SKILLS=1``) before STOA
+    will discover them. This keeps the default install free of
+    aggressive tools that could land the operator in ToS-violation
+    territory against API-served LLM providers.
     """
+    import os
     dirs = [get_skills_dir()]
     dirs.extend(get_external_skills_dirs())
+    if os.getenv("STOA_ENABLE_REDTEAM", "0") == "1" or os.getenv("STOA_ENABLE_OPTIONAL_SKILLS", "0") == "1":
+        # Repo-bundled optional skills live at <repo_root>/optional-skills/.
+        # Walk parents until we find one — works whether STOA is installed
+        # editable, packaged, or run from a clone.
+        here = Path(__file__).resolve()
+        for parent in (here.parent.parent, here.parent.parent.parent):
+            candidate = parent / "optional-skills"
+            if candidate.exists() and candidate.is_dir():
+                dirs.append(candidate)
+                break
     return dirs
 
 
