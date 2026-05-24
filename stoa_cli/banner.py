@@ -89,14 +89,18 @@ STOA_AGENT_LOGO = f"""[bold #ffe6cb]    ███████╗█████�
 # Colors map to provider brand: top/Sokrates blue, UL/Lyra yellow,
 # UR/Mira lavender, center/Hermes cream, LL/Veritas cyan, LR/Drax red,
 # bottom/Echo violet.
-STOA_CADUCEUS = """[bold #ffe6cb]         ⁂  S T O A          [/]
-[dim #9a968e]      the chamber of seven      [/]
+# Per user preference: no decorative art in the left panel. The
+# 7-orb hexagon attempts (and earlier caduceus) didn't match the
+# user's visual standard — monospace can't replicate the photo-
+# quality reference. Stripped to a clean wordmark + tagline.
+# Vertical padding preserved so the right panel (tools + skills)
+# still has a left-edge anchor.
+STOA_CADUCEUS = """
 
-[bold #5DB8F5]              ⬤              [/]
-      [bold #F0D585]⬤[/]              [bold #C28BFF]⬤[/]
-[bold #ffe6cb]              ⬤              [/]
-      [bold #7DC4FF]⬤[/]              [bold #FF6B6B]⬤[/]
-[bold #A878FF]              ⬤              [/]
+[bold #ffe6cb]    ⁂  S T O A    [/]
+[dim #9a968e]  the chamber of seven  [/]
+
+
 
 
 
