@@ -164,24 +164,38 @@ class SkinConfig:
 _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
     "default": {
         "name": "default",
-        "description": "Classic STOA — gold and kawaii",
+        "description": "STOA — warm cream on deep teal-black (matches stoax.xyz)",
         "colors": {
-            "banner_border": "#CD7F32",
-            "banner_title": "#FFD700",
-            "banner_accent": "#FFBF00",
-            "banner_dim": "#B8860B",
-            "banner_text": "#FFF8DC",
-            "ui_accent": "#FFBF00",
-            "ui_label": "#DAA520",
-            "ui_ok": "#4caf50",
-            "ui_error": "#ef5350",
-            "ui_warn": "#ffa726",
-            "prompt": "#FFF8DC",
-            "input_rule": "#CD7F32",
-            "response_border": "#FFD700",
-            "status_bar_bg": "#1a1a2e",
-            "session_label": "#DAA520",
-            "session_border": "#8B8682",
+            # All colors pulled from the web app palette
+            # (web/src/index.css):
+            #   --midground-base:  #ffe6cb  (primary text — cream)
+            #   --warm-glow:       #FFBD38  (accent — amber glow)
+            #   --background-base: #041c1c  (deep teal-black)
+            # Borders: faint warm-cream on dark, NOT bronze/gold (which is
+            # the upstream Hermes look).
+            "banner_border": "#3a2f1f",      # subtle warm-brown, almost-black
+            "banner_title": "#ffe6cb",       # cream — site primary
+            "banner_accent": "#FFBD38",      # warm amber glow
+            "banner_dim": "#9a968e",         # secondary text — warm gray
+            "banner_text": "#ffe6cb",        # cream — site primary
+            "ui_accent": "#FFBD38",
+            "ui_label": "#ffe6cb",
+            "ui_ok": "#7DC474",              # softened green (less neon)
+            "ui_error": "#E06C5F",           # softened red
+            "ui_warn": "#FFBD38",            # warm amber (same as accent)
+            "prompt": "#ffe6cb",
+            "input_rule": "#3a2f1f",         # subtle, matches border
+            "response_border": "#FFBD38",
+            "status_bar_bg": "#041c1c",      # site deep teal-black
+            "status_bar_text": "#ffe6cb",
+            "status_bar_strong": "#FFBD38",
+            "status_bar_dim": "#9a968e",
+            "status_bar_good": "#7DC474",
+            "status_bar_warn": "#FFBD38",
+            "status_bar_bad": "#FF9B5C",     # warm orange (not red, matches palette)
+            "status_bar_critical": "#E06C5F",
+            "session_label": "#ffe6cb",
+            "session_border": "#9a968e",
         },
         "spinner": {
             # Empty = use hardcoded defaults in display.py
@@ -189,12 +203,12 @@ _BUILTIN_SKINS: Dict[str, Dict[str, Any]] = {
         "branding": {
             "agent_name": "STOA Agent",
             "welcome": "Welcome to STOA Agent! Type your message or /help for commands.",
-            "goodbye": "Goodbye! ⚕",
-            "response_label": " ⚕ STOA ",
-            "prompt_symbol": "❯",
-            "help_header": "(^_^)? Available Commands",
+            "goodbye": "Goodbye! ⁂",
+            "response_label": " ⁂ STOA ",
+            "prompt_symbol": "›",
+            "help_header": "⁂ Available Commands",
         },
-        "tool_prefix": "┊",
+        "tool_prefix": "·",
     },
     "ares": {
         "name": "ares",
