@@ -89,22 +89,18 @@ STOA_AGENT_LOGO = f"""[bold #ffe6cb]    ███████╗█████�
 # Colors map to provider brand: top/Sokrates blue, UL/Lyra yellow,
 # UR/Mira lavender, center/Hermes cream, LL/Veritas cyan, LR/Drax red,
 # bottom/Echo violet.
-# Big ⁂ asterism — user liked the small typographic ⁂ glyph but
-# wanted it scaled up. Rendered here as 3 large stars in the
-# canonical asterism triangle (1 top, 2 bottom). Each star is
-# drawn as ✦ on the cardinal axes + ✸ at the center + thin
-# diagonal/orthogonal rays. Cream brand color throughout.
-STOA_CADUCEUS = """[bold #ffe6cb]            ✦            [/]
-[bold #FFBD38]          ╲ │ ╱          [/]
-[bold #ffe6cb]          ─ ✸ ─          [/]
-[bold #FFBD38]          ╱ │ ╲          [/]
-[bold #ffe6cb]            ✦            [/]
-
-[bold #ffe6cb]      ✦              ✦      [/]
-[bold #FFBD38]    ╲ │ ╱          ╲ │ ╱    [/]
-[bold #ffe6cb]    ─ ✸ ─          ─ ✸ ─    [/]
-[bold #FFBD38]    ╱ │ ╲          ╱ │ ╲    [/]
-[bold #ffe6cb]      ✦              ✦      [/]
+# Big "S" monogram — STOA's first letter rendered in ANSI_SHADOW
+# figlet style, scaled to fill the left panel width. Gradient cream
+# → amber → deep amber from top to bottom (web app brand palette).
+# Wordmark + tagline below.
+STOA_CADUCEUS = """[bold #ffe6cb]      ██████████████╗      [/]
+[bold #ffe6cb]      ██╔═══════════╝      [/]
+[bold #FFBD38]      ██║                  [/]
+[bold #FFBD38]      ██████████████╗      [/]
+[bold #FFBD38]      ╚═══════════██║      [/]
+[bold #C89222]                  ██║      [/]
+[bold #C89222]      ██████████████║      [/]
+[bold #C89222]      ╚══════════════╝      [/]
 
 [bold #ffe6cb]      ⁂  S T O A      [/]
 [dim #9a968e]   the chamber of seven   [/]
