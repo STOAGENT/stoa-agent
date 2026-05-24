@@ -14235,6 +14235,31 @@ class STOACLI:
                         n = len(submit_images)
                         _cprint(f"  {_DIM}📎 {n} image{'s' if n > 1 else ''} attached{_RST}")
 
+                    # /persona <name> overlay: when an active persona is set,
+                    # wrap the outgoing message with a one-line role steer so
+                    # the model frames its reply in that persona's voice.
+                    # Skip the overlay for slash commands (those bypass the
+                    # agent loop anyway) and for council prompts (already
+                    # carry the full chamber framing). Without this hook the
+                    # /persona command was pure UI theater — it stored the
+                    # name but never reached the model.
+                    _active = getattr(self, "_active_persona", None)
+                    _active_role = getattr(self, "_active_persona_role", None)
+                    if (
+                        _active
+                        and _active_role
+                        and isinstance(user_input, str)
+                        and not user_input.lstrip().startswith("/")
+                        and not user_input.startswith("STOA CHAMBER DISPATCH")
+                    ):
+                        user_input = (
+                            f"[STOA persona overlay — active voice: {_active.upper()} "
+                            f"({_active_role}). Frame the reply in this persona's role "
+                            "without naming yourself or repeating the role label. Stay in "
+                            "voice for this turn only.]\n\n"
+                            f"{user_input}"
+                        )
+
                     # Regular chat - run agent
                     self._agent_running = True
                     app.invalidate()  # Refresh status line

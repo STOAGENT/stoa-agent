@@ -1390,28 +1390,57 @@ def setup_tts(config: dict):
 
 
 def setup_terminal_backend(config: dict):
-    """Configure the terminal execution backend."""
+    """Configure the terminal execution backend.
+
+    Security note (V-AGENT-014 follow-up): for STOA Agent — which ships
+    a Telegram gateway that operators may expose to multiple chat users —
+    the ``local`` backend is dangerous when combined with an open
+    gateway (a compromised chat = shell on the host). The Docker backend
+    is the secure default for any operator planning to share the agent.
+    The wizard now LEADS with Docker, explains the trade-off, and reserves
+    ``local`` for solo dev use on a trusted machine.
+    """
     import platform as _platform
+    import shutil as _shutil
     print_header("Terminal Backend")
     print_info("Choose where STOA runs shell commands and code.")
     print_info("This affects tool execution, file access, and isolation.")
+    print()
+    print_info("⁂ STOA recommendation:")
+    print_info("  • Sharing the agent (Telegram bot / multi-user) → use Docker.")
+    print_info("    Each command runs in an isolated container — a compromised")
+    print_info("    chat cannot reach your host filesystem or credentials.")
+    print_info("  • Solo dev on a trusted machine → Local is fastest. Pick it")
+    print_info("    knowingly; the gateway must stay private.")
     print_info(f"   Guide: {_DOCS_BASE}/developer-guide/environments")
+    if not _shutil.which("docker"):
+        print()
+        print_info("⚠ Docker not detected on PATH. The Docker option will be")
+        print_info("  listed but the agent will fall back to Local until you")
+        print_info("  install Docker Desktop (or Docker Engine on Linux).")
     print()
 
-    current_backend = cfg_get(config, "terminal", "backend", default="local")
+    # Default to docker if available, otherwise local. Solo-dev users who
+    # know what they're doing can still pick Local from the list.
+    _docker_available = bool(_shutil.which("docker"))
+    current_backend = cfg_get(
+        config, "terminal", "backend",
+        default=("docker" if _docker_available else "local"),
+    )
     is_linux = _platform.system() == "Linux"
 
-    # Build backend choices with descriptions
+    # Build backend choices with descriptions. Docker first; Local moved
+    # to second so the wizard's first-glance default is the safe one.
     terminal_choices = [
-        "Local - run directly on this machine (default)",
-        "Docker - isolated container with configurable resources",
+        "Docker - isolated container, multi-user safe (RECOMMENDED)",
+        "Local - run directly on this machine (solo dev only)",
         "Modal - serverless cloud sandbox",
         "SSH - run on a remote machine",
         "Daytona - persistent cloud development environment",
         "Vercel Sandbox - cloud microVM with snapshot filesystem persistence",
     ]
-    idx_to_backend = {0: "local", 1: "docker", 2: "modal", 3: "ssh", 4: "daytona", 5: "vercel_sandbox"}
-    backend_to_idx = {"local": 0, "docker": 1, "modal": 2, "ssh": 3, "daytona": 4, "vercel_sandbox": 5}
+    idx_to_backend = {0: "docker", 1: "local", 2: "modal", 3: "ssh", 4: "daytona", 5: "vercel_sandbox"}
+    backend_to_idx = {"docker": 0, "local": 1, "modal": 2, "ssh": 3, "daytona": 4, "vercel_sandbox": 5}
 
     next_idx = 6
     if is_linux:
