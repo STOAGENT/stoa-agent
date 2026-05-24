@@ -9459,9 +9459,56 @@ class STOACLI:
             f"TASK: {task}\n"
         )
 
-        _cprint("  ⁂ Council dispatched — six sovereigns + dispatcher composing verdict…")
-        # Queue the rewritten prompt so the main process_loop sends it to
-        # the agent as the next user message.
+        # ── Real M2 dispatch path ────────────────────────────────────────
+        # We try the real parallel 6-LLM dispatch first. It only fires when
+        # at least 2 chamber providers have credentials configured —
+        # otherwise we'd burn 6 roundtrips on guaranteed 'no credentials'
+        # errors. When fewer than 2 are configured we fall back to the
+        # prompt-level role-play (single active model pretends to be six)
+        # so /council still does something useful for solo-key users.
+        try:
+            from agent.council_dispatch import (
+                configured_personas,
+                dispatch_chamber_sync,
+                render_verdict,
+            )
+            _configured = configured_personas()
+        except Exception as exc:
+            _configured = []
+            logger.debug("council: configured_personas failed: %s", exc)
+
+        if len(_configured) >= 2:
+            _cprint(
+                f"  ⁂ Council dispatched — {len(_configured)} of 6 sovereigns "
+                "configured, calling in parallel…"
+            )
+            try:
+                verdict = dispatch_chamber_sync(task)
+                rendered = render_verdict(verdict)
+                _cprint(rendered)
+                # Stash on the CLI for /verdict + /attest follow-ups.
+                self._last_council_verdict = rendered
+                self._last_verdict_hash = verdict.response_hash
+                return
+            except Exception as exc:
+                _cprint(f"  ⁂ Real dispatch failed ({exc}). Falling back to prompt-mode…")
+                logger.exception("council real dispatch failed")
+
+        if _configured:
+            _cprint(
+                f"  ⁂ Solo mode — only {len(_configured)} of 6 sovereigns "
+                "have keys ({', '.join(_configured)}). Falling back to "
+                "prompt-level role-play. Add more keys via "
+                "`stoa setup model` to unlock real council dispatch."
+            )
+        else:
+            _cprint(
+                "  ⁂ Council dispatched — single-model role-play "
+                "(no chamber providers configured beyond the active model)."
+            )
+
+        # Prompt-level fallback: queue the role-play prompt so the main
+        # process_loop sends it to the agent as the next user message.
         if hasattr(self, "_pending_input"):
             self._pending_input.put(council_prompt)
         else:
