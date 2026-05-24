@@ -5,11 +5,33 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "stoa-agent"
 version = "0.14.0"
-description = "The self-improving AI agent — creates skills from experience, improves them during use, and runs anywhere"
+description = "STOA Agent — a chamber of six sovereign LLMs + one dispatcher. Local-first, on-chain verifiable, ERC-8004 reputation. Forked from NousResearch/hermes-agent."
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [{ name = "STOA" }]
+authors = [{ name = "STOA", email = "hi@stoax.xyz" }]
 license = { text = "MIT" }
+keywords = ["ai", "agent", "llm", "council", "monad", "erc-8004", "on-chain", "cli", "stoa"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage      = "https://stoax.xyz"
+Documentation = "https://stoax.xyz/docs"
+Repository    = "https://github.com/STOAGENT/stoa-agent"
+Issues        = "https://github.com/STOAGENT/stoa-agent/issues"
+Upstream      = "https://github.com/NousResearch/hermes-agent"
+Source        = "https://github.com/STOAGENT/stoa-agent"
+
 dependencies = [
   # Core — every direct dep is exact-pinned to ==X.Y.Z (no ranges).
   # Rationale: ranges allow PyPI to ship a fresh version of a transitive
