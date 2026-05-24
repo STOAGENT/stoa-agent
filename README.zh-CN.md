@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.png" alt="STOA Agent" width="100%">
+  <img src="assets/banner.svg" alt="STOA Agent — 六个主权 LLM 作为本地代理" width="100%">
 </p>
 
 # STOA Agent ☤
