@@ -1,0 +1,16 @@
+{
+  "id": "stoa-agent",
+  "name": "STOA Agent",
+  "version": "0.14.0",
+  "description": "Self-improving open-source AI agent by STOA with ACP editor integration, persistent memory, skills, and rich tool support.",
+  "repository": "https://github.com/stoa-xyz/stoa-agent",
+  "website": "https://stoa-agent.nousresearch.com/docs/user-guide/features/acp",
+  "authors": ["STOA"],
+  "license": "MIT",
+  "distribution": {
+    "uvx": {
+      "package": "stoa-agent[acp]==0.14.0",
+      "args": ["hermes-acp"]
+    }
+  }
+}
