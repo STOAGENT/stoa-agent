@@ -3100,7 +3100,7 @@ def check_for_skill_updates(
 # STOA centralized index source
 # ---------------------------------------------------------------------------
 
-STOA_INDEX_URL = "https://stoa-agent.nousresearch.com/docs/api/skills-index.json"
+STOA_INDEX_URL = "https://stoax.xyz/docs/api/skills-index.json"
 STOA_INDEX_CACHE_FILE = INDEX_CACHE_DIR / "stoa-index.json"
 STOA_INDEX_TTL = 6 * 3600  # 6 hours
 

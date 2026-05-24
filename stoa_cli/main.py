@@ -6748,7 +6748,7 @@ def _print_curator_first_run_notice() -> None:
     print("  Preview now:  stoa curator run --dry-run")
     print("  Pause it:     stoa curator pause")
     print(
-        "  Docs:         https://stoa-agent.nousresearch.com/docs/user-guide/features/curator"
+        "  Docs:         https://stoax.xyz/docs/user-guide/features/curator"
     )
 
 
@@ -11044,7 +11044,7 @@ def main():
             "Manage the fallback provider chain.  Fallback providers are tried "
             "in order when the primary model fails with rate-limit, overload, or "
             "connection errors.  See: "
-            "https://stoa-agent.nousresearch.com/docs/user-guide/features/fallback-providers"
+            "https://stoax.xyz/docs/user-guide/features/fallback-providers"
         ),
     )
     fallback_subparsers = fallback_parser.add_subparsers(dest="fallback_command")
@@ -11078,7 +11078,7 @@ def main():
             "Pull API keys from an external secret manager at process startup "
             "instead of storing them in ~/.stoa/.env.  Currently supports "
             "Bitwarden Secrets Manager.  See: "
-            "https://stoa-agent.nousresearch.com/docs/user-guide/secrets/bitwarden"
+            "https://stoax.xyz/docs/user-guide/secrets/bitwarden"
         ),
     )
     secrets_subparsers = secrets_parser.add_subparsers(dest="secrets_command")

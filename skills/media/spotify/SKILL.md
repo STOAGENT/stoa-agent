@@ -15,7 +15,7 @@ metadata:
 
 # Spotify
 
-Control the user's Spotify account via the STOA Spotify toolset (7 tools). Setup guide: https://stoa-agent.nousresearch.com/docs/user-guide/features/spotify
+Control the user's Spotify account via the STOA Spotify toolset (7 tools). Setup guide: https://stoax.xyz/docs/user-guide/features/spotify
 
 ## When to use this skill
 

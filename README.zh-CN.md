@@ -5,7 +5,7 @@
 # STOA Agent ☤
 
 <p align="center">
-  <a href="https://stoa-agent.nousresearch.com/docs/"><img src="https://img.shields.io/badge/Docs-stoa--agent.nousresearch.com-FFD700?style=for-the-badge" alt="Documentation"></a>
+  <a href="https://stoax.xyz/docs/"><img src="https://img.shields.io/badge/Docs-stoa--agent.nousresearch.com-FFD700?style=for-the-badge" alt="Documentation"></a>
   <a href="https://discord.gg/stoa-xyz"><img src="https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://github.com/STOAGENT/stoa-agent/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License: MIT"></a>
   <a href="https://nousresearch.com"><img src="https://img.shields.io/badge/Built%20by-Nous%20Research-blueviolet?style=for-the-badge" alt="Built by STOA"></a>
@@ -36,7 +36,7 @@ curl -fsSL https://raw.githubusercontent.com/STOAGENT/stoa-agent/main/scripts/in
 
 支持 Linux、macOS、WSL2 和 Android (Termux)。安装程序会自动处理平台特定的配置。
 
-> **Android / Termux：** 已测试的手动安装路径请参考 [Termux 指南](https://stoa-agent.nousresearch.com/docs/getting-started/termux)。在 Termux 上，STOA 会安装精选的 `.[termux]` 扩展，因为完整的 `.[all]` 扩展会拉取 Android 不兼容的语音依赖。
+> **Android / Termux：** 已测试的手动安装路径请参考 [Termux 指南](https://stoax.xyz/docs/getting-started/termux)。在 Termux 上，STOA 会安装精选的 `.[termux]` 扩展，因为完整的 `.[all]` 扩展会拉取 Android 不兼容的语音依赖。
 >
 > **Windows：** 原生 Windows 不受支持。请安装 [WSL2](https://learn.microsoft.com/zh-cn/windows/wsl/install) 并运行上述命令。
 
@@ -63,7 +63,7 @@ stoa update       # 更新到最新版本
 stoa doctor       # 诊断问题
 ```
 
-📖 **[完整文档 →](https://stoa-agent.nousresearch.com/docs/)**
+📖 **[完整文档 →](https://stoax.xyz/docs/)**
 
 ---
 
@@ -80,7 +80,7 @@ STOA 始终允许你使用任意服务商，这点不会改变。但如果你不
 stoa setup --portal
 ```
 
-它会通过 OAuth 登录、把 Nous 设为推理服务商，并启用 Tool Gateway。随时用 `stoa portal status` 查看路由状态。完整说明见 [Tool Gateway 文档](https://stoa-agent.nousresearch.com/docs/user-guide/features/tool-gateway)。
+它会通过 OAuth 登录、把 Nous 设为推理服务商，并启用 Tool Gateway。随时用 `stoa portal status` 查看路由状态。完整说明见 [Tool Gateway 文档](https://stoax.xyz/docs/user-guide/features/tool-gateway)。
 
 你随时可以按工具单独切回自己的 API Key — Gateway 是按工具粒度生效的，不是一刀切。
 
@@ -102,31 +102,31 @@ STOA 有两种入口：用 `stoa` 启动终端 UI，或运行网关从 Telegram�
 | 中断当前工作 | `Ctrl+C` 或发送新消息 | `/stop` 或发送新消息 |
 | 平台特定状态 | `/platforms` | `/status`、`/sethome` |
 
-完整命令列表请参阅 [CLI 指南](https://stoa-agent.nousresearch.com/docs/user-guide/cli) 和 [消息网关指南](https://stoa-agent.nousresearch.com/docs/user-guide/messaging)。
+完整命令列表请参阅 [CLI 指南](https://stoax.xyz/docs/user-guide/cli) 和 [消息网关指南](https://stoax.xyz/docs/user-guide/messaging)。
 
 ---
 
 ## 文档
 
-所有文档位于 **[stoa-agent.nousresearch.com/docs](https://stoa-agent.nousresearch.com/docs/)**：
+所有文档位于 **[stoax.xyz/docs](https://stoax.xyz/docs/)**：
 
 | 章节 | 内容 |
 |------|------|
-| [快速开始](https://stoa-agent.nousresearch.com/docs/getting-started/quickstart) | 安装 → 设置 → 2 分钟内开始首次对话 |
-| [CLI 使用](https://stoa-agent.nousresearch.com/docs/user-guide/cli) | 命令、快捷键、人格、会话 |
-| [配置](https://stoa-agent.nousresearch.com/docs/user-guide/configuration) | 配置文件、提供商、模型、所有选项 |
-| [消息网关](https://stoa-agent.nousresearch.com/docs/user-guide/messaging) | Telegram、Discord、Slack、WhatsApp、Signal、Home Assistant |
-| [安全](https://stoa-agent.nousresearch.com/docs/user-guide/security) | 命令审批、DM 配对、容器隔离 |
-| [工具与工具集](https://stoa-agent.nousresearch.com/docs/user-guide/features/tools) | 40+ 工具、工具集系统、终端后端 |
-| [技能系统](https://stoa-agent.nousresearch.com/docs/user-guide/features/skills) | 过程记忆、技能中心、创建技能 |
-| [记忆](https://stoa-agent.nousresearch.com/docs/user-guide/features/memory) | 持久记忆、用户画像、最佳实践 |
-| [MCP 集成](https://stoa-agent.nousresearch.com/docs/user-guide/features/mcp) | 连接任意 MCP 服务器扩展能力 |
-| [定时调度](https://stoa-agent.nousresearch.com/docs/user-guide/features/cron) | 定时任务与平台投递 |
-| [上下文文件](https://stoa-agent.nousresearch.com/docs/user-guide/features/context-files) | 影响每次对话的项目上下文 |
-| [架构](https://stoa-agent.nousresearch.com/docs/developer-guide/architecture) | 项目结构、代理循环、关键类 |
-| [贡献](https://stoa-agent.nousresearch.com/docs/developer-guide/contributing) | 开发设置、PR 流程、代码风格 |
-| [CLI 参考](https://stoa-agent.nousresearch.com/docs/reference/cli-commands) | 所有命令和标志 |
-| [环境变量](https://stoa-agent.nousresearch.com/docs/reference/environment-variables) | 完整环境变量参考 |
+| [快速开始](https://stoax.xyz/docs/getting-started/quickstart) | 安装 → 设置 → 2 分钟内开始首次对话 |
+| [CLI 使用](https://stoax.xyz/docs/user-guide/cli) | 命令、快捷键、人格、会话 |
+| [配置](https://stoax.xyz/docs/user-guide/configuration) | 配置文件、提供商、模型、所有选项 |
+| [消息网关](https://stoax.xyz/docs/user-guide/messaging) | Telegram、Discord、Slack、WhatsApp、Signal、Home Assistant |
+| [安全](https://stoax.xyz/docs/user-guide/security) | 命令审批、DM 配对、容器隔离 |
+| [工具与工具集](https://stoax.xyz/docs/user-guide/features/tools) | 40+ 工具、工具集系统、终端后端 |
+| [技能系统](https://stoax.xyz/docs/user-guide/features/skills) | 过程记忆、技能中心、创建技能 |
+| [记忆](https://stoax.xyz/docs/user-guide/features/memory) | 持久记忆、用户画像、最佳实践 |
+| [MCP 集成](https://stoax.xyz/docs/user-guide/features/mcp) | 连接任意 MCP 服务器扩展能力 |
+| [定时调度](https://stoax.xyz/docs/user-guide/features/cron) | 定时任务与平台投递 |
+| [上下文文件](https://stoax.xyz/docs/user-guide/features/context-files) | 影响每次对话的项目上下文 |
+| [架构](https://stoax.xyz/docs/developer-guide/architecture) | 项目结构、代理循环、关键类 |
+| [贡献](https://stoax.xyz/docs/developer-guide/contributing) | 开发设置、PR 流程、代码风格 |
+| [CLI 参考](https://stoax.xyz/docs/reference/cli-commands) | 所有命令和标志 |
+| [环境变量](https://stoax.xyz/docs/reference/environment-variables) | 完整环境变量参考 |
 
 ---
 
@@ -161,7 +161,7 @@ stoa claw migrate --overwrite  # 覆盖已有冲突
 
 ## 贡献
 
-欢迎贡献！请参阅 [贡献指南](https://stoa-agent.nousresearch.com/docs/developer-guide/contributing) 了解开发设置、代码风格和 PR 流程。
+欢迎贡献！请参阅 [贡献指南](https://stoax.xyz/docs/developer-guide/contributing) 了解开发设置、代码风格和 PR 流程。
 
 贡献者快速开始——克隆并使用 `setup-stoa.sh`：
 
