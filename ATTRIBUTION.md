@@ -10,7 +10,7 @@ Everything that made Hermes Agent great:
 - The **CLI shell** (`stoa_cli/`, `cli.py`) — slash-command registry, prompt_toolkit REPL, multi-line editor, autocomplete.
 - The **gateway** (`gateway/`) — 21-platform messaging adapters (Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Mattermost, Email, SMS, Home Assistant, DingTalk, Feishu, WeCom, WeiXin, Yuanbao, QQ, BlueBubbles, MSGraph, Webhook, API server).
 - The **tool registry** (`tools/`) — self-registering tool layer, 7 execution backends (`local`, `docker`, `ssh`, `modal`, `daytona`, `singularity`, `vercel_sandbox`).
-- The **memory store** (`stoa_state.py` — formerly `stoa_state.py`) — SQLite WAL + FTS5 unicode61 + trigram CJK, episodic + semantic + procedural layers.
+- The **memory store** (`stoa_state.py` — formerly `hermes_state.py`) — SQLite WAL + FTS5 unicode61 + trigram CJK, episodic + semantic + procedural layers.
 - The **skill format** (`SKILL.md` with YAML frontmatter, agentskills.io standard) — 25+ shipped skill categories.
 - The **provider plugin system** (`plugins/model-providers/`) — 200+ models across 18+ providers, three API modes (chat_completions, codex_responses, anthropic).
 - The **install script** (`scripts/install.sh`) — uv-based, single-command bootstrap for Linux/macOS/WSL2/Termux.
