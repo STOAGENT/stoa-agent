@@ -1,5 +1,5 @@
 """
-``stoa hermes migrate`` — port an existing Hermes Agent install over to
+``stoa hermes migrate`` — port an existing STOA Agent install over to
 STOA.
 
 Hermes ships a single curl install that drops everything into

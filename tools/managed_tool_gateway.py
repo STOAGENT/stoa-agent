@@ -28,7 +28,7 @@ class ManagedToolGatewayConfig:
 
 
 def auth_json_path():
-    """Return the Hermes auth store path, respecting STOA_HOME overrides."""
+    """Return the STOA auth store path, respecting STOA_HOME overrides."""
     return get_stoa_home() / "auth.json"
 
 

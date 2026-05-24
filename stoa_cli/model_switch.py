@@ -1365,7 +1365,7 @@ def list_authenticated_providers(
             except Exception:
                 model_ids = curated.get(stoa_slug, []) or curated.get(pid, [])
         else:
-            # Use curated list — look up by Hermes slug, fall back to overlay key
+            # Use curated list — look up by STOA slug, fall back to overlay key
             model_ids = curated.get(stoa_slug, []) or curated.get(pid, [])
             # Merge with models.dev for preferred providers (same rationale as above).
             if stoa_slug in _MODELS_DEV_PREFERRED:

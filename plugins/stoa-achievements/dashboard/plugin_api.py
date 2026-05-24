@@ -1,6 +1,6 @@
 """Hermes Achievements dashboard plugin backend.
 
-Mounted at /api/plugins/stoa-achievements/ by Hermes dashboard.
+Mounted at /api/plugins/stoa-achievements/ by STOA dashboard.
 """
 from __future__ import annotations
 

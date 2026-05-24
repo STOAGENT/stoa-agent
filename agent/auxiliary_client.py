@@ -391,7 +391,7 @@ from stoa_cli import __version__ as _STOA_VERSION
 _AI_GATEWAY_HEADERS = {
     "HTTP-Referer": "https://stoa-agent.nousresearch.com",
     "X-Title": "STOA Agent",
-    "User-Agent": f"HermesAgent/{_STOA_VERSION}",
+    "User-Agent": f"STOAAgent/{_STOA_VERSION}",
 }
 
 # Nous Portal extra_body for product attribution.
@@ -1349,7 +1349,7 @@ def _resolve_xai_oauth_for_aux() -> Optional[Tuple[str, str]]:
 
 
 def _read_codex_access_token() -> Optional[str]:
-    """Read a valid, non-expired Codex OAuth access token from Hermes auth store.
+    """Read a valid, non-expired Codex OAuth access token from STOA auth store.
 
     If a credential pool exists but currently has no selectable runtime entry
     (for example all pool slots are marked exhausted), fall back to the

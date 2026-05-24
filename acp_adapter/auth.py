@@ -1,4 +1,4 @@
-"""ACP auth helpers — detect and advertise Hermes authentication methods."""
+"""ACP auth helpers — detect and advertise STOA authentication methods."""
 
 from __future__ import annotations
 
