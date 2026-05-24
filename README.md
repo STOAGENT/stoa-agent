@@ -94,14 +94,27 @@ personas:
   hermes:   { provider: deepseek,  model: deepseek-chat }
 ```
 
-### 6. STOA token-gating
+### 6. Council mode + on-chain attestation
 
-Free tier keeps everything Hermes shipped: solo mode, all 21 platforms, the full skill ecosystem. Council mode + on-chain attestation require holding STOA on Monad.
+Solo mode, all 21 platforms, and the full skill ecosystem are free. Council mode + opt-in on-chain attestation are available to anyone in v0.x — the token gate is disabled by default (no STOA token deployed yet; the launch was cancelled).
+
+When/if a STOA token launches, the gate activates by setting `STOA_TOKEN_CONTRACT` + `STOA_COUNCIL_MIN_HOLDING_WEI` in env. Until then, council mode is free.
 
 ```sh
-stoa wallet bind 0x...
-stoa /council "..."   # checks STOA balance, unlocks council if held
+# Bind your wallet (requires signing the canonical EIP-4361 bind message
+# — see `stoa wallet message` for the exact string).
+stoa wallet bind 0x... --signature 0x...
+
+# Use council mode.
+stoa /council "..."
 ```
+
+> ⚠️ **On-chain attestation status**: the `attest_response_hash` codepath
+> is a SCAFFOLD in v0.x — it computes the response hash + persists it
+> locally but does not yet submit a transaction to the
+> `AuditAttestationV2` contract on Monad mainnet. The M3 release wires
+> the actual `eth_sendRawTransaction` transport. Until then, expect
+> `attestation_enabled` to log "scaffold" + queue the request.
 
 ---
 

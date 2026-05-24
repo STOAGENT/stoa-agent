@@ -13,9 +13,9 @@ metadata:
 
 # STOA Skill Publish — the audit gate
 
-Hermes Agent ships community skills via PR review. STOA's answer to the
-upstream "nine CVEs in four days" problem is stricter: **no skill
-publishes without a six-agent audit, a 5-of-6 quorum, and an on-chain
+Upstream community skills typically land via PR review. STOA's answer
+to the open-skill "nine CVEs in four days" problem is stricter: **no
+skill publishes without a six-agent audit, a 5-of-6 quorum, and an on-chain
 audit hash**.
 
 ## When to use
