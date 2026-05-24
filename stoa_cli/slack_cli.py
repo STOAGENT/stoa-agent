@@ -135,7 +135,7 @@ def slack_manifest_command(args) -> int:
 
                 target = Path(get_stoa_home()) / "slack-manifest.json"
             except Exception:
-                target = Path(os.environ.get("STOA_HOME") or str(Path.home() / ".hermes")) / "slack-manifest.json"
+                target = Path(os.environ.get("STOA_HOME") or str(Path.home() / ".stoa")) / "slack-manifest.json"
         else:
             target = Path(write_target).expanduser()
         target.parent.mkdir(parents=True, exist_ok=True)

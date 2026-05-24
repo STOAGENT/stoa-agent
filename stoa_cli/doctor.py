@@ -380,7 +380,7 @@ def run_doctor(args):
 
     print()
     print(color("┌─────────────────────────────────────────────────────────┐", Colors.CYAN))
-    print(color("│                 🩺 Hermes Doctor                        │", Colors.CYAN))
+    print(color("│                 🩺 STOA Doctor                        │", Colors.CYAN))
     print(color("└─────────────────────────────────────────────────────────┘", Colors.CYAN))
 
     _section("Security Advisories")
@@ -1252,7 +1252,7 @@ def run_doctor(args):
         if agent_browser_ok and not _is_termux():
             try:
                 # Lazy import: browser_tool is a ~150KB module we don't want
-                # to eagerly load in every `hermes doctor` invocation.
+                # to eagerly load in every `stoa doctor` invocation.
                 from tools.browser_tool import (
                     _chromium_installed,
                     _is_camofox_mode,
@@ -1545,7 +1545,7 @@ def run_doctor(args):
             # ``ACCESS_TOKEN_TYPE_UNSUPPORTED`` — that header is reserved for
             # OAuth 2 access tokens, not plain API keys. Plain keys use
             # ``x-goog-api-key`` (or ``?key=``). Without this, a perfectly valid
-            # GOOGLE_API_KEY/GEMINI_API_KEY always shows red in ``hermes doctor``.
+            # GOOGLE_API_KEY/GEMINI_API_KEY always shows red in ``stoa doctor``.
             if url and base_url_host_matches(url, "generativelanguage.googleapis.com"):
                 headers.pop("Authorization", None)
                 headers["x-goog-api-key"] = key
@@ -1750,7 +1750,7 @@ def run_doctor(args):
     # Set on the parent thread before submitting work so the env-var
     # mutation never races with another worker. has_aws_credentials() in
     # the bedrock probe already gates on real env-var creds, so IMDS is
-    # never the legitimate source for `hermes doctor`.
+    # never the legitimate source for `stoa doctor`.
     _imds_prev = os.environ.get("AWS_EC2_METADATA_DISABLED")
     os.environ["AWS_EC2_METADATA_DISABLED"] = "true"
     try:

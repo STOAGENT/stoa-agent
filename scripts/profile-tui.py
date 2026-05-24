@@ -42,7 +42,7 @@ try:
 except ImportError:
     def get_stoa_home() -> Path:  # type: ignore[misc]
         val = (os.environ.get("STOA_HOME") or "").strip()
-        return Path(val) if val else Path.home() / ".hermes"
+        return Path(val) if val else Path.home() / ".stoa"
 
 DEFAULT_TUI_DIR = Path(
     os.environ.get("STOA_TUI_DIR")

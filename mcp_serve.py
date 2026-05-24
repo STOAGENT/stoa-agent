@@ -65,7 +65,7 @@ def _get_sessions_dir() -> Path:
         from stoa_constants import get_stoa_home
         return get_stoa_home() / "sessions"
     except ImportError:
-        return Path(os.environ.get("STOA_HOME", Path.home() / ".hermes")) / "sessions"
+        return Path(os.environ.get("STOA_HOME", Path.home() / ".stoa")) / "sessions"
 
 
 def _get_session_db():
@@ -102,7 +102,7 @@ def _load_channel_directory() -> dict:
         directory_file = get_stoa_home() / "channel_directory.json"
     except ImportError:
         directory_file = Path(
-            os.environ.get("STOA_HOME", Path.home() / ".hermes")
+            os.environ.get("STOA_HOME", Path.home() / ".stoa")
         ) / "channel_directory.json"
 
     if not directory_file.exists():
@@ -365,7 +365,7 @@ class EventBridge:
             from stoa_constants import get_stoa_home
             db_file = get_stoa_home() / "state.db"
         except ImportError:
-            db_file = Path(os.environ.get("STOA_HOME", Path.home() / ".hermes")) / "state.db"
+            db_file = Path(os.environ.get("STOA_HOME", Path.home() / ".stoa")) / "state.db"
 
         try:
             db_mtime = db_file.stat().st_mtime if db_file.exists() else 0.0

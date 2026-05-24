@@ -481,7 +481,7 @@ docker exec -it stoa-agent \
   hermes mcp add my-oauth-server --url https://mcp.example.com/mcp --auth oauth
 
 # Native mode
-sudo -u hermes STOA_HOME=/var/lib/hermes/.hermes \
+sudo -u hermes STOA_HOME=/var/lib/hermes/.stoa \
   hermes mcp add my-oauth-server --url https://mcp.example.com/mcp --auth oauth
 ```
 
@@ -553,12 +553,12 @@ When container mode is enabled, hermes runs inside a persistent Ubuntu container
 Host                                    Container
 ────                                    ─────────
 /nix/store/...-stoa-agent-0.1.0  ──►  /nix/store/... (ro)
-~/.stoa -> /var/lib/hermes/.hermes       (symlink bridge, per hostUsers)
+~/.stoa -> /var/lib/hermes/.stoa       (symlink bridge, per hostUsers)
 /var/lib/hermes/                    ──►  /data/          (rw)
   ├── current-package -> /nix/store/...    (symlink, updated each rebuild)
   ├── .gc-root -> /nix/store/...           (prevents nix-collect-garbage)
   ├── .container-identity                  (sha256 hash, triggers recreation)
-  ├── .hermes/                             (STOA_HOME)
+  ├── .stoa/                             (STOA_HOME)
   │   ├── .env                             (merged from environment + environmentFiles)
   │   ├── config.yaml                      (Nix-generated, deep-merged by activation)
   │   ├── .managed                         (marker file)
@@ -859,7 +859,7 @@ nix build .#checks.x86_64-linux.config-roundtrip    # merge script preserves use
 
 ```
 /var/lib/hermes/                     # stateDir (owned by hermes:hermes, 0750)
-├── .hermes/                         # STOA_HOME
+├── .stoa/                         # STOA_HOME
 │   ├── config.yaml                  # Nix-generated (deep-merged each rebuild)
 │   ├── .managed                     # Marker: CLI config mutation blocked
 │   ├── .env                         # Merged from environment + environmentFiles

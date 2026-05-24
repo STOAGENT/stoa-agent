@@ -74,7 +74,7 @@ class TestNonInteractiveSetup:
         with (
             patch("stoa_cli.setup.ensure_stoa_home"),
             patch("stoa_cli.setup.load_config", return_value={}),
-            patch("stoa_cli.setup.get_stoa_home", return_value="/tmp/.hermes"),
+            patch("stoa_cli.setup.get_stoa_home", return_value="/tmp/.stoa"),
             patch("stoa_cli.auth.get_active_provider", side_effect=AssertionError("wizard continued")),
             patch("builtins.input", side_effect=AssertionError("input should not be called")),
         ):
@@ -92,7 +92,7 @@ class TestNonInteractiveSetup:
         with (
             patch("stoa_cli.setup.ensure_stoa_home"),
             patch("stoa_cli.setup.load_config", return_value={}),
-            patch("stoa_cli.setup.get_stoa_home", return_value="/tmp/.hermes"),
+            patch("stoa_cli.setup.get_stoa_home", return_value="/tmp/.stoa"),
             patch("stoa_cli.auth.get_active_provider", side_effect=AssertionError("wizard continued")),
             patch("sys.stdin") as mock_stdin,
             patch("builtins.input", side_effect=AssertionError("input should not be called")),

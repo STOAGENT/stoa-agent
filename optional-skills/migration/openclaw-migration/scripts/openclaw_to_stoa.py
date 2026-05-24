@@ -2960,7 +2960,7 @@ class Migrator:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Migrate OpenClaw user state into STOA Agent.")
     parser.add_argument("--source", default=str(Path.home() / ".openclaw"), help="OpenClaw home directory")
-    parser.add_argument("--target", default=os.environ.get("STOA_HOME") or str(Path.home() / ".hermes"), help="Hermes home directory")
+    parser.add_argument("--target", default=os.environ.get("STOA_HOME") or str(Path.home() / ".stoa"), help="Hermes home directory")
     parser.add_argument(
         "--workspace-target",
         help="Optional workspace root where the workspace instructions file should be copied",

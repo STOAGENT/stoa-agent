@@ -20,12 +20,12 @@
 # Env inputs (set before sourcing to override defaults):
 #   STOA_NODE_MIN_VERSION   (default: 20)   — accepted on PATH
 #   STOA_NODE_TARGET_MAJOR  (default: 22)   — installed when we install
-#   STOA_HOME               (default: $HOME/.hermes)
+#   STOA_HOME               (default: $HOME/.stoa)
 # ============================================================================
 
 STOA_NODE_MIN_VERSION="${STOA_NODE_MIN_VERSION:-20}"
 STOA_NODE_TARGET_MAJOR="${STOA_NODE_TARGET_MAJOR:-22}"
-STOA_HOME="${STOA_HOME:-$HOME/.hermes}"
+STOA_HOME="${STOA_HOME:-$HOME/.stoa}"
 STOA_NODE_AVAILABLE=false
 
 # ---------------------------------------------------------------------------

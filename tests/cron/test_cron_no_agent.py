@@ -21,7 +21,7 @@ import pytest
 @pytest.fixture
 def stoa_env(tmp_path, monkeypatch):
     """Isolate STOA_HOME for each test so jobs/scripts don't leak."""
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     (home / "scripts").mkdir()
     (home / "cron").mkdir()

@@ -207,8 +207,11 @@ all = [
 ]
 
 [project.scripts]
-hermes = "stoa_cli.main:main"
+stoa = "stoa_cli.main:main"
 stoa-agent = "run_agent:main"
+stoa-acp = "acp_adapter.entry:main"
+# Legacy aliases — keep working during the Hermes → STOA muscle-memory transition.
+hermes = "stoa_cli.main:main"
 hermes-acp = "acp_adapter.entry:main"
 
 [tool.setuptools]

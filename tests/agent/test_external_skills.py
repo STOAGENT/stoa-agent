@@ -23,7 +23,7 @@ def external_skills_dir(tmp_path):
 @pytest.fixture
 def stoa_home(tmp_path):
     """Create a minimal STOA_HOME with config."""
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     (home / "skills").mkdir()
     return home

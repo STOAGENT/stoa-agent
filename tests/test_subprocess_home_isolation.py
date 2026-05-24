@@ -28,7 +28,7 @@ class TestGetSubprocessHome:
         assert get_subprocess_home() is None
 
     def test_returns_none_when_home_dir_missing(self, tmp_path, monkeypatch):
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         # No home/ subdirectory created
@@ -36,7 +36,7 @@ class TestGetSubprocessHome:
         assert get_subprocess_home() is None
 
     def test_returns_path_when_home_dir_exists(self, tmp_path, monkeypatch):
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         profile_home = stoa_home / "home"
         profile_home.mkdir()
@@ -46,7 +46,7 @@ class TestGetSubprocessHome:
 
     def test_returns_profile_specific_path(self, tmp_path, monkeypatch):
         """Named profiles get their own isolated HOME."""
-        profile_dir = tmp_path / ".hermes" / "profiles" / "coder"
+        profile_dir = tmp_path / ".stoa" / "profiles" / "coder"
         profile_dir.mkdir(parents=True)
         profile_home = profile_dir / "home"
         profile_home.mkdir()
@@ -55,7 +55,7 @@ class TestGetSubprocessHome:
         assert get_subprocess_home() == str(profile_home)
 
     def test_two_profiles_get_different_homes(self, tmp_path, monkeypatch):
-        base = tmp_path / ".hermes" / "profiles"
+        base = tmp_path / ".stoa" / "profiles"
         for name in ("alpha", "beta"):
             p = base / name
             p.mkdir(parents=True)
@@ -245,7 +245,7 @@ class TestProfileBootstrap:
 
     def test_create_profile_bootstraps_home_dir(self, tmp_path, monkeypatch):
         """create_profile() should create home/ inside the profile dir."""
-        home = tmp_path / ".hermes"
+        home = tmp_path / ".stoa"
         home.mkdir()
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setenv("STOA_HOME", str(home))

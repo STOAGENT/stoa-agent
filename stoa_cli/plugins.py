@@ -962,7 +962,7 @@ class PluginManager:
 
         # 3. Project plugins (./.stoa/plugins/)
         if _env_enabled("STOA_ENABLE_PROJECT_PLUGINS"):
-            project_dir = Path.cwd() / ".hermes" / "plugins"
+            project_dir = Path.cwd() / ".stoa" / "plugins"
             logger.debug("Scanning project plugins: %s", project_dir)
             project_manifests = self._scan_directory(project_dir, source="project")
             logger.debug("  project: %d manifest(s)", len(project_manifests))

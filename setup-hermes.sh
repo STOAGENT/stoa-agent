@@ -393,7 +393,7 @@ fi
 # Seed bundled skills into ~/.stoa/skills/
 # ============================================================================
 
-STOA_SKILLS_DIR="${STOA_HOME:-$HOME/.hermes}/skills"
+STOA_SKILLS_DIR="${STOA_HOME:-$HOME/.stoa}/skills"
 mkdir -p "$STOA_SKILLS_DIR"
 
 echo ""

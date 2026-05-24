@@ -99,7 +99,7 @@ def _write_env(home: Path, entries: dict[str, str]) -> None:
 
 @pytest.fixture
 def stoa_home(tmp_path: Path) -> Path:
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     return home
 

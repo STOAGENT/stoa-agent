@@ -28,7 +28,7 @@ import pytest
 @pytest.fixture
 def stoa_home(tmp_path, monkeypatch):
     """Isolated STOA_HOME so SessionDB.state_meta writes stay hermetic."""
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setenv("STOA_HOME", str(home))

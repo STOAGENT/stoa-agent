@@ -285,13 +285,13 @@ class TestHermesConstantsFallback:
         """When stoa_constants is missing and STOA_HOME unset, default to ~/.stoa."""
         monkeypatch.delenv("STOA_HOME", raising=False)
         module = self._load_helper(monkeypatch)
-        assert module.get_stoa_home() == Path.home() / ".hermes"
+        assert module.get_stoa_home() == Path.home() / ".stoa"
 
     def test_fallback_ignores_empty_stoa_home(self, monkeypatch):
         """Empty/whitespace STOA_HOME is treated as unset."""
         monkeypatch.setenv("STOA_HOME", "  ")
         module = self._load_helper(monkeypatch)
-        assert module.get_stoa_home() == Path.home() / ".hermes"
+        assert module.get_stoa_home() == Path.home() / ".stoa"
 
     def test_fallback_display_stoa_home_shortens_path(self, monkeypatch):
         """Fallback display_stoa_home() uses ~/ shorthand like the real one."""
@@ -301,7 +301,7 @@ class TestHermesConstantsFallback:
 
     def test_fallback_display_stoa_home_profile_path(self, monkeypatch):
         """Fallback display_stoa_home() handles profile paths under ~/."""
-        monkeypatch.setenv("STOA_HOME", str(Path.home() / ".hermes/profiles/coder"))
+        monkeypatch.setenv("STOA_HOME", str(Path.home() / ".stoa/profiles/coder"))
         module = self._load_helper(monkeypatch)
         assert module.display_stoa_home() == "~/.stoa/profiles/coder"
 

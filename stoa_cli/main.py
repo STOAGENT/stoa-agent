@@ -213,7 +213,7 @@ def _apply_profile_override() -> None:
     # distinguishing heuristic: a profile path has "profiles" as its immediate
     # parent directory name (e.g. ~/.stoa/profiles/coder or
     # /opt/data/profiles/coder).  If STOA_HOME points to the hermes root
-    # instead (e.g. systemd hardcodes STOA_HOME=/root/.hermes), we must
+    # instead (e.g. systemd hardcodes STOA_HOME=/root/.stoa), we must
     # still read active_profile — the user may have switched profiles via
     # `hermes profile use` and the gateway should honour that choice.
     # See issue #22502.
@@ -1095,7 +1095,7 @@ to avoid false-positive reinstalls on every launch.
 
 
 def _tui_need_npm_install(root: Path) -> bool:
-    """True when @hermes/ink is missing or node_modules is behind package-lock.json.
+    """True when @stoa/ink is missing or node_modules is behind package-lock.json.
 
     Prebuilt bundle mode: when ``dist/entry.js`` exists and there is no
     ``package-lock.json`` (nix install layout only ships ``dist/`` +
@@ -1255,7 +1255,7 @@ def _ensure_tui_node() -> None:
     if not helper.is_file():
         return
 
-    stoa_home = os.environ.get("STOA_HOME") or str(Path.home() / ".hermes")
+    stoa_home = os.environ.get("STOA_HOME") or str(Path.home() / ".stoa")
     try:
         # Helper writes logs to stderr; we ask bash to print `command -v node`
         # on stdout once ensure_node succeeds. Subshell PATH edits don't leak
@@ -1370,8 +1370,8 @@ def _make_tui_argv(tui_dir: Path, tui_dev: bool) -> tuple[list[str], Path]:
         did_install = True
 
     if tui_dev:
-        # Keep the local @hermes/ink package exports in sync with source.
-        # --dev runs src/entry.tsx directly, but @hermes/ink resolves through
+        # Keep the local @stoa/ink package exports in sync with source.
+        # --dev runs src/entry.tsx directly, but @stoa/ink resolves through
         # packages/stoa-ink/dist/entry-exports.js. If that dist bundle is
         # stale after a pull, newer hooks/components can exist in src while
         # being missing at runtime (e.g. useCursorAdvance). Prebuild it here.

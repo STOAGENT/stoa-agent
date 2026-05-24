@@ -20,7 +20,7 @@ import pytest
 
 @pytest.fixture()
 def stoa_home(tmp_path, monkeypatch):
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setenv("STOA_HOME", str(home))

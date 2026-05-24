@@ -184,7 +184,7 @@ set -euo pipefail
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 API_KEY=\$(python3 - <<'PY'
 from pathlib import Path
-p = Path.home()/'.hermes'/'.env'
+p = Path.home()/'.stoa'/'.env'
 for raw in p.read_text().splitlines():
     line = raw.strip()
     if line.startswith('API_SERVER_KEY='):

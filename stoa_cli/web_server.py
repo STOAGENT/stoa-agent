@@ -4112,7 +4112,7 @@ def _discover_dashboard_plugins() -> list:
     # semantics (``1`` / ``true`` / ``yes`` / ``on``) so the gate matches
     # ``stoa_cli/plugins.py`` and the documented user contract.
     if env_var_enabled("STOA_ENABLE_PROJECT_PLUGINS"):
-        search_dirs.append((Path.cwd() / ".hermes" / "plugins", "project"))
+        search_dirs.append((Path.cwd() / ".stoa" / "plugins", "project"))
 
     for plugins_root, source in search_dirs:
         if not plugins_root.is_dir():

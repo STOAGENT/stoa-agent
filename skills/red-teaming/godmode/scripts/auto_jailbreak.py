@@ -35,7 +35,7 @@ try:
     _SKILL_DIR = Path(__file__).resolve().parent.parent
 except NameError:
     # __file__ not defined when loaded via exec() — search standard paths
-    _SKILL_DIR = Path(os.getenv("STOA_HOME", Path.home() / ".hermes")) / "skills" / "red-teaming" / "godmode"
+    _SKILL_DIR = Path(os.getenv("STOA_HOME", Path.home() / ".stoa")) / "skills" / "red-teaming" / "godmode"
 
 _SCRIPTS_DIR = _SKILL_DIR / "scripts"
 _TEMPLATES_DIR = _SKILL_DIR / "templates"
@@ -57,7 +57,7 @@ if _race_path.exists():
 # Hermes config paths
 # ═══════════════════════════════════════════════════════════════════
 
-STOA_HOME = Path(os.getenv("STOA_HOME", Path.home() / ".hermes"))
+STOA_HOME = Path(os.getenv("STOA_HOME", Path.home() / ".stoa"))
 CONFIG_PATH = STOA_HOME / "config.yaml"
 PREFILL_PATH = STOA_HOME / "prefill.json"
 

@@ -52,7 +52,7 @@ class TestDiscovery:
         from stoa_cli import plugins as plugins_mod
 
         # Isolated STOA_HOME so we don't read the developer's config.yaml.
-        home = tmp_path / ".hermes"
+        home = tmp_path / ".stoa"
         home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)

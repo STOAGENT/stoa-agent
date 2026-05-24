@@ -22,7 +22,7 @@ def test_kanban_tools_hidden_without_env_var(monkeypatch, tmp_path):
     """Normal `hermes chat` sessions (no STOA_KANBAN_TASK) must have
     zero kanban_* tools in their schema."""
     monkeypatch.delenv("STOA_KANBAN_TASK", raising=False)
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
 
@@ -42,7 +42,7 @@ def test_kanban_tools_hidden_without_env_var(monkeypatch, tmp_path):
 def test_kanban_tools_visible_with_env_var(monkeypatch, tmp_path):
     """Worker sessions get task lifecycle tools, not board-routing tools."""
     monkeypatch.setenv("STOA_KANBAN_TASK", "t_fake")
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
 
@@ -66,7 +66,7 @@ def test_kanban_worker_env_overrides_profile_toolset_filter(monkeypatch, tmp_pat
     assignee profile restricts enabled toolsets and does not list kanban.
     """
     monkeypatch.setenv("STOA_KANBAN_TASK", "t_fake")
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
 
@@ -95,7 +95,7 @@ def test_worker_with_kanban_toolset_still_hides_board_routing(monkeypatch, tmp_p
     worker and must not see kanban_list / kanban_unblock.
     """
     monkeypatch.setenv("STOA_KANBAN_TASK", "t_fake")
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     (home / "config.yaml").write_text("toolsets:\n  - kanban\n")
     monkeypatch.setenv("STOA_HOME", str(home))
@@ -120,7 +120,7 @@ def test_worker_with_kanban_toolset_still_hides_board_routing(monkeypatch, tmp_p
 def test_kanban_tools_visible_with_toolset_config(monkeypatch, tmp_path):
     """Orchestrator profiles with toolsets: [kanban] see all kanban tools."""
     monkeypatch.delenv("STOA_KANBAN_TASK", raising=False)
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     (home / "config.yaml").write_text("toolsets:\n  - kanban\n")
     monkeypatch.setenv("STOA_HOME", str(home))
@@ -150,7 +150,7 @@ def test_kanban_tools_visible_with_toolset_config(monkeypatch, tmp_path):
 def worker_env(monkeypatch, tmp_path):
     """Simulate being a worker: STOA_HOME isolated, STOA_KANBAN_TASK set
     after we've created the task."""
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
     monkeypatch.setenv("STOA_PROFILE", "test-worker")
@@ -1087,7 +1087,7 @@ def test_kanban_guidance_not_in_normal_prompt(monkeypatch, tmp_path):
     """A normal chat session (no STOA_KANBAN_TASK) must NOT have
     KANBAN_GUIDANCE in its system prompt."""
     monkeypatch.delenv("STOA_KANBAN_TASK", raising=False)
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
     from pathlib import Path as _P
@@ -1115,7 +1115,7 @@ def test_kanban_guidance_in_worker_prompt(monkeypatch, tmp_path):
     """A worker session (STOA_KANBAN_TASK set) MUST have the full
     lifecycle guidance in its system prompt."""
     monkeypatch.setenv("STOA_KANBAN_TASK", "t_fake")
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
     from pathlib import Path as _P
@@ -1150,7 +1150,7 @@ def test_kanban_guidance_prompt_size_bounded(monkeypatch, tmp_path):
     """Sanity: the guidance block is under 4 KB so it doesn't blow
     up the cached prompt."""
     monkeypatch.setenv("STOA_KANBAN_TASK", "t_fake")
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
     from pathlib import Path as _P
@@ -1363,7 +1363,7 @@ def test_orchestrator_complete_any_task_allowed(monkeypatch, tmp_path):
     """Orchestrator profiles (no STOA_KANBAN_TASK) can still complete
     any task via explicit task_id. The check only applies to workers."""
     monkeypatch.delenv("STOA_KANBAN_TASK", raising=False)
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
     from pathlib import Path as _P
@@ -1407,7 +1407,7 @@ def multi_board_env(monkeypatch, tmp_path):
     STOA_KANBAN_TASK is pinned (orchestrator context) — workers test
     the env-task case via the existing ``worker_env`` fixture.
     """
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
     # Make sure neither STOA_KANBAN_DB nor STOA_KANBAN_BOARD pin a
@@ -1619,7 +1619,7 @@ def test_board_param_routes_heartbeat_to_alt_board(monkeypatch, tmp_path):
     """kanban_heartbeat targets the alt board's DB. Worker-scoped, so we
     use the worker-env style fixture inline (pinning STOA_KANBAN_TASK
     to a task that exists in the alt board)."""
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
     monkeypatch.setenv("STOA_PROFILE", "alt-worker")

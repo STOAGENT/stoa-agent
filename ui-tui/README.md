@@ -330,7 +330,7 @@ ui-tui/
       text.ts            text helpers, ANSI detection, previews
 
     types/
-      stoa-ink.d.ts    type declarations for @hermes/ink
+      stoa-ink.d.ts    type declarations for @stoa/ink
 
     __tests__/           vitest suite
 ```

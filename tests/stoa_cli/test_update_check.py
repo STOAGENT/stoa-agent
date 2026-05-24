@@ -119,7 +119,7 @@ def test_invalidate_update_cache_clears_all_profiles(tmp_path):
     from stoa_cli.main import _invalidate_update_cache
 
     # Build a fake ~/.stoa with default + two named profiles
-    default_home = tmp_path / ".hermes"
+    default_home = tmp_path / ".stoa"
     default_home.mkdir()
     (default_home / ".update_check").write_text('{"ts":1,"behind":50}')
 
@@ -143,7 +143,7 @@ def test_invalidate_update_cache_no_profiles_dir(tmp_path):
     """Works fine when no profiles directory exists (single-profile setup)."""
     from stoa_cli.main import _invalidate_update_cache
 
-    default_home = tmp_path / ".hermes"
+    default_home = tmp_path / ".stoa"
     default_home.mkdir()
     (default_home / ".update_check").write_text('{"ts":1,"behind":5}')
 

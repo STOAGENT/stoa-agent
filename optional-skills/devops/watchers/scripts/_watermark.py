@@ -33,7 +33,7 @@ def _state_dir() -> Path:
     if override:
         return Path(override)
     # Default: $STOA_HOME/watcher-state/, falling back to ~/.stoa/watcher-state/.
-    stoa_home = os.environ.get("STOA_HOME") or str(Path.home() / ".hermes")
+    stoa_home = os.environ.get("STOA_HOME") or str(Path.home() / ".stoa")
     return Path(stoa_home) / "watcher-state"
 
 

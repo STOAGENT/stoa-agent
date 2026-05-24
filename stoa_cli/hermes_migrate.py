@@ -3,19 +3,19 @@
 STOA.
 
 Hermes ships a single curl install that drops everything into
-``~/.hermes``. A user who has been running Hermes for months has:
+``~/.stoa``. A user who has been running Hermes for months has:
 
-  - settings (``~/.hermes/cli-config.yaml``)
-  - skills (``~/.hermes/skills/``)
-  - memory (``~/.hermes/sessions.db``, FTS5 indexed)
-  - API keys (``~/.hermes/.keyring`` or via env)
+  - settings (``~/.stoa/cli-config.yaml``)
+  - skills (``~/.stoa/skills/``)
+  - memory (``~/.stoa/sessions.db``, FTS5 indexed)
+  - API keys (``~/.stoa/.keyring`` or via env)
   - platform tokens (Telegram, Discord, Slack, etc.)
 
 We carry this over wholesale, with the following changes:
 
   - config keys with ``hermes_*`` prefix → ``stoa_*``
   - personas block ADDED with STOA defaults if absent
-  - skills directory ``~/.hermes/skills/`` → ``~/.stoa/skills/``
+  - skills directory ``~/.stoa/skills/`` → ``~/.stoa/skills/``
   - session DB ``sessions.db`` → ``sessions.db`` (schema is identical;
     STOA adds new tables ``verdicts`` + ``attestations`` non-destructively)
   - keyring is rewrapped under the STOA salt (same providers, same keys)
@@ -39,7 +39,12 @@ logger = logging.getLogger(__name__)
 
 
 def _hermes_home() -> Path:
-    """Hermes default install location — picked up via env or fallback."""
+    """Hermes default install location — picked up via env or fallback.
+
+    This is the SOURCE of the migration (the user's existing Hermes
+    install); the DESTINATION is ``get_stoa_home()`` (``~/.stoa``).
+    Keep these two distinct — a linter pass once tried to unify them
+    and broke the migrate flow."""
     env = os.getenv("HERMES_HOME")
     if env:
         return Path(env)

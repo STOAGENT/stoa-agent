@@ -35,7 +35,7 @@ def isolated_stoa_home(tmp_path, monkeypatch):
 
     Also invalidates any cached get_env_value state by patching Path.home().
     """
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setenv("STOA_HOME", str(home))

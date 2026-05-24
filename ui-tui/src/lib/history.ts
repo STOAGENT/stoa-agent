@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 const MAX = 1000
-const dir = process.env.STOA_HOME ?? join(homedir(), '.hermes')
+const dir = process.env.STOA_HOME ?? join(homedir(), '.stoa')
 const file = join(dir, '.stoa_history')
 
 let cache: string[] | null = null

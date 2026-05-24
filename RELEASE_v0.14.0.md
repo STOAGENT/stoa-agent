@@ -130,7 +130,7 @@ A long tail of native-Windows fixes shipped alongside the beta — taskkill-base
 
 ### Docker
 - **Bootstrap auth.json from env on first boot** ([#21880](https://github.com/stoa-xyz/stoa-agent/pull/21880))
-- **Drop manual @hermes/ink build, rely on esbuild bundle** — slimmer image
+- **Drop manual @stoa/ink build, rely on esbuild bundle** — slimmer image
 
 ### ACP / Zed
 - **Zed ACP Registry integration** (salvage of #25908) ([#26079](https://github.com/stoa-xyz/stoa-agent/pull/26079))

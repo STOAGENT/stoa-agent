@@ -5439,7 +5439,7 @@ def _kanban_worker_skill_available(stoa_home: Optional[str]) -> bool:
 
     # An unset STOA_HOME means the worker falls back to the default root
     # home (``~/.stoa``), which ships the bundled skill.
-    base = _Path(stoa_home) if stoa_home else (_Path.home() / ".hermes")
+    base = _Path(stoa_home) if stoa_home else (_Path.home() / ".stoa")
     skills_root = base / "skills"
     if not skills_root.is_dir():
         return False
@@ -5521,7 +5521,7 @@ def _default_spawn(
     # env, and when the child process starts `hermes -p <name>` the
     # _apply_profile_override() runs *before* stoa_constants is imported.
     # If STOA_HOME is absent from the child's env, get_stoa_home() falls
-    # back to Path.home() / ".hermes" (the DEFAULT profile root), ignoring the
+    # back to Path.home() / ".stoa" (the DEFAULT profile root), ignoring the
     # profile-specific config entirely.  Fixes profile-scoped fallback_providers
     # being invisible to kanban workers.
     from stoa_cli.profiles import resolve_profile_env

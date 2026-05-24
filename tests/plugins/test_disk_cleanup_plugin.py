@@ -28,7 +28,7 @@ def _isolate_env(tmp_path, monkeypatch):
     but we want the plugin to work with a predictable subpath. We reset
     STOA_HOME here for clarity.
     """
-    stoa_home = tmp_path / ".hermes"
+    stoa_home = tmp_path / ".stoa"
     stoa_home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
     yield stoa_home

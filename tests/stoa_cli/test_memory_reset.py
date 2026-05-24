@@ -17,7 +17,7 @@ from pathlib import Path
 @pytest.fixture
 def memory_env(tmp_path, monkeypatch):
     """Set up a fake STOA_HOME with memory files."""
-    stoa_home = tmp_path / ".hermes"
+    stoa_home = tmp_path / ".stoa"
     memories = stoa_home / "memories"
     memories.mkdir(parents=True)
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -96,7 +96,7 @@ class TestMemoryReset:
 
     def test_reset_no_files_exist(self, tmp_path, monkeypatch):
         """Should return 'nothing' when no memory files exist."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         (stoa_home / "memories").mkdir(parents=True)
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -147,7 +147,7 @@ class TestMemoryReset:
 
     def test_reset_empty_memories_dir(self, tmp_path, monkeypatch):
         """No memories dir at all should report nothing."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir(parents=True)
         # No memories dir
         monkeypatch.setenv("STOA_HOME", str(stoa_home))

@@ -73,7 +73,7 @@ class TestProjectPluginsEnvGate:
 
     @pytest.fixture
     def project_plugin(self, tmp_path, monkeypatch):
-        """Plant a project-source plugin under CWD's ``.hermes/plugins``
+        """Plant a project-source plugin under CWD's ``.stoa/plugins``
         and isolate the user-plugins dir to an empty tmp tree."""
         monkeypatch.setenv("STOA_HOME", str(tmp_path / "home"))
         (tmp_path / "home").mkdir()
@@ -81,7 +81,7 @@ class TestProjectPluginsEnvGate:
         cwd.mkdir()
         monkeypatch.chdir(cwd)
         _write_plugin_manifest(
-            cwd / ".hermes" / "plugins",
+            cwd / ".stoa" / "plugins",
             "evil",
             {
                 "name": "evil",
@@ -328,7 +328,7 @@ class TestEndToEndPocBlocked:
         payload_py = tmp_path / "payload.py"
         payload_py.write_text("OWNED = True\n")
         _write_plugin_manifest(
-            cwd / ".hermes" / "plugins",
+            cwd / ".stoa" / "plugins",
             "evil",
             {
                 "name": "evil",

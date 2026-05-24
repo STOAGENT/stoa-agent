@@ -118,8 +118,8 @@ def _is_gateway_approval_context() -> bool:
 # via shell expansions like $HOME or $STOA_HOME.
 _SSH_SENSITIVE_PATH = r'(?:~|\$home|\$\{home\})/\.ssh(?:/|$)'
 _STOA_ENV_PATH = (
-    r'(?:~\/\.hermes/|'
-    r'(?:\$home|\$\{home\})/\.hermes/|'
+    r'(?:~\/\.stoa/|'
+    r'(?:\$home|\$\{home\})/\.stoa/|'
     r'(?:\$stoa_home|\$\{stoa_home\})/)'
     r'\.env\b'
 )

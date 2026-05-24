@@ -806,7 +806,7 @@ def _auth_file_path() -> Path:
     # hermetic conftest, or sandbox escapes via threads/subprocesses. In
     # production (no PYTEST_CURRENT_TEST) this is a single dict lookup.
     if os.environ.get("PYTEST_CURRENT_TEST"):
-        real_home_auth = (Path.home() / ".hermes" / "auth.json").resolve(strict=False)
+        real_home_auth = (Path.home() / ".stoa" / "auth.json").resolve(strict=False)
         try:
             resolved = path.resolve(strict=False)
         except Exception:
@@ -873,7 +873,7 @@ def _load_global_auth_store() -> Dict[str, Any]:
     if os.environ.get("PYTEST_CURRENT_TEST"):
         real_home_env = os.environ.get("HOME", "")
         if real_home_env:
-            real_root = Path(real_home_env) / ".hermes" / "auth.json"
+            real_root = Path(real_home_env) / ".stoa" / "auth.json"
             try:
                 if global_path.resolve(strict=False) == real_root.resolve(strict=False):
                     return {}
@@ -5739,7 +5739,7 @@ def _get_azure_foundry_auth_status() -> Dict[str, Any]:
     checks:
 
       * ``auth_mode == "entra_id"`` AND ``azure-identity`` is importable
-        (we do NOT mint a token here; ``hermes doctor`` runs the live
+        (we do NOT mint a token here; ``stoa doctor`` runs the live
         probe and reports whether the credential chain can acquire one).
       * ``auth_mode == "api_key"`` (default) AND ``AZURE_FOUNDRY_API_KEY``
         is set with a usable value.
@@ -5792,7 +5792,7 @@ def _get_azure_foundry_auth_status() -> Dict[str, Any]:
             else:
                 info["hint"] = (
                     "azure-identity is installed; live credential validation "
-                    "is skipped here. Run `hermes doctor` to verify token acquisition."
+                    "is skipped here. Run `stoa doctor` to verify token acquisition."
                 )
             return info
         except Exception as exc:

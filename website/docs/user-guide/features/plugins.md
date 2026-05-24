@@ -121,7 +121,7 @@ Every `ctx.*` API below is available inside a plugin's `register(ctx)` function.
 |--------|------|----------|
 | Bundled | `<repo>/plugins/` | Ships with Hermes — see [Built-in Plugins](/docs/user-guide/features/built-in-plugins) |
 | User | `~/.stoa/plugins/` | Personal plugins |
-| Project | `.hermes/plugins/` | Project-specific plugins (requires `STOA_ENABLE_PROJECT_PLUGINS=true`) |
+| Project | `.stoa/plugins/` | Project-specific plugins (requires `STOA_ENABLE_PROJECT_PLUGINS=true`) |
 | pip | `stoa_agent.plugins` entry_points | Distributed packages |
 | Nix | `services.stoa-agent.extraPlugins` / `extraPythonPackages` | NixOS declarative installs — see [Nix Setup](/docs/getting-started/nix-setup#plugins) |
 

@@ -16,7 +16,7 @@ import pytest
 @pytest.fixture
 def backup_env(monkeypatch, tmp_path):
     """Isolate STOA_HOME + reload modules so every test starts clean."""
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     (home / "skills").mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))

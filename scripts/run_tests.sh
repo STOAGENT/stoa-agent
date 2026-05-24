@@ -53,7 +53,7 @@ PYTHON="$VENV/bin/python"
 EXTRA_PYTHONPATH=""
 EXTRA_PYTEST_PLUGINS=""
 if [ -f "$HOME/.stoa/pytest_live_guard.py" ]; then
-  EXTRA_PYTHONPATH="$HOME/.hermes"
+  EXTRA_PYTHONPATH="$HOME/.stoa"
   EXTRA_PYTEST_PLUGINS="pytest_live_guard"
 fi
 

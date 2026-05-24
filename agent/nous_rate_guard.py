@@ -32,7 +32,7 @@ def _state_path() -> str:
         from stoa_constants import get_stoa_home
         base = get_stoa_home()
     except ImportError:
-        base = os.path.join(os.path.expanduser("~"), ".hermes")
+        base = os.path.join(os.path.expanduser("~"), ".stoa")
     return os.path.join(base, _STATE_SUBDIR, _STATE_FILENAME)
 
 

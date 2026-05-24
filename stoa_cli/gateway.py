@@ -706,7 +706,7 @@ def _sync_stoa_home_from_systemd_unit(system: bool) -> None:
     """When acting on a system-scope unit, adopt its ``STOA_HOME``.
 
     Under ``sudo``, ``STOA_HOME`` is stripped and ``HOME=/root``, so
-    :func:`get_stoa_home` falls back to ``/root/.hermes`` — the wrong
+    :func:`get_stoa_home` falls back to ``/root/.stoa`` — the wrong
     profile. The unit file pins ``STOA_HOME`` for the actual gateway
     process, so we mirror that into our own environment to make
     ``read_runtime_status`` / ``get_running_pid`` read the correct files.
@@ -2084,13 +2084,13 @@ def _stoa_home_for_target_user(target_home_dir: str) -> str:
 
     When installing a system service via sudo, get_stoa_home() resolves to
     root's home.  This translates it to the target user's equivalent path:
-      /root/.hermes                    → /home/alice/.hermes
+      /root/.stoa                    → /home/alice/.stoa
       /root/.stoa/profiles/coder     → /home/alice/.stoa/profiles/coder
       /opt/custom-hermes               → /opt/custom-hermes  (kept as-is)
     """
     current_hermes = get_stoa_home().resolve()
-    current_default = (Path.home() / ".hermes").resolve()
-    target_default = Path(target_home_dir) / ".hermes"
+    current_default = (Path.home() / ".stoa").resolve()
+    target_default = Path(target_home_dir) / ".stoa"
 
     # Default ~/.stoa → remap to target user's default
     if current_hermes == current_default:

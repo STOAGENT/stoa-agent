@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@hermes/ink": ["src/types/stoa-ink.d.ts"]
+      "@stoa/ink": ["src/types/stoa-ink.d.ts"]
     }
   }
 }

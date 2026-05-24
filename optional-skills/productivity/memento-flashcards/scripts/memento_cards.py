@@ -15,7 +15,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-_STOA_HOME = Path(os.environ.get("STOA_HOME", Path.home() / ".hermes"))
+_STOA_HOME = Path(os.environ.get("STOA_HOME", Path.home() / ".stoa"))
 DATA_DIR = _STOA_HOME / "skills" / "productivity" / "memento-flashcards" / "data"
 CARDS_FILE = DATA_DIR / "cards.json"
 

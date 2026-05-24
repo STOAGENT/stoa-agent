@@ -451,7 +451,7 @@ class TestRootLevelProviderOverride:
         """model.provider takes priority — root-level provider is only a fallback."""
         import yaml
 
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -474,7 +474,7 @@ class TestRootLevelProviderOverride:
         """Even when model.provider is the default 'auto', root-level provider is ignored."""
         import yaml
 
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -498,7 +498,7 @@ class TestRootLevelProviderOverride:
         """Classic CLI must expose terminal.vercel_runtime to terminal_tool.py."""
         import yaml
 
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.delenv("TERMINAL_VERCEL_RUNTIME", raising=False)

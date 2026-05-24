@@ -21,10 +21,10 @@ import pytest
 @pytest.fixture
 def session_db(tmp_path):
     """Create a real SessionDB for testing."""
-    os.environ["STOA_HOME"] = str(tmp_path / ".hermes")
-    os.makedirs(tmp_path / ".hermes", exist_ok=True)
+    os.environ["STOA_HOME"] = str(tmp_path / ".stoa")
+    os.makedirs(tmp_path / ".stoa", exist_ok=True)
     from stoa_state import SessionDB
-    db = SessionDB(db_path=tmp_path / ".hermes" / "test_sessions.db")
+    db = SessionDB(db_path=tmp_path / ".stoa" / "test_sessions.db")
     yield db
     db.close()
 

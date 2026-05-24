@@ -109,7 +109,7 @@ def _get_token_dir() -> Path:
         from stoa_constants import get_stoa_home
         base = Path(get_stoa_home())
     except ImportError:
-        base = Path(os.environ.get("STOA_HOME", str(Path.home() / ".hermes")))
+        base = Path(os.environ.get("STOA_HOME", str(Path.home() / ".stoa")))
     return base / "mcp-tokens"
 
 

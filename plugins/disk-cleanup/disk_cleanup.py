@@ -35,7 +35,7 @@ except Exception:  # pragma: no cover — plugin may load before constants resol
 
     def get_stoa_home() -> Path:  # type: ignore[no-redef]
         val = (os.environ.get("STOA_HOME") or "").strip()
-        return Path(val).resolve() if val else (Path.home() / ".hermes").resolve()
+        return Path(val).resolve() if val else (Path.home() / ".stoa").resolve()
 
 
 logger = logging.getLogger(__name__)

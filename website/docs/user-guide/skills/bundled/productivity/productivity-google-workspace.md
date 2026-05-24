@@ -50,7 +50,7 @@ on CLI, Telegram, Discord, or any platform.
 Define a shorthand first:
 
 ```bash
-GSETUP="python ${STOA_HOME:-$HOME/.hermes}/skills/productivity/google-workspace/scripts/setup.py"
+GSETUP="python ${STOA_HOME:-$HOME/.stoa}/skills/productivity/google-workspace/scripts/setup.py"
 ```
 
 ### Step 0: Check if already set up
@@ -181,7 +181,7 @@ Should print `AUTHENTICATED`. Setup is complete — token refreshes automaticall
 All commands go through the API script. Set `GAPI` as a shorthand:
 
 ```bash
-GAPI="python ${STOA_HOME:-$HOME/.hermes}/skills/productivity/google-workspace/scripts/google_api.py"
+GAPI="python ${STOA_HOME:-$HOME/.stoa}/skills/productivity/google-workspace/scripts/google_api.py"
 ```
 
 ### Gmail

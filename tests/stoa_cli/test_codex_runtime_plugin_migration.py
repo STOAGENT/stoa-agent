@@ -818,8 +818,8 @@ class TestHermesHomeLeakGuard:
         )
 
     def test_tempdir_detector_accepts_real_stoa_home(self):
-        assert not _looks_like_test_tempdir("/Users/alice/.hermes")
-        assert not _looks_like_test_tempdir("/home/bob/.hermes")
+        assert not _looks_like_test_tempdir("/Users/alice/.stoa")
+        assert not _looks_like_test_tempdir("/home/bob/.stoa")
         assert not _looks_like_test_tempdir("/opt/hermes")
         assert not _looks_like_test_tempdir("")
 
@@ -844,7 +844,7 @@ class TestHermesHomeLeakGuard:
         # We can't easily create one in the test, so just use a stable path
         # outside any tempdir-detector needle. The detector checks for tempdir
         # markers, not for path existence.
-        real_path = "/Users/alice/.hermes"
+        real_path = "/Users/alice/.stoa"
         monkeypatch.setenv("STOA_HOME", real_path)
         entry = _build_stoa_tools_mcp_entry()
         env = entry.get("env", {})

@@ -80,7 +80,7 @@ except (ModuleNotFoundError, ImportError):
     # _stoa_home.py shim).
     def get_stoa_home() -> Path:
         val = os.environ.get("STOA_HOME", "").strip()
-        return Path(val) if val else Path.home() / ".hermes"
+        return Path(val) if val else Path.home() / ".stoa"
 
     def display_stoa_home() -> str:
         home = get_stoa_home()

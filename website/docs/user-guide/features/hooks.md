@@ -51,7 +51,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-LOG_FILE = Path.home() / ".hermes" / "hooks" / "my-hook" / "activity.log"
+LOG_FILE = Path.home() / ".stoa" / "hooks" / "my-hook" / "activity.log"
 
 async def handle(event_type: str, context: dict):
     """Called for each subscribed event. Must be named 'handle'."""
@@ -140,7 +140,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-LOG = Path.home() / ".hermes" / "logs" / "command_usage.jsonl"
+LOG = Path.home() / ".stoa" / "logs" / "command_usage.jsonl"
 
 def handle(event_type: str, context: dict):
     LOG.parent.mkdir(parents=True, exist_ok=True)
@@ -237,7 +237,7 @@ from pathlib import Path
 
 logger = logging.getLogger("hooks.boot-md")
 
-BOOT_FILE = Path.home() / ".hermes" / "BOOT.md"
+BOOT_FILE = Path.home() / ".stoa" / "BOOT.md"
 
 
 def _build_prompt(content: str) -> str:

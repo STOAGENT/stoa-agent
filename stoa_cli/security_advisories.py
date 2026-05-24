@@ -21,9 +21,9 @@ Design goals:
 
 The check is invoked from three places:
 
-1. ``hermes doctor`` (and ``hermes doctor --ack <id>``)
+1. ``stoa doctor`` (and ``hermes doctor --ack <id>``)
 2. CLI startup banner (one short line, then full guidance via
-   ``hermes doctor``)
+   ``stoa doctor``)
 3. Gateway startup (logged to gateway.log; first interactive message gets
    a one-line operator banner)
 
@@ -402,7 +402,7 @@ def hits_due_for_banner(
 
 
 def render_doctor_section(hits: list[AdvisoryHit]) -> tuple[bool, list[str]]:
-    """Render the security-advisory section for ``hermes doctor``.
+    """Render the security-advisory section for ``stoa doctor``.
 
     Returns ``(has_problems, lines)``. Caller is responsible for printing
     with whatever color scheme it uses.
@@ -448,4 +448,4 @@ def gateway_log_message(hits: list[AdvisoryHit]) -> Optional[str]:
                 f"See {h.advisory.url}")
     return (f"{len(fresh)} security advisories active "
             f"(IDs: {', '.join(h.advisory.id for h in fresh)}). "
-            f"Run `hermes doctor` on the gateway host for details.")
+            f"Run `stoa doctor` on the gateway host for details.")

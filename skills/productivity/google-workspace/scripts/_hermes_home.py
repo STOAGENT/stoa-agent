@@ -29,7 +29,7 @@ except (ModuleNotFoundError, ImportError):
 
         Mirrors ``stoa_constants.get_stoa_home()``."""
         val = os.environ.get("STOA_HOME", "").strip()
-        return Path(val) if val else Path.home() / ".hermes"
+        return Path(val) if val else Path.home() / ".stoa"
 
     def display_stoa_home() -> str:
         """Return a user-friendly ``~/``-shortened display string.

@@ -140,7 +140,7 @@ class TestFirecrawlClientConfig:
     def test_nous_auth_token_respects_stoa_home_override(self, tmp_path):
         """Auth lookup should read from STOA_HOME/auth.json, not ~/.stoa/auth.json."""
         real_home = tmp_path / "real-home"
-        (real_home / ".hermes").mkdir(parents=True)
+        (real_home / ".stoa").mkdir(parents=True)
 
         stoa_home = tmp_path / "hermes-home"
         stoa_home.mkdir()

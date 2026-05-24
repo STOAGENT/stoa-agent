@@ -24,11 +24,11 @@ class TestGetDefaultHermesRoot:
         monkeypatch.delenv("STOA_HOME", raising=False)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
-        assert get_default_stoa_root() == tmp_path / ".hermes"
+        assert get_default_stoa_root() == tmp_path / ".stoa"
 
     def test_stoa_home_is_native(self, tmp_path, monkeypatch):
         """When STOA_HOME = ~/.stoa, returns ~/.stoa."""
-        native = tmp_path / ".hermes"
+        native = tmp_path / ".stoa"
         native.mkdir()
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setenv("STOA_HOME", str(native))
@@ -36,7 +36,7 @@ class TestGetDefaultHermesRoot:
 
     def test_stoa_home_is_profile(self, tmp_path, monkeypatch):
         """When STOA_HOME is a profile under ~/.stoa, returns ~/.stoa."""
-        native = tmp_path / ".hermes"
+        native = tmp_path / ".stoa"
         profile = native / "profiles" / "coder"
         profile.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -179,7 +179,7 @@ class TestSecureParentDir:
 
     def test_safe_path_calls_chmod(self, tmp_path, monkeypatch):
         """Normal nested path (depth >= 3) should call os.chmod."""
-        safe_dir = tmp_path / "home" / "user" / ".hermes"
+        safe_dir = tmp_path / "home" / "user" / ".stoa"
         safe_dir.mkdir(parents=True)
         target = safe_dir / "auth.json"
         target.touch()

@@ -32,7 +32,7 @@ from stoa_cli.kanban import run_slash
 
 @pytest.fixture
 def kanban_home(tmp_path, monkeypatch):
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -1222,7 +1222,7 @@ def test_spawned_event_emitted_with_pid(kanban_home, all_assignees_spawnable):
 def test_migration_renames_legacy_event_kinds(tmp_path, monkeypatch):
     """A DB created with the old vocab must have its event rows renamed
     in place on init_db()."""
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -1265,7 +1265,7 @@ def test_list_profiles_on_disk(tmp_path, monkeypatch):
     named profiles under ~/.stoa/profiles/ that contain a config.yaml."""
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.delenv("STOA_HOME", raising=False)
-    profiles = tmp_path / ".hermes" / "profiles"
+    profiles = tmp_path / ".stoa" / "profiles"
     profiles.mkdir(parents=True)
     for name in ("researcher", "writer"):
         d = profiles / name
@@ -1297,9 +1297,9 @@ def test_known_assignees_merges_disk_and_board(tmp_path, monkeypatch):
     """known_assignees unions profiles on disk with currently-assigned
     names, and reports per-status counts."""
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    profiles = tmp_path / ".hermes" / "profiles"
+    profiles = tmp_path / ".stoa" / "profiles"
     profiles.mkdir(parents=True)
-    monkeypatch.setenv("STOA_HOME", str(tmp_path / ".hermes"))
+    monkeypatch.setenv("STOA_HOME", str(tmp_path / ".stoa"))
 
     for name in ("researcher", "writer"):
         d = profiles / name
@@ -2184,7 +2184,7 @@ def test_claim_task_recovers_from_invariant_leak(kanban_home):
 def test_cli_create_on_fresh_home_auto_inits(tmp_path, monkeypatch):
     """First CLI action on an empty STOA_HOME must not error with
     'no such table: tasks' — init_db auto-runs now."""
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -2210,7 +2210,7 @@ def test_cli_create_on_fresh_home_auto_inits(tmp_path, monkeypatch):
 def test_connect_auto_inits_fresh_db(tmp_path, monkeypatch):
     """Calling connect() on a fresh STOA_HOME must create the
     schema. Previously callers had to remember kb.init_db() first."""
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -2320,7 +2320,7 @@ def test_migration_backfill_idempotent_under_re_run(tmp_path, monkeypatch):
     """init_db must be safe to re-run repeatedly. Each call should leave
     at most one run row per in-flight task, even if called while a
     dispatcher is simultaneously claiming."""
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
     monkeypatch.setattr(Path, "home", lambda: tmp_path)

@@ -140,7 +140,7 @@
 
 ### Session & Memory
 - **Session search** and management slash commands ([#2198](https://github.com/stoa-xyz/stoa-agent/pull/2198))
-- **Auto session titles** and `.hermes.md` project config ([#1712](https://github.com/stoa-xyz/stoa-agent/pull/1712))
+- **Auto session titles** and `.stoa.md` project config ([#1712](https://github.com/stoa-xyz/stoa-agent/pull/1712))
 - Fix: concurrent memory writes silently drop entries — added file locking ([#1726](https://github.com/stoa-xyz/stoa-agent/pull/1726))
 - Fix: search all sources by default in `session_search` ([#1892](https://github.com/stoa-xyz/stoa-agent/pull/1892))
 - Fix: handle hyphenated FTS5 queries and preserve quoted literals ([#1776](https://github.com/stoa-xyz/stoa-agent/pull/1776))

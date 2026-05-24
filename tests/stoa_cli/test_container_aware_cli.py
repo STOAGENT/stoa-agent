@@ -24,7 +24,7 @@ from stoa_cli.config import (
 @pytest.fixture
 def container_env(tmp_path, monkeypatch):
     """Set up a fake STOA_HOME with .container-mode file."""
-    stoa_home = tmp_path / ".hermes"
+    stoa_home = tmp_path / ".stoa"
     stoa_home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
     monkeypatch.delenv("STOA_DEV", raising=False)
@@ -62,7 +62,7 @@ def test_get_container_exec_info_none_inside_container(container_env):
 
 def test_get_container_exec_info_none_without_file(tmp_path, monkeypatch):
     """Returns None when .container-mode doesn't exist (native mode)."""
-    stoa_home = tmp_path / ".hermes"
+    stoa_home = tmp_path / ".stoa"
     stoa_home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
     monkeypatch.delenv("STOA_DEV", raising=False)
@@ -98,7 +98,7 @@ def test_get_container_exec_info_defaults():
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        stoa_home = Path(tmpdir) / ".hermes"
+        stoa_home = Path(tmpdir) / ".stoa"
         stoa_home.mkdir()
         (stoa_home / ".container-mode").write_text(
             "# minimal file with no keys\n"

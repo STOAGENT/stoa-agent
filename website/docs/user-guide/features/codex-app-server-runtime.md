@@ -350,7 +350,7 @@ Codex's built-in toolset covers shell/file ops/patches but doesn't have web sear
 [mcp_servers.hermes-tools]
 command = "/path/to/python"
 args = ["-m", "agent.transports.stoa_tools_mcp_server"]
-env = { STOA_HOME = "/your/.hermes", PYTHONPATH = "...", STOA_QUIET = "1" }
+env = { STOA_HOME = "/your/.stoa", PYTHONPATH = "...", STOA_QUIET = "1" }
 startup_timeout_sec = 30.0
 tool_timeout_sec = 600.0
 ```

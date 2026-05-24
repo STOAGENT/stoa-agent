@@ -1,7 +1,7 @@
 """Regression tests for _apply_profile_override STOA_HOME guard (issue #22502).
 
 When STOA_HOME is set to the hermes root (e.g. systemd hardcodes
-STOA_HOME=/root/.hermes), _apply_profile_override must still read
+STOA_HOME=/root/.stoa), _apply_profile_override must still read
 active_profile and update STOA_HOME to the profile directory.
 
 When STOA_HOME is already a profile directory (.../profiles/<name>),
@@ -27,7 +27,7 @@ def _run_apply_profile_override(
     Returns the value of os.environ["STOA_HOME"] after the call,
     or None if unset.
     """
-    stoa_root = tmp_path / ".hermes"
+    stoa_root = tmp_path / ".stoa"
     stoa_root.mkdir(parents=True, exist_ok=True)
 
     if active_profile is not None:
@@ -61,14 +61,14 @@ class TestApplyProfileOverrideHermesHomeGuard:
     def test_stoa_home_at_root_with_active_profile_is_redirected(
         self, tmp_path, monkeypatch
     ):
-        """STOA_HOME=/root/.hermes + active_profile=coder must redirect
+        """STOA_HOME=/root/.stoa + active_profile=coder must redirect
         STOA_HOME to .../profiles/coder.
 
         Bug scenario from #22502: systemd sets STOA_HOME to the hermes root
         and the user switches to a profile via `hermes profile use`.
         Before the fix, the guard returned early and active_profile was ignored.
         """
-        stoa_root = tmp_path / ".hermes"
+        stoa_root = tmp_path / ".stoa"
         stoa_root.mkdir(parents=True, exist_ok=True)
 
         result = _run_apply_profile_override(
@@ -94,7 +94,7 @@ class TestApplyProfileOverrideHermesHomeGuard:
         with STOA_HOME already set to a specific profile must stay in that
         profile.
         """
-        stoa_root = tmp_path / ".hermes"
+        stoa_root = tmp_path / ".stoa"
         profile_dir = stoa_root / "profiles" / "coder"
         profile_dir.mkdir(parents=True, exist_ok=True)
 
@@ -127,7 +127,7 @@ class TestApplyProfileOverrideHermesHomeGuard:
 
     def test_stoa_home_unset_default_profile_no_redirect(self, tmp_path, monkeypatch):
         """active_profile=default must not redirect STOA_HOME."""
-        stoa_root = tmp_path / ".hermes"
+        stoa_root = tmp_path / ".stoa"
         stoa_root.mkdir(parents=True, exist_ok=True)
 
         monkeypatch.setattr(Path, "home", lambda: tmp_path)

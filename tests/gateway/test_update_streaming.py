@@ -67,7 +67,7 @@ class TestGatewayPrompt:
     def test_writes_prompt_file_and_reads_response(self, tmp_path):
         """Writes .update_prompt.json, reads .update_response, returns answer."""
         import threading
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
 
         # Simulate the response arriving after a short delay
@@ -91,7 +91,7 @@ class TestGatewayPrompt:
     def test_prompt_file_content(self, tmp_path):
         """Verifies the prompt JSON structure."""
         import threading
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
 
         prompt_data = None
@@ -121,7 +121,7 @@ class TestGatewayPrompt:
 
     def test_timeout_returns_default(self, tmp_path):
         """Returns default when no response within timeout."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
 
         with patch.dict(os.environ, {"STOA_HOME": str(stoa_home)}):
@@ -132,7 +132,7 @@ class TestGatewayPrompt:
 
     def test_empty_response_returns_default(self, tmp_path):
         """Empty response file returns default."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         (stoa_home / ".update_response").write_text("")
 

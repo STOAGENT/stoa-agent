@@ -80,7 +80,7 @@ _MEMORY_THREAT_PATTERNS = [
     # Persistence via shell rc
     (r'authorized_keys', "ssh_backdoor"),
     (r'\$HOME/\.ssh|\~/\.ssh', "ssh_access"),
-    (r'\$HOME/\.hermes/\.env|\~/\.hermes/\.env', "stoa_env"),
+    (r'\$HOME/\.stoa/\.env|\~/\.stoa/\.env', "stoa_env"),
 ]
 
 # Subset of invisible chars for injection detection

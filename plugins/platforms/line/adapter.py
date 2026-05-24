@@ -1285,7 +1285,7 @@ class LineAdapter(BasePlatformAdapter):
             from stoa_constants import get_stoa_home
             stoa_home = Path(get_stoa_home()).resolve()
         except Exception:
-            stoa_home = Path.home().joinpath(".hermes").resolve()
+            stoa_home = Path.home().joinpath(".stoa").resolve()
 
         allowed_roots = {
             Path(tempfile.gettempdir()).resolve(),

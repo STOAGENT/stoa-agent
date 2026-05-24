@@ -2576,13 +2576,13 @@ class ChatConsole:
         """
         yield self
 
-# ASCII Art - HERMES-AGENT logo (full width, single line - requires ~95 char terminal)
-STOA_AGENT_LOGO = """[bold #FFD700]██╗  ██╗███████╗██████╗ ███╗   ███╗███████╗███████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
-[bold #FFD700]██║  ██║██╔════╝██╔══██╗████╗ ████║██╔════╝██╔════╝      ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]
-[#FFBF00]███████║█████╗  ██████╔╝██╔████╔██║█████╗  ███████╗█████╗███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║[/]
-[#FFBF00]██╔══██║██╔══╝  ██╔══██╗██║╚██╔╝██║██╔══╝  ╚════██║╚════╝██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║[/]
-[#CD7F32]██║  ██║███████╗██║  ██║██║ ╚═╝ ██║███████╗███████║      ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║[/]
-[#CD7F32]╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝╚══════╝      ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝[/]"""
+# ASCII Art - STOA-AGENT logo (full width, single line - requires ~80 char terminal)
+STOA_AGENT_LOGO = """[bold #FFD700]███████╗████████╗ ██████╗  █████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
+[bold #FFD700]██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗     ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]
+[#FFBF00]███████╗   ██║   ██║   ██║███████║     ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   [/]
+[#FFBF00]╚════██║   ██║   ██║   ██║██╔══██║     ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   [/]
+[#CD7F32]███████║   ██║   ╚██████╔╝██║  ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   [/]
+[#CD7F32]╚══════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   [/]"""
 
 # ASCII Art - Hermes Caduceus (compact, fits in left panel)
 STOA_CADUCEUS = """[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⣀⣀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
@@ -4901,9 +4901,9 @@ class HermesCLI:
         """Show a startup banner if any unacked security advisories match.
 
         Renders a single bold-red box on stderr (so piped stdout remains
-        clean) listing the worst hit and pointing at ``hermes doctor``.
+        clean) listing the worst hit and pointing at ``stoa doctor``.
         Banner-cache rate-limits this to once per 24h per advisory; full
-        remediation lives behind ``hermes doctor`` so the banner stays
+        remediation lives behind ``stoa doctor`` so the banner stays
         small.
         """
         try:

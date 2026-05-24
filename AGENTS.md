@@ -302,7 +302,7 @@ The registry handles schema collection, dispatch, availability checking, and err
 
 **Path references in tool schemas**: If the schema description mentions file paths (e.g. default output directories), use `display_stoa_home()` to make them profile-aware. The schema is generated at import time, which is after `_apply_profile_override()` sets `STOA_HOME`.
 
-**State files**: If a tool stores persistent state (caches, logs, checkpoints), use `get_stoa_home()` for the base directory — never `Path.home() / ".hermes"`. This ensures each profile gets its own state.
+**State files**: If a tool stores persistent state (caches, logs, checkpoints), use `get_stoa_home()` for the base directory — never `Path.home() / ".stoa"`. This ensures each profile gets its own state.
 
 **Agent-level tools** (todo, memory): intercepted by `run_agent.py` before `handle_function_call()`. See `tools/todo_tool.py` for the pattern.
 
@@ -900,14 +900,14 @@ automatically scope to the active profile.
 ### Rules for profile-safe code
 
 1. **Use `get_stoa_home()` for all STOA_HOME paths.** Import from `stoa_constants`.
-   NEVER hardcode `~/.stoa` or `Path.home() / ".hermes"` in code that reads/writes state.
+   NEVER hardcode `~/.stoa` or `Path.home() / ".stoa"` in code that reads/writes state.
    ```python
    # GOOD
    from stoa_constants import get_stoa_home
    config_path = get_stoa_home() / "config.yaml"
 
    # BAD — breaks profiles
-   config_path = Path.home() / ".hermes" / "config.yaml"
+   config_path = Path.home() / ".stoa" / "config.yaml"
    ```
 
 2. **Use `display_stoa_home()` for user-facing messages.** Import from `stoa_constants`.
@@ -923,13 +923,13 @@ automatically scope to the active profile.
 
 3. **Module-level constants are fine** — they cache `get_stoa_home()` at import time,
    which is AFTER `_apply_profile_override()` sets the env var. Just use `get_stoa_home()`,
-   not `Path.home() / ".hermes"`.
+   not `Path.home() / ".stoa"`.
 
 4. **Tests that mock `Path.home()` must also set `STOA_HOME`** — since code now uses
-   `get_stoa_home()` (reads env var), not `Path.home() / ".hermes"`:
+   `get_stoa_home()` (reads env var), not `Path.home() / ".stoa"`:
    ```python
    with patch.object(Path, "home", return_value=tmp_path), \
-        patch.dict(os.environ, {"STOA_HOME": str(tmp_path / ".hermes")}):
+        patch.dict(os.environ, {"STOA_HOME": str(tmp_path / ".stoa")}):
        ...
    ```
 
@@ -940,7 +940,7 @@ automatically scope to the active profile.
    See `gateway/platforms/telegram.py` for the canonical pattern.
 
 6. **Profile operations are HOME-anchored, not STOA_HOME-anchored** — `_get_profiles_root()`
-   returns `Path.home() / ".hermes" / "profiles"`, NOT `get_stoa_home() / "profiles"`.
+   returns `Path.home() / ".stoa" / "profiles"`, NOT `get_stoa_home() / "profiles"`.
    This is intentional — it lets `hermes -p coder profile list` see all profiles regardless
    of which one is active.
 
@@ -1000,7 +1000,7 @@ Use the pattern from `tests/stoa_cli/test_profiles.py`:
 ```python
 @pytest.fixture
 def profile_env(tmp_path, monkeypatch):
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setenv("STOA_HOME", str(home))

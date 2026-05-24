@@ -8,7 +8,7 @@ Hermetic-test invariants enforced here (see AGENTS.md for rationale):
 2. **Isolated STOA_HOME.** STOA_HOME points to a per-test tempdir so
    code reading ``~/.stoa/*`` via ``get_stoa_home()`` can't see the
    real one. (We do NOT also redirect HOME — that broke subprocesses in
-   CI. Code using ``Path.home() / ".hermes"`` instead of the canonical
+   CI. Code using ``Path.home() / ".stoa"`` instead of the canonical
    ``get_stoa_home()`` is a bug to fix at the callsite.)
 3. **Deterministic runtime.** TZ=UTC, LANG=C.UTF-8, PYTHONHASHSEED=0.
 4. **No STOA_SESSION_* inheritance** — the agent's current gateway
@@ -333,7 +333,7 @@ def _hermetic_environment(tmp_path, monkeypatch):
     #    inherit HOME and expect it to be stable. If a test genuinely
     #    needs HOME isolated, it should set it explicitly in its own
     #    fixture. Any code in the codebase reading ``~/.stoa/*`` via
-    #    ``Path.home() / ".hermes"`` instead of ``get_stoa_home()``
+    #    ``Path.home() / ".stoa"`` instead of ``get_stoa_home()``
     #    is a bug to fix at the callsite.
     fake_stoa_home = tmp_path / "stoa_test"
     fake_stoa_home.mkdir()

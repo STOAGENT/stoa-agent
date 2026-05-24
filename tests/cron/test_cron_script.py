@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 @pytest.fixture
 def cron_env(tmp_path, monkeypatch):
     """Isolated cron environment with temp STOA_HOME."""
-    stoa_home = tmp_path / ".hermes"
+    stoa_home = tmp_path / ".stoa"
     stoa_home.mkdir()
     (stoa_home / "cron").mkdir()
     (stoa_home / "cron" / "output").mkdir()

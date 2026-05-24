@@ -28,7 +28,7 @@ class TestGetHermesHome:
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("STOA_HOME", None)
             home = get_stoa_home()
-            assert home == Path.home() / ".hermes"
+            assert home == Path.home() / ".stoa"
 
     def test_env_override(self):
         with patch.dict(os.environ, {"STOA_HOME": "/custom/path"}):

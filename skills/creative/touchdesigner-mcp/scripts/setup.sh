@@ -8,7 +8,7 @@ OK="${GREEN}✔${NC}"; FAIL="${RED}✘${NC}"; WARN="${YELLOW}⚠${NC}"
 
 TWOZERO_URL="https://www.404zero.com/pisang/twozero.tox"
 TOX_PATH="$HOME/Downloads/twozero.tox"
-STOA_HOME_DIR="${STOA_HOME:-$HOME/.hermes}"
+STOA_HOME_DIR="${STOA_HOME:-$HOME/.stoa}"
 STOA_CFG="${STOA_HOME_DIR}/config.yaml"
 MCP_PORT=40404
 MCP_ENDPOINT="http://localhost:${MCP_PORT}/mcp"

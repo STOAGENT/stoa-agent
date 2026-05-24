@@ -53,13 +53,13 @@ class CopilotACPClientSafetyTests(unittest.TestCase):
     def test_read_text_file_blocks_internal_stoa_hub_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             home = Path(tmpdir) / "home"
-            blocked = home / ".hermes" / "skills" / ".hub" / "index-cache" / "entry.json"
+            blocked = home / ".stoa" / "skills" / ".hub" / "index-cache" / "entry.json"
             blocked.parent.mkdir(parents=True, exist_ok=True)
             blocked.write_text('{"token":"sk-test-secret-1234567890"}')
 
             with patch.dict(
                 os.environ,
-                {"HOME": str(home), "STOA_HOME": str(home / ".hermes")},
+                {"HOME": str(home), "STOA_HOME": str(home / ".stoa")},
                 clear=False,
             ):
                 response = self._dispatch(

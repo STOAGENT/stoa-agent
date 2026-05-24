@@ -525,7 +525,7 @@ class GoogleChatAdapter(BasePlatformAdapter):
             from stoa_constants import get_stoa_home as _get_stoa_home
             _stoa_home = _get_stoa_home()
         except (ModuleNotFoundError, ImportError):
-            _stoa_home = _Path.home() / ".hermes"
+            _stoa_home = _Path.home() / ".stoa"
         self._thread_count_store = _ThreadCountStore(
             _stoa_home / "google_chat_thread_counts.json"
         )
@@ -689,7 +689,7 @@ class GoogleChatAdapter(BasePlatformAdapter):
     # ------------------------------------------------------------------
     def _bot_id_cache_path(self) -> _Path:
         """Location where the resolved bot user_id is cached across restarts."""
-        base = os.getenv("STOA_HOME", str(_Path.home() / ".hermes"))
+        base = os.getenv("STOA_HOME", str(_Path.home() / ".stoa"))
         return _Path(base) / "google_chat_bot_id.json"
 
     def _load_cached_bot_id(self) -> Optional[str]:

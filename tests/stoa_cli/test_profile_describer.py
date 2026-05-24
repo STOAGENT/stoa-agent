@@ -17,7 +17,7 @@ from stoa_cli import profile_describer as describer
 @pytest.fixture
 def profile_env(tmp_path, monkeypatch):
     """Set up an isolated STOA_HOME with a default profile dir."""
-    home = tmp_path / ".hermes"
+    home = tmp_path / ".stoa"
     home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(home))
     monkeypatch.setattr(Path, "home", lambda: tmp_path)

@@ -45,7 +45,7 @@ BOLD='\033[1m'
 # Configuration
 REPO_URL_SSH="git@github.com:stoa-xyz/stoa-agent.git"
 REPO_URL_HTTPS="https://github.com/stoa-xyz/stoa-agent.git"
-STOA_HOME="${STOA_HOME:-$HOME/.hermes}"
+STOA_HOME="${STOA_HOME:-$HOME/.stoa}"
 # INSTALL_DIR is resolved AFTER arg parsing and OS detection so we can pick an
 # FHS-style layout for root installs.  Track whether the user gave us an
 # explicit directory — if so we never override it.
@@ -61,7 +61,7 @@ NODE_VERSION="22"
 
 # FHS-style root install layout (set by resolve_install_layout when applicable):
 #   code at /usr/local/lib/stoa-agent, command at /usr/local/bin/hermes,
-#   data still at /root/.hermes (STOA_HOME).  Matches Claude Code / Codex CLI
+#   data still at /root/.stoa (STOA_HOME).  Matches Claude Code / Codex CLI
 #   and keeps Docker bind-mounted /root/ volumes lean.
 ROOT_FHS_LAYOUT=false
 DETECTED_BROWSER_EXECUTABLE=""
@@ -140,7 +140,7 @@ while [[ $# -gt 0 ]]; do
             echo "  /usr/local/lib/stoa-agent and links the command into"
             echo "  /usr/local/bin/hermes (FHS layout — matches Claude Code / Codex CLI)."
             echo "  Data, config, sessions, and logs still live in \$STOA_HOME"
-            echo "  (default /root/.hermes).  This keeps Docker bind-mounted volumes"
+            echo "  (default /root/.stoa).  This keeps Docker bind-mounted volumes"
             echo "  small and ensures the command is on PATH for all shells."
             echo "  Existing installs at \$STOA_HOME/stoa-agent are preserved in-place."
             echo "  --ensure DEPS  Install only specified deps (comma-separated)"

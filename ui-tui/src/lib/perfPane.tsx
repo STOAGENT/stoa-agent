@@ -15,13 +15,13 @@ import { appendFileSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-import type { FrameEvent } from '@hermes/ink'
-import { scrollFastPathStats } from '@hermes/ink'
+import type { FrameEvent } from '@stoa/ink'
+import { scrollFastPathStats } from '@stoa/ink'
 import { Profiler, type ProfilerOnRenderCallback, type ReactNode } from 'react'
 
 const ENABLED = /^(?:1|true|yes|on)$/i.test((process.env.STOA_DEV_PERF ?? '').trim())
 const THRESHOLD_MS = Number(process.env.STOA_DEV_PERF_MS ?? '2') || 0
-const LOG_PATH = process.env.STOA_DEV_PERF_LOG?.trim() || join(homedir(), '.hermes', 'perf.log')
+const LOG_PATH = process.env.STOA_DEV_PERF_LOG?.trim() || join(homedir(), '.stoa', 'perf.log')
 
 let logReady = false
 

@@ -637,7 +637,7 @@ def test_invalid_regex_patterns_are_ignored():
 
 
 def test_config_bridges_telegram_group_settings(monkeypatch, tmp_path):
-    stoa_home = tmp_path / ".hermes"
+    stoa_home = tmp_path / ".stoa"
     stoa_home.mkdir()
     (stoa_home / "config.yaml").write_text(
         "telegram:\n"
@@ -692,7 +692,7 @@ def test_config_bridges_telegram_group_settings(monkeypatch, tmp_path):
 
 
 def test_config_bridges_telegram_user_allowlists(monkeypatch, tmp_path):
-    stoa_home = tmp_path / ".hermes"
+    stoa_home = tmp_path / ".stoa"
     stoa_home.mkdir()
     (stoa_home / "config.yaml").write_text(
         "telegram:\n"
@@ -720,7 +720,7 @@ def test_config_bridges_telegram_user_allowlists(monkeypatch, tmp_path):
 
 
 def test_config_env_overrides_telegram_user_allowlists(monkeypatch, tmp_path):
-    stoa_home = tmp_path / ".hermes"
+    stoa_home = tmp_path / ".stoa"
     stoa_home.mkdir()
     (stoa_home / "config.yaml").write_text(
         "telegram:\n"
@@ -757,7 +757,7 @@ def test_top_level_require_mention_bridges_to_telegram(monkeypatch, tmp_path):
     """require_mention at the config.yaml top level (alongside group_sessions_per_user)
     must behave identically to telegram.require_mention: true (#3979).
     """
-    stoa_home = tmp_path / ".hermes"
+    stoa_home = tmp_path / ".stoa"
     stoa_home.mkdir()
     # Intentionally no "telegram:" section — keys are at the top level.
     (stoa_home / "config.yaml").write_text(
@@ -785,7 +785,7 @@ def test_top_level_require_mention_does_not_override_telegram_section(monkeypatc
     """When telegram.require_mention is explicitly set, top-level require_mention
     must not override it (platform-specific config takes precedence).
     """
-    stoa_home = tmp_path / ".hermes"
+    stoa_home = tmp_path / ".stoa"
     stoa_home.mkdir()
     (stoa_home / "config.yaml").write_text(
         "require_mention: true\n"
@@ -805,7 +805,7 @@ def test_top_level_require_mention_does_not_override_telegram_section(monkeypatc
 
 
 def test_config_bridges_telegram_ignored_threads(monkeypatch, tmp_path):
-    stoa_home = tmp_path / ".hermes"
+    stoa_home = tmp_path / ".stoa"
     stoa_home.mkdir()
     (stoa_home / "config.yaml").write_text(
         "telegram:\n"

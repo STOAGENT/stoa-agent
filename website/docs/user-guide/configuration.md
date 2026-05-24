@@ -1680,7 +1680,7 @@ Hermes uses two different context scopes:
 | File | Purpose | Scope |
 |------|---------|-------|
 | `SOUL.md` | **Primary agent identity** — defines who the agent is (slot #1 in the system prompt) | `~/.stoa/SOUL.md` or `$STOA_HOME/SOUL.md` |
-| `.hermes.md` / `HERMES.md` | Project-specific instructions (highest priority) | Walks to git root |
+| `.stoa.md` / `STOA.md` | Project-specific instructions (highest priority) | Walks to git root |
 | `AGENTS.md` | Project-specific instructions, coding conventions | Recursive directory walk |
 | `CLAUDE.md` | Claude Code context files (also detected) | Working directory only |
 | `.cursorrules` | Cursor IDE rules (also detected) | Working directory only |
@@ -1688,7 +1688,7 @@ Hermes uses two different context scopes:
 
 - **SOUL.md** is the agent's primary identity. It occupies slot #1 in the system prompt, completely replacing the built-in default identity. Edit it to fully customize who the agent is.
 - If SOUL.md is missing, empty, or cannot be loaded, Hermes falls back to a built-in default identity.
-- **Project context files use a priority system** — only ONE type is loaded (first match wins): `.hermes.md` → `AGENTS.md` → `CLAUDE.md` → `.cursorrules`. SOUL.md is always loaded independently.
+- **Project context files use a priority system** — only ONE type is loaded (first match wins): `.stoa.md` → `AGENTS.md` → `CLAUDE.md` → `.cursorrules`. SOUL.md is always loaded independently.
 - **AGENTS.md** is hierarchical: if subdirectories also have AGENTS.md, all are combined.
 - Hermes automatically seeds a default `SOUL.md` if one does not already exist.
 - All loaded context files are capped at 20,000 characters with smart truncation.

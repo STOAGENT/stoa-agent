@@ -25,7 +25,7 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _isolate_home(tmp_path, monkeypatch):
-    stoa_home = tmp_path / ".hermes"
+    stoa_home = tmp_path / ".stoa"
     stoa_home.mkdir()
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
     yield stoa_home

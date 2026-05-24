@@ -147,7 +147,7 @@ class TestShouldExclude:
 class TestBackup:
     def test_creates_zip(self, tmp_path, monkeypatch):
         """Backup creates a valid zip containing expected files."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         _make_stoa_tree(stoa_home)
 
@@ -181,7 +181,7 @@ class TestBackup:
 
     def test_excludes_stoa_agent(self, tmp_path, monkeypatch):
         """Backup does NOT include stoa-agent/ directory."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         _make_stoa_tree(stoa_home)
 
@@ -201,7 +201,7 @@ class TestBackup:
 
     def test_excludes_pycache(self, tmp_path, monkeypatch):
         """Backup does NOT include __pycache__ dirs."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         _make_stoa_tree(stoa_home)
 
@@ -221,7 +221,7 @@ class TestBackup:
 
     def test_excludes_pid_files(self, tmp_path, monkeypatch):
         """Backup does NOT include PID files."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         _make_stoa_tree(stoa_home)
 
@@ -241,7 +241,7 @@ class TestBackup:
 
     def test_default_output_path(self, tmp_path, monkeypatch):
         """When no output path given, zip goes to ~/hermes-backup-*.zip."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         (stoa_home / "config.yaml").write_text("model: test\n")
 
@@ -312,7 +312,7 @@ class TestImport:
 
     def test_restores_files(self, tmp_path, monkeypatch):
         """Import extracts files into hermes home."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -336,16 +336,16 @@ class TestImport:
         assert (stoa_home / "profiles" / "coder" / "config.yaml").exists()
 
     def test_strips_stoa_prefix(self, tmp_path, monkeypatch):
-        """Import strips .hermes/ prefix if all entries share it."""
-        stoa_home = tmp_path / ".hermes"
+        """Import strips .stoa/ prefix if all entries share it."""
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
         zip_path = tmp_path / "backup.zip"
         self._make_backup_zip(zip_path, {
-            ".hermes/config.yaml": "model: test\n",
-            ".hermes/skills/a/SKILL.md": "# A\n",
+            ".stoa/config.yaml": "model: test\n",
+            ".stoa/skills/a/SKILL.md": "# A\n",
         })
 
         args = Namespace(zipfile=str(zip_path), force=True)
@@ -358,7 +358,7 @@ class TestImport:
 
     def test_rejects_empty_zip(self, tmp_path, monkeypatch):
         """Import rejects an empty zip."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -375,7 +375,7 @@ class TestImport:
 
     def test_rejects_non_stoa_zip(self, tmp_path, monkeypatch):
         """Import rejects a zip that doesn't look like a hermes backup."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -394,7 +394,7 @@ class TestImport:
 
     def test_blocks_path_traversal(self, tmp_path, monkeypatch):
         """Import blocks zip entries with path traversal."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -418,7 +418,7 @@ class TestImport:
 
     def test_confirmation_prompt_abort(self, tmp_path, monkeypatch):
         """Import aborts when user says no to confirmation."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         # Pre-existing config triggers the confirmation
         (stoa_home / "config.yaml").write_text("existing: true\n")
@@ -441,7 +441,7 @@ class TestImport:
 
     def test_force_skips_confirmation(self, tmp_path, monkeypatch):
         """Import with --force skips confirmation and overwrites."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         (stoa_home / "config.yaml").write_text("existing: true\n")
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -461,7 +461,7 @@ class TestImport:
 
     def test_missing_file_exits(self, tmp_path, monkeypatch):
         """Import exits with error for nonexistent file."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -474,7 +474,7 @@ class TestImport:
     @pytest.mark.skipif(os.name != "posix", reason="POSIX file permissions only")
     def test_restores_secret_files_with_0600_perms(self, tmp_path, monkeypatch):
         """Secret files must end up at 0600 after restore (zipfile drops mode bits)."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -506,7 +506,7 @@ class TestRoundTrip:
     def test_backup_then_import(self, tmp_path, monkeypatch):
         """Full round-trip: backup -> import to a new location -> verify."""
         # Source
-        src_home = tmp_path / "source" / ".hermes"
+        src_home = tmp_path / "source" / ".stoa"
         src_home.mkdir(parents=True)
         _make_stoa_tree(src_home)
 
@@ -521,7 +521,7 @@ class TestRoundTrip:
         assert out_zip.exists()
 
         # Import into a different location
-        dst_home = tmp_path / "dest" / ".hermes"
+        dst_home = tmp_path / "dest" / ".stoa"
         dst_home.mkdir(parents=True)
         monkeypatch.setenv("STOA_HOME", str(dst_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path / "dest")
@@ -611,17 +611,17 @@ class TestValidation:
         assert not ok
 
     def test_detect_prefix_hermes(self):
-        """Detects .hermes/ prefix wrapping all entries."""
+        """Detects .stoa/ prefix wrapping all entries."""
         import io
         from stoa_cli.backup import _detect_prefix
 
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
-            zf.writestr(".hermes/config.yaml", "test")
-            zf.writestr(".hermes/skills/a/SKILL.md", "skill")
+            zf.writestr(".stoa/config.yaml", "test")
+            zf.writestr(".stoa/skills/a/SKILL.md", "skill")
         buf.seek(0)
         with zipfile.ZipFile(buf, "r") as zf:
-            assert _detect_prefix(zf) == ".hermes/"
+            assert _detect_prefix(zf) == ".stoa/"
 
     def test_detect_prefix_none(self):
         """No prefix when entries are at root."""
@@ -644,8 +644,8 @@ class TestValidation:
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
             # Only directory entries (trailing slash)
-            zf.writestr(".hermes/", "")
-            zf.writestr(".hermes/skills/", "")
+            zf.writestr(".stoa/", "")
+            zf.writestr(".stoa/skills/", "")
         buf.seek(0)
         with zipfile.ZipFile(buf, "r") as zf:
             assert _detect_prefix(zf) == ""
@@ -658,7 +658,7 @@ class TestValidation:
 class TestBackupEdgeCases:
     def test_nonexistent_stoa_home(self, tmp_path, monkeypatch):
         """Backup exits when hermes home doesn't exist."""
-        fake_home = tmp_path / "nonexistent" / ".hermes"
+        fake_home = tmp_path / "nonexistent" / ".stoa"
         monkeypatch.setenv("STOA_HOME", str(fake_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path / "nonexistent")
 
@@ -670,7 +670,7 @@ class TestBackupEdgeCases:
 
     def test_output_is_directory(self, tmp_path, monkeypatch):
         """When output path is a directory, zip is created inside it."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         (stoa_home / "config.yaml").write_text("model: test\n")
 
@@ -690,7 +690,7 @@ class TestBackupEdgeCases:
 
     def test_output_without_zip_suffix(self, tmp_path, monkeypatch):
         """Output path without .zip gets suffix appended."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         (stoa_home / "config.yaml").write_text("model: test\n")
 
@@ -708,7 +708,7 @@ class TestBackupEdgeCases:
 
     def test_empty_stoa_home(self, tmp_path, monkeypatch):
         """Backup handles empty hermes home (no files to back up)."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         # Only excluded dirs, no actual files
         (stoa_home / "__pycache__").mkdir()
@@ -727,7 +727,7 @@ class TestBackupEdgeCases:
 
     def test_permission_error_during_backup(self, tmp_path, monkeypatch):
         """Backup handles permission errors gracefully."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         (stoa_home / "config.yaml").write_text("model: test\n")
 
@@ -754,7 +754,7 @@ class TestBackupEdgeCases:
 
     def test_pre1980_timestamp_skipped(self, tmp_path, monkeypatch):
         """Backup skips files with pre-1980 timestamps (ZIP limitation)."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         (stoa_home / "config.yaml").write_text("model: test\n")
 
@@ -782,7 +782,7 @@ class TestBackupEdgeCases:
 
     def test_skips_output_zip_inside_hermes(self, tmp_path, monkeypatch):
         """Backup skips its own output zip if it's inside hermes root."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         (stoa_home / "config.yaml").write_text("model: test\n")
 
@@ -810,7 +810,7 @@ class TestImportEdgeCases:
 
     def test_not_a_zip(self, tmp_path, monkeypatch):
         """Import rejects a non-zip file."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -825,7 +825,7 @@ class TestImportEdgeCases:
 
     def test_eof_during_confirmation(self, tmp_path, monkeypatch):
         """Import handles EOFError during confirmation prompt."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         (stoa_home / "config.yaml").write_text("existing\n")
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -843,7 +843,7 @@ class TestImportEdgeCases:
 
     def test_keyboard_interrupt_during_confirmation(self, tmp_path, monkeypatch):
         """Import handles KeyboardInterrupt during confirmation prompt."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         (stoa_home / ".env").write_text("KEY=val\n")
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -861,7 +861,7 @@ class TestImportEdgeCases:
 
     def test_permission_error_during_import(self, tmp_path, monkeypatch):
         """Import handles permission errors during extraction."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -890,7 +890,7 @@ class TestImportEdgeCases:
 
     def test_progress_with_many_files(self, tmp_path, monkeypatch):
         """Import shows progress with 500+ files."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -923,7 +923,7 @@ class TestProfileRestoration:
 
     def test_import_creates_profile_wrappers(self, tmp_path, monkeypatch):
         """Import auto-creates wrapper scripts for restored profiles."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -959,7 +959,7 @@ class TestProfileRestoration:
 
     def test_import_skips_profile_dirs_without_config(self, tmp_path, monkeypatch):
         """Import doesn't create wrappers for profile dirs without config."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -985,7 +985,7 @@ class TestProfileRestoration:
 
     def test_import_without_profiles_module(self, tmp_path, monkeypatch):
         """Import gracefully handles missing profiles module (fresh install)."""
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
@@ -1068,7 +1068,7 @@ class TestQuickSnapshot:
     @pytest.fixture
     def stoa_home(self, tmp_path):
         """Create a fake STOA_HOME with critical state files."""
-        home = tmp_path / ".hermes"
+        home = tmp_path / ".stoa"
         home.mkdir()
         (home / "config.yaml").write_text("model:\n  provider: openrouter\n")
         (home / ".env").write_text("OPENROUTER_API_KEY=test-key-123\n")
@@ -1279,7 +1279,7 @@ class TestPreUpdateBackup:
 
     @pytest.fixture
     def stoa_home(self, tmp_path):
-        root = tmp_path / ".hermes"
+        root = tmp_path / ".stoa"
         root.mkdir()
         _make_stoa_tree(root)
         return root
@@ -1428,7 +1428,7 @@ class TestRunPreUpdateBackup:
 
     @pytest.fixture
     def stoa_home(self, tmp_path, monkeypatch):
-        root = tmp_path / ".hermes"
+        root = tmp_path / ".stoa"
         root.mkdir()
         _make_stoa_tree(root)
         # Point STOA_HOME at the temp dir so config + backup paths resolve here
@@ -1547,7 +1547,7 @@ class TestPreMigrationBackup:
 
     @pytest.fixture
     def stoa_home(self, tmp_path):
-        root = tmp_path / ".hermes"
+        root = tmp_path / ".stoa"
         root.mkdir()
         _make_stoa_tree(root)
         return root

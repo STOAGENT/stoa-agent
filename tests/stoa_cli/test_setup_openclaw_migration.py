@@ -18,7 +18,7 @@ class TestOfferOpenclawMigration:
     def test_skips_when_no_openclaw_dir(self, tmp_path):
         """Should return False immediately when ~/.openclaw does not exist."""
         with patch("stoa_cli.setup.Path.home", return_value=tmp_path):
-            assert setup_mod._offer_openclaw_migration(tmp_path / ".hermes") is False
+            assert setup_mod._offer_openclaw_migration(tmp_path / ".stoa") is False
 
     def test_skips_when_migration_script_missing(self, tmp_path):
         """Should return False when the migration script file is absent."""
@@ -28,20 +28,20 @@ class TestOfferOpenclawMigration:
             patch("stoa_cli.setup.Path.home", return_value=tmp_path),
             patch.object(setup_mod, "_OPENCLAW_SCRIPT", tmp_path / "nonexistent.py"),
         ):
-            assert setup_mod._offer_openclaw_migration(tmp_path / ".hermes") is False
+            assert setup_mod._offer_openclaw_migration(tmp_path / ".stoa") is False
 
     def test_skips_when_user_declines(self, tmp_path):
         """Should return False when user declines the migration prompt."""
         openclaw_dir = tmp_path / ".openclaw"
         openclaw_dir.mkdir()
-        script = tmp_path / "openclaw_to_hermes.py"
+        script = tmp_path / "openclaw_to_stoa.py"
         script.write_text("# placeholder")
         with (
             patch("stoa_cli.setup.Path.home", return_value=tmp_path),
             patch.object(setup_mod, "_OPENCLAW_SCRIPT", script),
             patch.object(setup_mod, "prompt_yes_no", return_value=False),
         ):
-            assert setup_mod._offer_openclaw_migration(tmp_path / ".hermes") is False
+            assert setup_mod._offer_openclaw_migration(tmp_path / ".stoa") is False
 
     def test_runs_migration_when_user_accepts(self, tmp_path):
         """Should run dry-run preview first, then execute after confirmation."""
@@ -49,13 +49,13 @@ class TestOfferOpenclawMigration:
         openclaw_dir.mkdir()
 
         # Create a fake hermes home with config
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         config_path = stoa_home / "config.yaml"
         config_path.write_text("agent:\n  max_turns: 90\n")
 
         # Build a fake migration module
-        fake_mod = ModuleType("openclaw_to_hermes")
+        fake_mod = ModuleType("openclaw_to_stoa")
         fake_mod.resolve_selected_options = MagicMock(return_value={"soul", "memory"})
         fake_migrator = MagicMock()
         fake_migrator.migrate.return_value = {
@@ -65,7 +65,7 @@ class TestOfferOpenclawMigration:
         }
         fake_mod.Migrator = MagicMock(return_value=fake_migrator)
 
-        script = tmp_path / "openclaw_to_hermes.py"
+        script = tmp_path / "openclaw_to_stoa.py"
         script.write_text("# placeholder")
 
         with (
@@ -118,12 +118,12 @@ class TestOfferOpenclawMigration:
         openclaw_dir = tmp_path / ".openclaw"
         openclaw_dir.mkdir()
 
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         config_path = stoa_home / "config.yaml"
         config_path.write_text("agent:\n  max_turns: 90\n")
 
-        fake_mod = ModuleType("openclaw_to_hermes")
+        fake_mod = ModuleType("openclaw_to_stoa")
         fake_mod.resolve_selected_options = MagicMock(return_value={"soul", "memory"})
         fake_migrator = MagicMock()
         fake_migrator.migrate.return_value = {
@@ -132,7 +132,7 @@ class TestOfferOpenclawMigration:
         }
         fake_mod.Migrator = MagicMock(return_value=fake_migrator)
 
-        script = tmp_path / "openclaw_to_hermes.py"
+        script = tmp_path / "openclaw_to_stoa.py"
         script.write_text("# placeholder")
 
         # First prompt (preview): Yes, Second prompt (proceed): No
@@ -167,12 +167,12 @@ class TestOfferOpenclawMigration:
         """Should catch exceptions and return False."""
         openclaw_dir = tmp_path / ".openclaw"
         openclaw_dir.mkdir()
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         config_path = stoa_home / "config.yaml"
         config_path.write_text("")
 
-        script = tmp_path / "openclaw_to_hermes.py"
+        script = tmp_path / "openclaw_to_stoa.py"
         script.write_text("# placeholder")
 
         with (
@@ -193,12 +193,12 @@ class TestOfferOpenclawMigration:
         """Should bootstrap config.yaml before running migration."""
         openclaw_dir = tmp_path / ".openclaw"
         openclaw_dir.mkdir()
-        stoa_home = tmp_path / ".hermes"
+        stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         config_path = stoa_home / "config.yaml"
         # config does NOT exist yet
 
-        script = tmp_path / "openclaw_to_hermes.py"
+        script = tmp_path / "openclaw_to_stoa.py"
         script.write_text("# placeholder")
 
         with (

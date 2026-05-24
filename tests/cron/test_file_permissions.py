@@ -106,7 +106,7 @@ class TestConfigFilePermissions(unittest.TestCase):
             self.assertEqual(file_mode, 0o600)
 
     def test_ensure_stoa_home_sets_0700(self):
-        home = Path(self.tmpdir) / ".hermes"
+        home = Path(self.tmpdir) / ".stoa"
         with patch("stoa_cli.config.get_stoa_home", return_value=home):
             from stoa_cli.config import ensure_stoa_home
             ensure_stoa_home()
