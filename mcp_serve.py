@@ -1,30 +1,35 @@
 """
-Hermes MCP Server — expose messaging conversations as MCP tools.
+STOA MCP Server — expose messaging conversations as MCP tools.
 
 Starts a stdio MCP server that lets any MCP client (Claude Code, Cursor, Codex,
 etc.) list conversations, read message history, send messages, poll for live
 events, and manage approval requests across all connected platforms.
 
-Matches OpenClaw's 9-tool MCP channel bridge surface:
+10 tools exposed:
   conversations_list, conversation_get, messages_read, attachments_fetch,
   events_poll, events_wait, messages_send, permissions_list_open,
-  permissions_respond
+  permissions_respond, channels_list
 
-Plus: channels_list (Hermes-specific extra)
+V-AGENT-022 — WRITE-class tools (messages_send, permissions_respond)
+are gated by STOA_MCP_ENABLED_TOOLS so a malicious / hallucinating MCP
+client can't broadcast to every connected platform out of the box.
 
 Usage:
-    hermes mcp serve
-    hermes mcp serve --verbose
+    stoa mcp serve
+    stoa mcp serve --verbose
 
 MCP client config (e.g. claude_desktop_config.json):
     {
         "mcpServers": {
-            "hermes": {
-                "command": "hermes",
+            "stoa": {
+                "command": "stoa",
                 "args": ["mcp", "serve"]
             }
         }
     }
+
+Backward compat: the legacy `hermes` binary continues to work
+(see pyproject.toml [project.scripts]).
 """
 
 from __future__ import annotations
@@ -447,8 +452,37 @@ class EventBridge:
 # MCP Server
 # ---------------------------------------------------------------------------
 
+# V-AGENT-022 — per-tool allowlist. Read-class tools enabled by default;
+# WRITE-class (messages_send, permissions_respond) require explicit opt-in
+# via the STOA_MCP_ENABLED_TOOLS env var. Without this gate, a malicious or
+# hallucinating MCP client could broadcast attacker-chosen messages to every
+# platform STOA is connected to without user awareness.
+_DEFAULT_ENABLED_MCP_TOOLS = frozenset({
+    "conversations_list", "conversation_get", "messages_read",
+    "attachments_fetch", "events_poll", "events_wait",
+    "permissions_list_open", "channels_list",
+})
+_ENABLED_MCP_TOOLS = frozenset(
+    s.strip() for s in os.getenv(
+        "STOA_MCP_ENABLED_TOOLS",
+        ",".join(sorted(_DEFAULT_ENABLED_MCP_TOOLS)),
+    ).split(",") if s.strip()
+)
+
+
+def _require_mcp_tool(name: str) -> Optional[str]:
+    """Return None if tool is enabled; else return an error JSON string."""
+    if name not in _ENABLED_MCP_TOOLS:
+        return json.dumps({
+            "error": f"Tool '{name}' is not in STOA_MCP_ENABLED_TOOLS. "
+                     f"Currently enabled: {sorted(_ENABLED_MCP_TOOLS)}",
+            "hint": f"Set STOA_MCP_ENABLED_TOOLS=...,{name} to enable.",
+        })
+    return None
+
+
 def create_mcp_server(event_bridge: Optional[EventBridge] = None) -> "FastMCP":
-    """Create and return the Hermes MCP server with all tools registered."""
+    """Create and return the STOA MCP server with all tools registered."""
     if not _MCP_SERVER_AVAILABLE:
         raise ImportError(
             "MCP server requires the 'mcp' package. "
@@ -456,7 +490,7 @@ def create_mcp_server(event_bridge: Optional[EventBridge] = None) -> "FastMCP":
         )
 
     mcp = FastMCP(
-        "hermes",
+        "stoa",
         instructions=(
             "STOA Agent messaging bridge. Use these tools to interact with "
             "conversations across Telegram, Discord, Slack, WhatsApp, Signal, "
@@ -750,6 +784,8 @@ def create_mcp_server(event_bridge: Optional[EventBridge] = None) -> "FastMCP":
             target: Platform target in "platform:identifier" format
             message: The message text to send
         """
+        err = _require_mcp_tool("messages_send")
+        if err: return err
         if not target or not message:
             return json.dumps({"error": "Both target and message are required"})
 
@@ -847,6 +883,8 @@ def create_mcp_server(event_bridge: Optional[EventBridge] = None) -> "FastMCP":
             id: The approval ID from permissions_list_open
             decision: One of "allow-once", "allow-always", or "deny"
         """
+        err = _require_mcp_tool("permissions_respond")
+        if err: return err
         if decision not in {"allow-once", "allow-always", "deny"}:
             return json.dumps({
                 "error": f"Invalid decision: {decision}. "
@@ -864,7 +902,7 @@ def create_mcp_server(event_bridge: Optional[EventBridge] = None) -> "FastMCP":
 # ---------------------------------------------------------------------------
 
 def run_mcp_server(verbose: bool = False) -> None:
-    """Start the Hermes MCP server on stdio."""
+    """Start the STOA MCP server on stdio."""
     if not _MCP_SERVER_AVAILABLE:
         print(
             "Error: MCP server requires the 'mcp' package.\n"
