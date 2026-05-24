@@ -80,22 +80,24 @@ STOA_AGENT_LOGO = f"""[bold #ffe6cb]    ███████╗█████�
 # under one roof". Width: 30 chars to match the legacy caduceus envelope.
 # Kept the legacy symbol name so existing call sites (banner.py:507/510)
 # don't need to change.
-# STOA brand mark — three-flower asterism (Unicode ⁂), the visual of
-# "three sovereign voices arranged in a chamber" + open central axis.
-# Colors pulled from the web app palette: #ffe6cb (cream) + #FFBD38
-# (warm glow amber) + #9E7410 (deep amber).
+# STOA brand mark — bold ⁂ asterism with surrounding ornamental halo.
+# Iterated after user said the rays-only sketch felt scattered.
+# Each star drawn dense (✦/✶/❀ stack), arranged in the canonical
+# asterism triangle: 1 top, 2 bottom. Palette pulled from the web app
+# (#ffe6cb cream + #FFBD38 warm glow + #C89222 deep amber + #9a968e
+# secondary text).
 STOA_CADUCEUS = """[#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBD38]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╲│╱⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#ffe6cb]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀─⠀❀⠀─⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBD38]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╱│╲⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀·⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀·⠀⠀⠀·⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBD38]⠀⠀⠀⠀⠀⠀╲│╱⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╲│╱⠀⠀⠀⠀⠀⠀⠀[/]
-[#ffe6cb]⠀⠀⠀⠀⠀─⠀❀⠀─⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀─⠀❀⠀─⠀⠀⠀⠀⠀⠀[/]
-[#FFBD38]⠀⠀⠀⠀⠀⠀╱│╲⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╱│╲⠀⠀⠀⠀⠀⠀⠀[/]
+[#FFBD38]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀✦⠀✶⠀✦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #ffe6cb]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀✶⠀❀⠀✶⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#FFBD38]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀✦⠀✶⠀✦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#C89222]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀·⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#C89222]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀·⠀⠀⠀⠀⠀·⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#FFBD38]⠀⠀⠀⠀⠀✦⠀✶⠀✦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀✦⠀✶⠀✦⠀⠀⠀⠀⠀[/]
+[bold #ffe6cb]⠀⠀⠀⠀✶⠀❀⠀✶⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀✶⠀❀⠀✶⠀⠀⠀⠀⠀[/]
+[#FFBD38]⠀⠀⠀⠀⠀✦⠀✶⠀✦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀✦⠀✶⠀✦⠀⠀⠀⠀⠀[/]
 [#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#ffe6cb]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⁂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀STOA⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #ffe6cb]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⁂  S T O A⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[dim #9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀the chamber⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
 [#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
 [#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
 [#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
@@ -524,7 +526,10 @@ def build_welcome_banner(console: Console, model: str, cwd: str,
     if len(model_short) > 28:
         model_short = model_short[:25] + "..."
     ctx_str = f" [dim {dim}]·[/] [dim {dim}]{_format_context_length(context_length)} context[/]" if context_length else ""
-    left_lines.append(f"[{accent}]{model_short}[/]{ctx_str} [dim {dim}]·[/] [dim {dim}]STOA[/]")
+    # Display the AGENT name as the brand-facing label, not the underlying
+    # model identifier (e.g. "deepseek-chat"). The active model is still
+    # accessible via /model and shown in verbose status modes.
+    left_lines.append(f"[bold {accent}]⁂ stoa chat[/]{ctx_str} [dim {dim}]·[/] [dim {dim}]{model_short}[/]")
 
     if os.getenv("STOA_YOLO_MODE"):
         left_lines.append(f"[bold red]⚠ YOLO mode[/] [dim {dim}]— all approval prompts bypassed[/]")
