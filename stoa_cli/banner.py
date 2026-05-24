@@ -73,31 +73,32 @@ STOA_AGENT_LOGO = f"""[bold #ffe6cb]    ███████╗█████�
 [bold #FFBD38]    ╚════██║   ██║   ██║   ██║██╔══██║     ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   [/]
 [bold #C89222]    ███████║   ██║   ╚██████╔╝██║  ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   [/]
 [bold #C89222]    ╚══════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   [/]
-[dim #9a968e]                              v{VERSION}  ·  six sovereign LLMs  ·  one agent  ·  on-chain verifiable[/]"""
+[dim #9a968e]    v{VERSION}  ·  six sovereign LLMs  ·  one agent  ·  on-chain verifiable[/]"""
 
 # STOA Portico (replacing the upstream Hermes Caduceus). Greek hexastyle —
 # 6 columns under one pediment, the literal visual of "six sovereign LLMs
 # under one roof". Width: 30 chars to match the legacy caduceus envelope.
 # Kept the legacy symbol name so existing call sites (banner.py:507/510)
 # don't need to change.
-# STOA brand mark — bold ⁂ asterism with surrounding ornamental halo.
-# Iterated after user said the rays-only sketch felt scattered.
-# Each star drawn dense (✦/✶/❀ stack), arranged in the canonical
-# asterism triangle: 1 top, 2 bottom. Palette pulled from the web app
-# (#ffe6cb cream + #FFBD38 warm glow + #C89222 deep amber + #9a968e
-# secondary text).
-STOA_CADUCEUS = """[#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBD38]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀✦⠀✶⠀✦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #ffe6cb]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀✶⠀❀⠀✶⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBD38]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀✦⠀✶⠀✦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#C89222]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀·⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#C89222]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀·⠀⠀⠀⠀⠀·⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBD38]⠀⠀⠀⠀⠀✦⠀✶⠀✦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀✦⠀✶⠀✦⠀⠀⠀⠀⠀[/]
-[bold #ffe6cb]⠀⠀⠀⠀✶⠀❀⠀✶⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀✶⠀❀⠀✶⠀⠀⠀⠀⠀[/]
-[#FFBD38]⠀⠀⠀⠀⠀✦⠀✶⠀✦⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀✦⠀✶⠀✦⠀⠀⠀⠀⠀[/]
+# STOA brand mark — seven-orb chamber. 6 sovereign LLMs in hexagonal
+# arrangement around 1 center dispatcher (Hermes). Each outer orb's
+# color maps to its provider's brand color (Sokrates/Claude blue,
+# Mira/GPT lavender, Drax/Grok red, Echo/Mistral violet, Veritas/Gemini
+# cyan, Lyra/Llama warm yellow), center is STOA cream. Wordmark + tagline
+# sit ABOVE the orbs so the brand reads first; orbs are the supporting
+# visual underneath.
+STOA_CADUCEUS = """[bold #ffe6cb]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⁂  S T O A⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[dim #9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀the chamber of seven⠀⠀⠀⠀⠀⠀[/]
 [#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[bold #ffe6cb]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⁂  S T O A⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[dim #9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀the chamber⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #5DB8F5]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⬤⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[dim #5a3a18]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╲⠀│⠀╱⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #F0D585]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⬤[/][dim #5a3a18]⠀⠀⠀⠀⠀⠀⠀⠀[/][bold #C28BFF]⬤[/]
+[dim #5a3a18]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╲⠀⠀⠀│⠀⠀⠀╱⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #ffe6cb]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⬤⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[dim #5a3a18]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╱⠀⠀⠀│⠀⠀⠀╲⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #7DC4FF]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⬤[/][dim #5a3a18]⠀⠀⠀⠀⠀⠀⠀⠀[/][bold #FF6B6B]⬤[/]
+[dim #5a3a18]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╱⠀│⠀╲⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[bold #A878FF]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⬤⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
 [#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
 [#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
 [#9a968e]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
