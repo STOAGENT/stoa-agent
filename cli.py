@@ -2577,34 +2577,32 @@ class ChatConsole:
         yield self
 
 # ASCII Art - STOA logo (ansi_shadow figlet) + AGENT line + 6 dots + tagline
-STOA_AGENT_LOGO = """[bold #FFD700]███████╗████████╗ ██████╗  █████╗ [/]
-[bold #FFC800]██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗[/]
-[bold #FFB900]███████╗   ██║   ██║   ██║███████║[/]
-[bold #FFAA00]╚════██║   ██║   ██║   ██║██╔══██║[/]
-[bold #FF9B00]███████║   ██║   ╚██████╔╝██║  ██║[/]
-[bold #FF8C00]╚══════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝[/]
-[dim #DAA520]      A G E N T  ·  v0.14.0[/]
-[#FFBF00]  • • • • • •[/]
-[dim #B8860B]  SIX SOVEREIGN LLMS · ONE AGENT · ON-CHAIN VERIFIABLE[/]"""
+STOA_AGENT_LOGO = """[bold #ffe6cb]    ███████╗████████╗ ██████╗  █████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
+[bold #ffe6cb]    ██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗     ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]
+[bold #FFBD38]    ███████╗   ██║   ██║   ██║███████║     ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   [/]
+[bold #FFBD38]    ╚════██║   ██║   ██║   ██║██╔══██║     ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   [/]
+[bold #C89222]    ███████║   ██║   ╚██████╔╝██║  ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   [/]
+[bold #C89222]    ╚══════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   [/]
+[dim #9a968e]                              v0.14.0  ·  six sovereign LLMs  ·  one agent  ·  on-chain verifiable[/]"""
 
 # ASCII Art - STOA Caduceus (compact, fits in left panel)
-STOA_CADUCEUS = """[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀▲⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀▟███▙⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀▟███████▙⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⠀⠀⠀⠀⠀⠀⠀▟███████████▙⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFD700]⠀⠀⠀⠀⠀⠀▟███████████████▙⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFD700]⠀⠀⠀⠀▟███████████████████▙⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFD700]⠀⠀▟███████████████████████▙⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⠀██████████████████████████⠀⠀⠀⠀⠀⠀[/]
-[#CD7F32]⠀⠀══════════════════════════⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⠀██  ██  ██  ██  ██  ██⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⠀██  ██  ██  ██  ██  ██⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFD700]⠀⠀██  ██  ██  ██  ██  ██⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFD700]⠀⠀██  ██  ██  ██  ██  ██⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#FFBF00]⠀⠀██  ██  ██  ██  ██  ██⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
-[#CD7F32]⠀⠀══════════════════════════⠀⠀⠀⠀⠀⠀[/]
-[#CD7F32]⠀▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆▆⠀⠀⠀[/]
-[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]"""
+STOA_CADUCEUS = """[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#FFBF00]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╲│╱⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#FFD700]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀─⠀❀⠀─⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#FFBF00]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╱│╲⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀·⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀·⠀⠀⠀·⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#FFBF00]⠀⠀⠀⠀⠀⠀╲│╱⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╲│╱⠀⠀⠀⠀⠀⠀⠀[/]
+[#FFD700]⠀⠀⠀⠀⠀─⠀❀⠀─⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀─⠀❀⠀─⠀⠀⠀⠀⠀⠀[/]
+[#FFBF00]⠀⠀⠀⠀⠀⠀╱│╲⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀╱│╲⠀⠀⠀⠀⠀⠀⠀[/]
+[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⁂⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#B8860B]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀STOA⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#8B6914]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#8B6914]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#8B6914]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#8B6914]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
+[#8B6914]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]"""
 
 
 
@@ -3665,12 +3663,12 @@ class STOACLI:
 
             yolo_active = bool(os.getenv("STOA_YOLO_MODE"))
             if width < 52:
-                text = f"⚕ {snapshot['model_short']} · {duration_label}"
+                text = f"⁂ stoa chat · {duration_label}"
                 if yolo_active:
                     text += " · ⚠ YOLO"
                 return self._trim_status_bar_text(text, width)
             if width < 76:
-                parts = [f"⚕ {snapshot['model_short']}", percent_label]
+                parts = [f"⁂ stoa chat", percent_label]
                 compressions = snapshot.get("compressions", 0)
                 if compressions:
                     parts.append(f"🗜️ {compressions}")
@@ -3690,7 +3688,7 @@ class STOACLI:
                 context_label = "ctx --"
 
             compressions = snapshot.get("compressions", 0)
-            parts = [f"⚕ {snapshot['model_short']}", context_label, percent_label]
+            parts = [f"⁂ stoa chat", context_label, percent_label]
             if compressions:
                 parts.append(f"🗜️ {compressions}")
             bg_count = snapshot.get("active_background_tasks", 0)
@@ -3704,7 +3702,7 @@ class STOACLI:
                 parts.append("⚠ YOLO")
             return self._trim_status_bar_text(" │ ".join(parts), width)
         except Exception:
-            return f"⚕ {self.model if getattr(self, 'model', None) else 'STOA'}"
+            return f"⁂ {self.model if getattr(self, 'model', None) else 'STOA'}"
 
     def _get_status_bar_fragments(self):
         if not self._status_bar_visible or getattr(self, '_model_picker_state', None):
@@ -3722,8 +3720,8 @@ class STOACLI:
 
             if width < 52:
                 frags = [
-                    ("class:status-bar", " ⚕ "),
-                    ("class:status-bar-strong", snapshot["model_short"]),
+                    ("class:status-bar", " ⁂ "),
+                    ("class:status-bar-strong", "stoa chat"),
                     ("class:status-bar-dim", " · "),
                     ("class:status-bar-dim", duration_label),
                 ]
@@ -3738,8 +3736,8 @@ class STOACLI:
                     compressions = snapshot.get("compressions", 0)
                     bg_count = snapshot.get("active_background_tasks", 0)
                     frags = [
-                        ("class:status-bar", " ⚕ "),
-                        ("class:status-bar-strong", snapshot["model_short"]),
+                        ("class:status-bar", " ⁂ "),
+                        ("class:status-bar-strong", "stoa chat"),
                         ("class:status-bar-dim", " · "),
                         (self._status_bar_context_style(percent), percent_label),
                     ]
@@ -3769,8 +3767,8 @@ class STOACLI:
                     compressions = snapshot.get("compressions", 0)
                     bg_count = snapshot.get("active_background_tasks", 0)
                     frags = [
-                        ("class:status-bar", " ⚕ "),
-                        ("class:status-bar-strong", snapshot["model_short"]),
+                        ("class:status-bar", " ⁂ "),
+                        ("class:status-bar-strong", "stoa chat"),
                         ("class:status-bar-dim", " │ "),
                         ("class:status-bar-dim", context_label),
                         ("class:status-bar-dim", " │ "),
@@ -4295,10 +4293,10 @@ class STOACLI:
             try:
                 from stoa_cli.skin_engine import get_active_skin
                 _skin = get_active_skin()
-                label = _skin.get_branding("response_label", "⚕ STOA")
+                label = _skin.get_branding("response_label", "⁂ STOA")
                 _text_hex = _skin.get_color("banner_text", "#FFF8DC")
             except Exception:
-                label = "⚕ STOA"
+                label = "⁂ STOA"
                 _text_hex = "#FFF8DC"
             # Build a true-color ANSI escape for the response text color
             # so streamed content matches the Rich Panel appearance.
@@ -8654,11 +8652,11 @@ class STOACLI:
                     try:
                         from stoa_cli.skin_engine import get_active_skin
                         _skin = get_active_skin()
-                        label = _skin.get_branding("response_label", "⚕ STOA")
+                        label = _skin.get_branding("response_label", "⁂ STOA")
                         _resp_color = _maybe_remap_for_light_mode(_skin.get_color("response_border", "#CD7F32"))
                         _resp_text = _maybe_remap_for_light_mode(_skin.get_color("banner_text", "#FFF8DC"))
                     except Exception:
-                        label = "⚕ STOA"
+                        label = "⁂ STOA"
                         _resp_color = "#CD7F32"
                         _resp_text = "#FFF8DC"
 
@@ -9681,7 +9679,7 @@ class STOACLI:
             ("cancel", "Cancel", "keep the current session"),
         ]
         raw = self._prompt_text_input_modal(
-            title="⚕  Update STOA Agent",
+            title="⁂  Update STOA Agent",
             detail="This will exit the current session and run `stoa update`.",
             choices=choices,
         )
@@ -9694,7 +9692,7 @@ class STOACLI:
             return False
 
         print()
-        print("  ⚕ Launching update...")
+        print("  ⁂ Launching update...")
         print()
 
         # Store the relaunch args so run() can exec them from the main thread
@@ -11426,7 +11424,7 @@ class STOACLI:
                     if not _streaming_box_opened:
                         _streaming_box_opened = True
                         w = self._scrollback_box_width(getattr(self.console, "width", 80))
-                        label = " ⚕ STOA "
+                        label = " ⁂ STOA "
                         if self.show_timestamps:
                             label = f"{label}{datetime.now().strftime('%H:%M')} "
                         fill = w - 2 - STOACLI._status_bar_display_width(label)
@@ -11729,11 +11727,11 @@ class STOACLI:
                 try:
                     from stoa_cli.skin_engine import get_active_skin
                     _skin = get_active_skin()
-                    label = _skin.get_branding("response_label", "⚕ STOA")
+                    label = _skin.get_branding("response_label", "⁂ STOA")
                     _resp_color = _maybe_remap_for_light_mode(_skin.get_color("response_border", "#CD7F32"))
                     _resp_text = _maybe_remap_for_light_mode(_skin.get_color("banner_text", "#FFF8DC"))
                 except Exception:
-                    label = "⚕ STOA"
+                    label = "⁂ STOA"
                     _resp_color = _maybe_remap_for_light_mode("#CD7F32")
                     _resp_text = _maybe_remap_for_light_mode("#FFF8DC")
 
@@ -11873,9 +11871,9 @@ class STOACLI:
         else:
             try:
                 from stoa_cli.skin_engine import get_active_goodbye
-                goodbye = get_active_goodbye("Goodbye! ⚕")
+                goodbye = get_active_goodbye("Goodbye! ⁂")
             except Exception:
-                goodbye = "Goodbye! ⚕"
+                goodbye = "Goodbye! ⁂"
             print(goodbye)
 
     def _get_tui_prompt_symbols(self) -> tuple[str, str]:
@@ -11964,7 +11962,7 @@ class STOACLI:
         if self._command_running:
             return _state_fragment("class:prompt-working", self._command_spinner_frame())
         if self._agent_running:
-            return _state_fragment("class:prompt-working", "⚕")
+            return _state_fragment("class:prompt-working", "⁂")
         if self._voice_mode:
             return _state_fragment("class:voice-prompt", "🎤")
         return [("class:prompt", symbol)]
