@@ -8405,6 +8405,18 @@ class STOACLI:
             self._handle_voice_command(cmd_original)
         elif canonical == "busy":
             self._handle_busy_command(cmd_original)
+        elif canonical == "council":
+            self._handle_council_command(cmd_original)
+            return  # handled — do NOT fall through
+        elif canonical == "persona":
+            self._handle_persona_command(cmd_original)
+            return
+        elif canonical == "verdict":
+            self._handle_verdict_command()
+            return
+        elif canonical == "attest":
+            self._handle_attest_command()
+            return
         else:
             # Check for user-defined quick commands (bypass agent loop, no LLM call)
             base_cmd = cmd_lower.split()[0]
@@ -9382,6 +9394,152 @@ class STOACLI:
                 f"  ⚡ YOLO mode {_Colors.BOLD}{_Colors.GREEN}ON{_Colors.RESET}"
                 " — all commands auto-approved. Use with caution."
             )
+
+    # ── STOA chamber handlers ────────────────────────────────────────────
+    # /council "<task>"   /persona <name>   /verdict   /attest
+    # These four commands are the STOA-specific differentiator over the
+    # upstream Hermes Agent. v0.x ships a prompt-level MVP: the single
+    # active model role-plays the six chamber personas + dispatcher in one
+    # response. Real parallel multi-provider dispatch (agent/verdict_composer.py
+    # + agent/persona_router.py are already wired) lands in M2 alongside the
+    # async-from-sync REPL bridge.
+
+    def _handle_council_command(self, cmd_original: str) -> None:
+        """``/council "<task>"`` — dispatch to the six chamber personas.
+
+        MVP: the single active model role-plays all six personas + STOA the
+        dispatcher in one response, formatted as a quorum verdict. Real
+        multi-provider parallel dispatch is in agent/verdict_composer.py —
+        wiring the async dispatch_fn into the sync REPL lands in M2.
+        """
+        # Strip leading "/council" + optional surrounding quotes.
+        parts = cmd_original.split(None, 1)
+        task = parts[1].strip() if len(parts) > 1 else ""
+        task = task.strip().strip('"').strip("'").strip()
+        if not task:
+            _cprint(
+                '  ⁂ Usage: /council "<task>"\n'
+                "  Example: /council \"audit this contract for re-entrancy\""
+            )
+            return
+
+        council_prompt = (
+            "STOA CHAMBER DISPATCH (council mode).\n"
+            "\n"
+            "Role-play the six STOA chamber personas + the dispatcher to "
+            "produce a 5-of-6 quorum verdict on the task below. Each persona "
+            "has a fixed role; speak in that role's voice:\n"
+            "\n"
+            "  SOKRATES — the question-maker. Force premise check; surface "
+            "the question behind the question.\n"
+            "  MIRA     — the builder. Write the concrete, shippable plan.\n"
+            "  VERITAS  — the auditor. Find the bug, missing test, broken "
+            "invariant.\n"
+            "  DRAX     — the red team. Attack the proposal. Find the "
+            "exploit.\n"
+            "  LYRA     — the designer. UX, naming, copy, visual hierarchy.\n"
+            "  ECHO     — the operator. Deploy, configs, observability, "
+            "incident response.\n"
+            "\n"
+            "Output format:\n"
+            "  [SOKRATES] <2-4 sentence response in Sokrates's frame>\n"
+            "  [MIRA]     <2-4 sentence response in Mira's frame>\n"
+            "  [VERITAS]  <...>\n"
+            "  [DRAX]     <...>\n"
+            "  [LYRA]     <...>\n"
+            "  [ECHO]     <...>\n"
+            "\n"
+            "  ⁂ STOA VERDICT (the dispatcher composes the answer):\n"
+            "  <2-4 paragraph synthesis. Take the strongest position the "
+            "council reached. If the six split, name the split and the "
+            "tie-breaker the operator needs. Speak as 'we'.>\n"
+            "\n"
+            "  AGREEMENT: <consensus | split | no_consensus>\n"
+            "\n"
+            f"TASK: {task}\n"
+        )
+
+        _cprint("  ⁂ Council dispatched — six sovereigns + dispatcher composing verdict…")
+        # Queue the rewritten prompt so the main process_loop sends it to
+        # the agent as the next user message.
+        if hasattr(self, "_pending_input"):
+            self._pending_input.put(council_prompt)
+        else:
+            _cprint("  [error] council dispatch failed — no input queue.")
+
+    def _handle_persona_command(self, cmd_original: str) -> None:
+        """``/persona <name>`` — switch the active voice to a chamber persona.
+
+        Sets an in-session overlay so subsequent replies are framed in that
+        persona's role. ``/persona off`` clears the overlay back to STOA.
+        """
+        parts = cmd_original.split(None, 1)
+        arg = parts[1].strip().lower() if len(parts) > 1 else ""
+
+        valid = {"sokrates", "mira", "veritas", "drax", "lyra", "echo", "off", "clear"}
+        roles = {
+            "sokrates": "the question-maker — force premise check, surface the question behind the question",
+            "mira":     "the builder — write concrete, shippable plans",
+            "veritas":  "the auditor — find the bug, missing test, broken invariant",
+            "drax":     "the red team — attack the proposal, find the exploit",
+            "lyra":     "the designer — UX, naming, copy, visual hierarchy",
+            "echo":     "the operator — deploy, configs, observability, incident response",
+        }
+
+        if not arg:
+            current = getattr(self, "_active_persona", None) or "off (STOA dispatcher)"
+            _cprint(f"  ⁂ Active persona: {current}")
+            _cprint("  Usage: /persona <sokrates|mira|veritas|drax|lyra|echo|off>")
+            return
+        if arg not in valid:
+            _cprint(f"  ⁂ Unknown persona '{arg}'. Choose: {', '.join(sorted(valid - {'clear'}))}")
+            return
+        if arg in ("off", "clear"):
+            self._active_persona = None
+            self._active_persona_role = None
+            _cprint("  ⁂ Persona cleared — back to STOA (dispatcher).")
+            return
+
+        self._active_persona = arg
+        self._active_persona_role = roles[arg]
+        _cprint(
+            f"  ⁂ Persona → {arg.upper()} ({roles[arg]}).\n"
+            f"  Subsequent replies will be framed in this voice. "
+            "Type /persona off to clear."
+        )
+
+    def _handle_verdict_command(self) -> None:
+        """``/verdict`` — show the last council verdict produced in this session."""
+        verdict = getattr(self, "_last_council_verdict", None)
+        if not verdict:
+            _cprint(
+                "  ⁂ No council verdict in this session yet.\n"
+                "  Run /council \"<task>\" first."
+            )
+            return
+        _cprint("  ⁂ Last council verdict:\n")
+        _cprint(verdict)
+
+    def _handle_attest_command(self) -> None:
+        """``/attest`` — stamp the last response hash on Monad mainnet.
+
+        Scaffold: prints the hash and the M3-pending message. Real
+        eth_sendRawTransaction lands in M3 (agent/attestation_hook.py is
+        the staging point; transport not yet wired).
+        """
+        verdict_hash = getattr(self, "_last_verdict_hash", None)
+        if not verdict_hash:
+            _cprint(
+                "  ⁂ Nothing to attest yet — no recent council verdict\n"
+                "  with a response hash in this session.\n"
+                "  Run /council \"<task>\" first."
+            )
+            return
+        _cprint(f"  ⁂ Response hash: {verdict_hash}")
+        _cprint(
+            "  Monad attestation transport lands in M3 (AuditAttestationV2).\n"
+            "  For now the hash is queued locally and surfaces in /verdict."
+        )
 
     def _handle_reasoning_command(self, cmd: str):
         """Handle /reasoning — manage effort level and display toggle.
