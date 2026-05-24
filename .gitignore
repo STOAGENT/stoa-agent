@@ -75,3 +75,11 @@ models-dev-upstream/
 stoa_cli/tui_dist/*
 stoa_cli/scripts/
 docs/superpowers/*
+# STOA-specific — never commit these
+wallet.json
+wallet.key
+*.seed
+.stoa/
+~/.stoa/
+secrets/
+*.privkey
