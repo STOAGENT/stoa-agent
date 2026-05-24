@@ -1,0 +1,59 @@
+<svg viewBox="0 0 1200 320" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="STOA Agent — six sovereign LLMs as your local agent">
+  <defs>
+    <linearGradient id="goldFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFE066"/>
+      <stop offset="40%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#FF8C00"/>
+    </linearGradient>
+    <linearGradient id="goldStroke" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#B8860B" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#7A5C00" stop-opacity="0.9"/>
+    </linearGradient>
+    <filter id="warmGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- background: warm-tinted near-black -->
+  <rect width="1200" height="320" fill="#0a0805"/>
+
+  <!-- main wordmark: chunky bold display, vertical gold→orange gradient -->
+  <g filter="url(#warmGlow)">
+    <text x="600" y="180"
+          font-family="'Arial Black', 'Helvetica Neue', Impact, system-ui, sans-serif"
+          font-size="150"
+          font-weight="900"
+          letter-spacing="6"
+          text-anchor="middle"
+          fill="url(#goldFill)"
+          stroke="url(#goldStroke)"
+          stroke-width="2.5"
+          paint-order="stroke fill">STOA-AGENT</text>
+  </g>
+
+  <!-- amber rule -->
+  <line x1="320" y1="222" x2="880" y2="222" stroke="#B8860B" stroke-width="2" opacity="0.55"/>
+
+  <!-- six-dot council marker -->
+  <g fill="#FFBF00">
+    <circle cx="540" cy="248" r="5.5"/>
+    <circle cx="566" cy="248" r="5.5"/>
+    <circle cx="592" cy="248" r="5.5"/>
+    <circle cx="618" cy="248" r="5.5"/>
+    <circle cx="644" cy="248" r="5.5"/>
+    <circle cx="670" cy="248" r="5.5"/>
+  </g>
+
+  <!-- strapline -->
+  <text x="600" y="290"
+        font-family="'JetBrains Mono', 'Cascadia Mono', 'Consolas', 'DejaVu Sans Mono', ui-monospace, monospace"
+        font-size="15"
+        font-weight="600"
+        letter-spacing="3"
+        text-anchor="middle"
+        fill="#B8860B">SIX SOVEREIGN LLMS · ONE AGENT · ON-CHAIN VERIFIABLE</text>
+</svg>

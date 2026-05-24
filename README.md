@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/banner.png" alt="STOA Agent — six sovereign LLMs as your local agent" width="100%">
+  <img src="assets/banner.svg" alt="STOA Agent — six sovereign LLMs as your local agent" width="100%">
 </p>
 
 # STOA Agent ⁂
