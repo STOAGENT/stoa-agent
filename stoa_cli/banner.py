@@ -81,25 +81,26 @@ STOA_AGENT_LOGO = f"""[bold #ffe6cb]    ███████╗█████�
 # Kept the legacy symbol name so existing call sites (banner.py:507/510)
 # don't need to change.
 # STOA brand mark — seven-orb chamber, hexagonal layout (1 center +
-# 6 around). Rewritten v2 after the braille-padding + mixed-color-spans
-# version rendered as a broken vertical stack on the user's terminal.
-# Now: plain ASCII spaces (no U+2800), each orb on its own line with
-# a single color span, fixed-width single-cell `●` chars throughout.
-# Colors map to provider brand: Sokrates/Claude blue, Mira/GPT
-# lavender, Drax/Grok red, Echo/Mistral violet, Veritas/Gemini cyan,
-# Lyra/Llama warm yellow, center is STOA cream.
-STOA_CADUCEUS = """[bold #ffe6cb]            ⁂  S T O A             [/]
-[dim #9a968e]         the chamber of seven       [/]
+# 6 around). v3: dropped connection lines (which depended on alignment
+# between single-cell `╲` and ambiguous-width `●`/`⬤`). Now every line
+# is exactly 30 cells wide using only ASCII spaces + `⬤` (Black Large
+# Circle, U+2B24, consistent 2-cell width). Orbs in clean grid; the
+# "chamber" connection is implied by symmetry, not drawn.
+# Colors map to provider brand: top/Sokrates blue, UL/Lyra yellow,
+# UR/Mira lavender, center/Hermes cream, LL/Veritas cyan, LR/Drax red,
+# bottom/Echo violet.
+STOA_CADUCEUS = """[bold #ffe6cb]         ⁂  S T O A          [/]
+[dim #9a968e]      the chamber of seven      [/]
 
-[bold #5DB8F5]                  ●                [/]
-[dim #5a3a18]                ╲ │ ╱              [/]
-[bold #F0D585]            ●         [/][bold #C28BFF]●            [/]
-[dim #5a3a18]             ╲   │   ╱             [/]
-[bold #ffe6cb]                  ●                [/]
-[dim #5a3a18]             ╱   │   ╲             [/]
-[bold #7DC4FF]            ●         [/][bold #FF6B6B]●            [/]
-[dim #5a3a18]                ╱ │ ╲              [/]
-[bold #A878FF]                  ●                [/]
+[bold #5DB8F5]              ⬤              [/]
+
+      [bold #F0D585]⬤[/]              [bold #C28BFF]⬤[/]
+
+[bold #ffe6cb]              ⬤              [/]
+
+      [bold #7DC4FF]⬤[/]              [bold #FF6B6B]⬤[/]
+
+[bold #A878FF]              ⬤              [/]
 
 
 
@@ -534,7 +535,16 @@ def build_welcome_banner(console: Console, model: str, cwd: str,
 
     if os.getenv("STOA_YOLO_MODE"):
         left_lines.append(f"[bold red]⚠ YOLO mode[/] [dim {dim}]— all approval prompts bypassed[/]")
-    left_lines.append(f"[dim {dim}]{cwd}[/]")
+    # Privacy: don't expose the operator's full home path (C:\Users\<name>\...)
+    # in the splash. The cwd is still visible via /pwd or in the shell prompt
+    # outside stoa — we just don't put it on the screen they'll screenshot.
+    # Show only the workspace folder name (basename) so it's obvious which
+    # project this is without leaking the user account name.
+    try:
+        _ws_name = Path(cwd).name or cwd
+    except Exception:
+        _ws_name = cwd
+    left_lines.append(f"[dim {dim}]workspace · {_ws_name}[/]")
     if session_id:
         left_lines.append(f"[dim {session_color}]Session: {session_id}[/]")
     left_content = "\n".join(left_lines)
