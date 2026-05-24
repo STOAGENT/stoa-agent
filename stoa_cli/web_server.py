@@ -1339,7 +1339,7 @@ def _anthropic_oauth_status() -> Dict[str, Any]:
         return {
             "logged_in": True,
             "source": "stoa_pkce",
-            "source_label": f"Hermes PKCE ({_STOA_OAUTH_FILE})",
+            "source_label": f"STOA PKCE ({_STOA_OAUTH_FILE})",
             "token_preview": _truncate_token(stoa_creds.get("accessToken")),
             "expires_at": stoa_creds.get("expiresAt"),
             "has_refresh_token": bool(stoa_creds.get("refreshToken")),
@@ -4673,7 +4673,7 @@ def start_server(
                 "(headless Linux). Pass --no-open to suppress this detection."
             )
 
-    print(f"  Hermes Web UI → http://{host}:{port}")
+    print(f"  STOA Web UI → http://{host}:{port}")
     # proxy_headers=False so _ws_client_is_allowed sees the real connection peer
     # rather than X-Forwarded-For's rewritten value (which would defeat the
     # loopback gate when behind a reverse proxy).

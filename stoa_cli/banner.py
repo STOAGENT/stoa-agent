@@ -536,14 +536,29 @@ def build_welcome_banner(console: Console, model: str, cwd: str,
     if os.getenv("STOA_YOLO_MODE"):
         left_lines.append(f"[bold red]⚠ YOLO mode[/] [dim {dim}]— all approval prompts bypassed[/]")
     # Privacy: don't expose the operator's full home path (C:\Users\<name>\...)
-    # in the splash. The cwd is still visible via /pwd or in the shell prompt
-    # outside stoa — we just don't put it on the screen they'll screenshot.
-    # Show only the workspace folder name (basename) so it's obvious which
-    # project this is without leaking the user account name.
+    # or the home-dir BASENAME (which is the username on Linux/macOS and
+    # often on Windows too) in the splash. The cwd is still visible via
+    # /pwd or in the shell prompt outside stoa — we just don't put it on
+    # the screen they'll screenshot.
+    #
+    # Cases:
+    #   cwd == $HOME           → show '~' (don't leak username)
+    #   cwd starts with $HOME  → show '~' + project name
+    #   otherwise              → show basename only
     try:
-        _ws_name = Path(cwd).name or cwd
+        _cwd_path = Path(cwd).resolve()
+        _home = Path.home().resolve()
+        if _cwd_path == _home:
+            _ws_name = "~"
+        else:
+            try:
+                _rel = _cwd_path.relative_to(_home)
+                _parts = _rel.parts
+                _ws_name = _parts[-1] if _parts else "~"
+            except ValueError:
+                _ws_name = _cwd_path.name or str(_cwd_path)
     except Exception:
-        _ws_name = cwd
+        _ws_name = "~"
     left_lines.append(f"[dim {dim}]workspace · {_ws_name}[/]")
     if session_id:
         left_lines.append(f"[dim {session_color}]Session: {session_id}[/]")
