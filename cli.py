@@ -2590,13 +2590,9 @@ STOA_CADUCEUS = """[bold #ffe6cb]         ⁂  S T O A          [/]
 [dim #9a968e]      the chamber of seven      [/]
 
 [bold #5DB8F5]              ⬤              [/]
-
       [bold #F0D585]⬤[/]              [bold #C28BFF]⬤[/]
-
 [bold #ffe6cb]              ⬤              [/]
-
       [bold #7DC4FF]⬤[/]              [bold #FF6B6B]⬤[/]
-
 [bold #A878FF]              ⬤              [/]
 
 

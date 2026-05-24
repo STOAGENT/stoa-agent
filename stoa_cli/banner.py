@@ -93,13 +93,9 @@ STOA_CADUCEUS = """[bold #ffe6cb]         ⁂  S T O A          [/]
 [dim #9a968e]      the chamber of seven      [/]
 
 [bold #5DB8F5]              ⬤              [/]
-
       [bold #F0D585]⬤[/]              [bold #C28BFF]⬤[/]
-
 [bold #ffe6cb]              ⬤              [/]
-
       [bold #7DC4FF]⬤[/]              [bold #FF6B6B]⬤[/]
-
 [bold #A878FF]              ⬤              [/]
 
 
@@ -528,10 +524,11 @@ def build_welcome_banner(console: Console, model: str, cwd: str,
     if len(model_short) > 28:
         model_short = model_short[:25] + "..."
     ctx_str = f" [dim {dim}]·[/] [dim {dim}]{_format_context_length(context_length)} context[/]" if context_length else ""
-    # Display the AGENT name as the brand-facing label, not the underlying
-    # model identifier (e.g. "deepseek-chat"). The active model is still
-    # accessible via /model and shown in verbose status modes.
-    left_lines.append(f"[bold {accent}]⁂ stoa chat[/]{ctx_str} [dim {dim}]·[/] [dim {dim}]{model_short}[/]")
+    # Display the AGENT name as the brand-facing label. The underlying
+    # model identifier is hidden from the splash (still accessible via
+    # /model command and printed in verbose status modes) so screenshots
+    # don't leak provider/model info to viewers.
+    left_lines.append(f"[bold {accent}]⁂ stoa chat[/]{ctx_str}")
 
     if os.getenv("STOA_YOLO_MODE"):
         left_lines.append(f"[bold red]⚠ YOLO mode[/] [dim {dim}]— all approval prompts bypassed[/]")
