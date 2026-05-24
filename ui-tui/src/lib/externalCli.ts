@@ -5,11 +5,11 @@ export interface LaunchResult {
   error?: string
 }
 
-const resolveHermesBin = () => process.env.STOA_BIN?.trim() || 'hermes'
+const resolveSTOABin = () => process.env.STOA_BIN?.trim() || 'stoa'
 
-export const launchHermesCommand = (args: string[]): Promise<LaunchResult> =>
+export const launchSTOACommand = (args: string[]): Promise<LaunchResult> =>
   new Promise(resolve => {
-    const child = spawn(resolveHermesBin(), args, { stdio: 'inherit' })
+    const child = spawn(resolveSTOABin(), args, { stdio: 'inherit' })
 
     child.on('error', err => resolve({ code: null, error: err.message }))
     child.on('exit', code => resolve({ code }))

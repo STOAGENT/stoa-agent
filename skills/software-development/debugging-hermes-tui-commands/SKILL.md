@@ -1,23 +1,23 @@
 ---
-name: debugging-hermes-tui-commands
-description: "Debug Hermes TUI slash commands: Python, gateway, Ink UI."
+name: debugging-stoa-tui-commands
+description: "Debug STOA TUI slash commands: Python, gateway, Ink UI."
 version: 1.0.0
 author: STOA Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  hermes:
+  stoa:
     tags: [debugging, stoa-agent, tui, slash-commands, typescript, python]
     related_skills: [python-debugpy, node-inspect-debugger, systematic-debugging]
 ---
 
-# Debugging Hermes TUI Slash Commands
+# Debugging STOA TUI Slash Commands
 
 ## Overview
 
-Hermes slash commands span three layers — Python command registry, tui_gateway JSON-RPC bridge, and the Ink/TypeScript frontend. When a command misbehaves (missing from autocomplete, works in CLI but not TUI, config persists but UI doesn't update), the bug is almost always one layer being out of sync with another.
+STOA slash commands span three layers — Python command registry, tui_gateway JSON-RPC bridge, and the Ink/TypeScript frontend. When a command misbehaves (missing from autocomplete, works in CLI but not TUI, config persists but UI doesn't update), the bug is almost always one layer being out of sync with another.
 
-Use this skill when you encounter issues with slash commands in the Hermes TUI, particularly when commands aren't showing in autocomplete, aren't working properly in the TUI, or need to be added/updated.
+Use this skill when you encounter issues with slash commands in the STOA TUI, particularly when commands aren't showing in autocomplete, aren't working properly in the TUI, or need to be added/updated.
 
 ## When to Use
 
@@ -87,7 +87,7 @@ If a command exists in the TUI but doesn't show in autocomplete:
 
 3. Ensure `subcommands` matches the expected tab-completion options shown by the TUI.
 
-4. If the command runs server-side, add a handler in `HermesCLI.process_command()` in `cli.py`:
+4. If the command runs server-side, add a handler in `STOACLI.process_command()` in `cli.py`:
    ```python
    elif canonical == "commandname":
        self._handle_commandname(cmd_original)
@@ -139,7 +139,7 @@ After fixing:
 
 2. Run the TUI and test the command:
    ```bash
-   hermes --tui
+   stoa --tui
    ```
 
 3. Type `/` and verify the command appears in autocomplete suggestions with the expected description and args hint.

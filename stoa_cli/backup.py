@@ -1,10 +1,10 @@
 """
-Backup and import commands for hermes CLI.
+Backup and import commands for stoa CLI.
 
-`hermes backup` creates a zip archive of the entire ~/.stoa/ directory
+`stoa backup` creates a zip archive of the entire ~/.stoa/ directory
 (excluding the stoa-agent repo and transient files).
 
-`hermes import` restores from a backup zip, overlaying onto the current
+`stoa import` restores from a backup zip, overlaying onto the current
 STOA_HOME root.
 """
 
@@ -66,7 +66,7 @@ _SECRET_FILE_NAMES = {".env", "auth.json", "state.db"}
 
 
 def _should_exclude(rel_path: Path) -> bool:
-    """Return True if *rel_path* (relative to hermes root) should be skipped."""
+    """Return True if *rel_path* (relative to stoa root) should be skipped."""
     parts = rel_path.parts
 
     # Any path component matches an excluded dir name
@@ -126,11 +126,11 @@ def _format_size(nbytes: int) -> str:
 
 
 def run_backup(args) -> None:
-    """Create a zip backup of the Hermes home directory."""
+    """Create a zip backup of the STOA home directory."""
     stoa_root = get_default_stoa_root()
 
     if not stoa_root.is_dir():
-        print(f"Error: Hermes home directory not found at {stoa_root}")
+        print(f"Error: STOA home directory not found at {stoa_root}")
         sys.exit(1)
 
     # Determine output path
@@ -139,10 +139,10 @@ def run_backup(args) -> None:
         # If user gave a directory, put the zip inside it
         if out_path.is_dir():
             stamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
-            out_path = out_path / f"hermes-backup-{stamp}.zip"
+            out_path = out_path / f"stoa-backup-{stamp}.zip"
     else:
         stamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
-        out_path = Path.home() / f"hermes-backup-{stamp}.zip"
+        out_path = Path.home() / f"stoa-backup-{stamp}.zip"
 
     # Ensure the suffix is .zip
     if out_path.suffix.lower() != ".zip":
@@ -176,7 +176,7 @@ def run_backup(args) -> None:
             if _should_exclude(rel):
                 continue
 
-            # Skip the output zip itself if it happens to be inside hermes root
+            # Skip the output zip itself if it happens to be inside stoa root
             try:
                 if fpath.resolve() == out_path.resolve():
                     continue
@@ -246,7 +246,7 @@ def run_backup(args) -> None:
         if len(errors) > 10:
             print(f"  ... and {len(errors) - 10} more")
 
-    print(f"\nRestore with: hermes import {out_path.name}")
+    print(f"\nRestore with: stoa import {out_path.name}")
 
 
 # ---------------------------------------------------------------------------
@@ -254,7 +254,7 @@ def run_backup(args) -> None:
 # ---------------------------------------------------------------------------
 
 def _validate_backup_zip(zf: zipfile.ZipFile) -> tuple[bool, str]:
-    """Check that a zip looks like a Hermes backup.
+    """Check that a zip looks like a STOA backup.
 
     Returns (ok, reason).
     """
@@ -262,7 +262,7 @@ def _validate_backup_zip(zf: zipfile.ZipFile) -> tuple[bool, str]:
     if not names:
         return False, "zip archive is empty"
 
-    # Look for telltale files that a hermes home would have
+    # Look for telltale files that a stoa home would have
     markers = {"config.yaml", ".env", "state.db"}
     found = set()
     for n in names:
@@ -273,7 +273,7 @@ def _validate_backup_zip(zf: zipfile.ZipFile) -> tuple[bool, str]:
 
     if not found:
         return False, (
-            "zip does not appear to be a Hermes backup "
+            "zip does not appear to be a STOA backup "
             "(no config.yaml, .env, or state databases found)"
         )
 
@@ -297,15 +297,15 @@ def _detect_prefix(zf: zipfile.ZipFile) -> str:
     first_parts = {p[0] for p in parts_list if len(p) > 1}
     if len(first_parts) == 1:
         prefix = first_parts.pop()
-        # Only strip if it looks like a hermes dir name
-        if prefix in {".stoa", "hermes"}:
+        # Only strip if it looks like a stoa dir name
+        if prefix in {".stoa", "stoa"}:
             return prefix + "/"
 
     return ""
 
 
 def run_import(args) -> None:
-    """Restore a Hermes backup from a zip file."""
+    """Restore a STOA backup from a zip file."""
     zip_path = Path(args.zipfile).expanduser().resolve()
 
     if not zip_path.is_file():
@@ -341,7 +341,7 @@ def run_import(args) -> None:
 
         if (has_config or has_env) and not args.force:
             print()
-            print("Warning: Target directory already has Hermes configuration.")
+            print("Warning: Target directory already has STOA configuration.")
             print("Importing will overwrite existing files with backup contents.")
             print()
             try:
@@ -446,25 +446,25 @@ def run_import(args) -> None:
                 # stoa_cli.profiles might not be available (fresh install)
                 if any(profiles_dir.iterdir()):
                     print(f"\n  Profiles detected but aliases could not be created.")
-                    print(f"  Run: hermes profile list  (after installing hermes)")
+                    print(f"  Run: stoa profile list  (after installing stoa)")
 
         # Guidance
         print()
         if not (stoa_root / "stoa-agent").is_dir():
             print("Note: The stoa-agent codebase was not included in the backup.")
-            print("  If this is a fresh install, run: hermes update")
+            print("  If this is a fresh install, run: stoa update")
 
         if restored_profiles:
             gw_profiles = [n for n, _ in restored_profiles]
             print("\nTo re-enable gateway services for profiles:")
             for pname in gw_profiles:
-                print(f"  hermes -p {pname} gateway install")
+                print(f"  stoa -p {pname} gateway install")
 
-        print("Done. Your Hermes configuration has been restored.")
+        print("Done. Your STOA configuration has been restored.")
 
 
 # ---------------------------------------------------------------------------
-# Quick state snapshots (used by /snapshot slash command and hermes backup --quick)
+# Quick state snapshots (used by /snapshot slash command and stoa backup --quick)
 # ---------------------------------------------------------------------------
 
 # Critical state files to include in quick snapshots (relative to STOA_HOME).
@@ -474,7 +474,7 @@ def run_import(args) -> None:
 # Entries may be individual files OR directories.  Directories are captured
 # recursively; missing entries are silently skipped.  Pairing data lives in
 # platform-specific JSON blobs outside state.db, so it's listed here explicitly
-# — `hermes update` snapshots this set before pulling so approved-user lists
+# — `stoa update` snapshots this set before pulling so approved-user lists
 # are recoverable if anything goes wrong (issue #15733).
 _QUICK_STATE_FILES = (
     "state.db",
@@ -689,7 +689,7 @@ def prune_quick_snapshots(
 
 
 def run_quick_backup(args) -> None:
-    """CLI entry point for hermes backup --quick."""
+    """CLI entry point for stoa backup --quick."""
     label = getattr(args, "label", None)
     snap_id = create_quick_snapshot(label=label)
     if snap_id:
@@ -836,7 +836,7 @@ def create_pre_update_backup(
 
     Returns the path to the created zip, or ``None`` if no files were
     found or the backup could not be created.  Never raises — the caller
-    (``hermes update``) should continue even if the backup fails.
+    (``stoa update``) should continue even if the backup fails.
     """
     stoa_root = stoa_home or get_default_stoa_root()
     if not stoa_root.is_dir():
@@ -905,7 +905,7 @@ def create_pre_migration_backup(
 
     Shares implementation with :func:`create_pre_update_backup` via
     ``_write_full_zip_backup`` — same exclusions, same SQLite safe-copy,
-    restorable with ``hermes import <archive>``.  Writes to
+    restorable with ``stoa import <archive>``.  Writes to
     ``<STOA_HOME>/backups/pre-migration-<timestamp>.zip`` and auto-prunes
     old pre-migration backups.
 
@@ -917,7 +917,7 @@ def create_pre_migration_backup(
     if not stoa_root.is_dir():
         return None
 
-    # Reuses the shared backups/ directory so `hermes import` and the
+    # Reuses the shared backups/ directory so `stoa import` and the
     # update-backup listing pick up pre-migration archives too.
     backup_dir = _pre_update_backup_dir(stoa_root)
     try:

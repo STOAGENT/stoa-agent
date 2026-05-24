@@ -71,7 +71,7 @@ def build_system_prompt_parts(agent: Any, system_message: Optional[str] = None) 
 
     Joined into a single string by :func:`build_system_prompt` and
     cached on ``agent._cached_system_prompt`` for the lifetime of the
-    AIAgent.  Hermes never re-renders parts of this string mid-
+    AIAgent.  STOA never re-renders parts of this string mid-
     session — that's the only way to keep upstream prompt caches
     warm across turns.
     """
@@ -97,7 +97,7 @@ def build_system_prompt_parts(agent: Any, system_message: Optional[str] = None) 
         # Fallback to hardcoded identity
         stable_parts.append(DEFAULT_AGENT_IDENTITY)
 
-    # Pointer to the stoa-agent skill + docs for user questions about Hermes itself.
+    # Pointer to the stoa-agent skill + docs for user questions about STOA itself.
     stable_parts.append(STOA_AGENT_HELP_GUIDANCE)
 
     # Tool-aware behavioral guidance: only inject when the tools are loaded
@@ -295,7 +295,7 @@ def build_system_prompt(agent: Any, system_message: Optional[str] = None) -> str
     Layers are ordered cache-friendly: stable identity/guidance first,
     then session-stable context files, then per-call volatile content
     (memory, USER profile, timestamp).  The whole string is treated as
-    one cached block — Hermes never rebuilds or reinjects parts of it
+    one cached block — STOA never rebuilds or reinjects parts of it
     mid-session, which is the only way to keep upstream prompt caches
     warm across turns.
     """

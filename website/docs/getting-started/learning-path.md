@@ -55,7 +55,7 @@ Deploy STOA Agent as a bot on your favorite messaging platform.
 4. [Telegram Setup](/docs/user-guide/messaging/telegram)
 5. [Discord Setup](/docs/user-guide/messaging/discord)
 6. [Voice Mode](/docs/user-guide/features/voice-mode)
-7. [Use Voice Mode with Hermes](/docs/guides/use-voice-mode-with-hermes)
+7. [Use Voice Mode with STOA](/docs/guides/use-voice-mode-with-stoa)
 8. [Security](/docs/user-guide/security)
 
 For full project examples, see:
@@ -81,7 +81,7 @@ Cron jobs let STOA Agent run tasks on a schedule — daily summaries, periodic c
 Extend STOA Agent with your own tools and reusable skill packages.
 
 1. [Plugins](/docs/user-guide/features/plugins)
-2. [Build a Hermes Plugin](/docs/guides/build-a-hermes-plugin)
+2. [Build a STOA Plugin](/docs/guides/build-a-stoa-plugin)
 3. [Tools Overview](/docs/user-guide/features/tools)
 4. [Skills Overview](/docs/user-guide/features/skills)
 5. [MCP (Model Context Protocol)](/docs/user-guide/features/mcp)
@@ -91,7 +91,7 @@ Extend STOA Agent with your own tools and reusable skill packages.
 
 :::tip
 For most custom tool creation, start with plugins. The [Adding Tools](/docs/developer-guide/adding-tools)
-page is for built-in Hermes core development, not the usual user/custom-tool path.
+page is for built-in STOA core development, not the usual user/custom-tool path.
 :::
 
 ### "I want to train models"
@@ -132,7 +132,7 @@ Not sure what's available? Here's a quick directory of major features:
 | **MCP** | Connect to external tool servers via Model Context Protocol | [MCP](/docs/user-guide/features/mcp) |
 | **Cron** | Schedule recurring agent tasks | [Cron](/docs/user-guide/features/cron) |
 | **Delegation** | Spawn sub-agents for parallel work | [Delegation](/docs/user-guide/features/delegation) |
-| **Code Execution** | Run Python scripts that call Hermes tools programmatically | [Code Execution](/docs/user-guide/features/code-execution) |
+| **Code Execution** | Run Python scripts that call STOA tools programmatically | [Code Execution](/docs/user-guide/features/code-execution) |
 | **Browser** | Web browsing and scraping | [Browser](/docs/user-guide/features/browser) |
 | **Hooks** | Event-driven callbacks and middleware | [Hooks](/docs/user-guide/features/hooks) |
 | **Batch Processing** | Process multiple inputs in bulk | [Batch Processing](/docs/user-guide/features/batch-processing) |

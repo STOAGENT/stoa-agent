@@ -139,7 +139,7 @@ SEND_MESSAGE_SCHEMA = {
             },
             "message": {
                 "type": "string",
-                "description": "The message text to send. To send an image or file, include MEDIA:<local_path> for a file under a Hermes media cache or STOA_MEDIA_ALLOW_DIRS — the platform will deliver it as a native media attachment."
+                "description": "The message text to send. To send an image or file, include MEDIA:<local_path> for a file under a STOA media cache or STOA_MEDIA_ALLOW_DIRS — the platform will deliver it as a native media attachment."
             }
         },
         "required": []
@@ -269,7 +269,7 @@ def _handle_send(args):
             return json.dumps({
                 "error": f"No home channel set for {platform_name} to determine where to send the message. "
                 f"Either specify a channel directly with '{platform_name}:CHANNEL_NAME', "
-                f"or set a home channel via: hermes config set {platform_name.upper()}_HOME_CHANNEL <channel_id>"
+                f"or set a home channel via: stoa config set {platform_name.upper()}_HOME_CHANNEL <channel_id>"
             })
 
     duplicate_skip = _maybe_skip_cron_duplicate_send(platform_name, chat_id, thread_id)

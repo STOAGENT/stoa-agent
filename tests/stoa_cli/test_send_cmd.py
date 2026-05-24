@@ -1,4 +1,4 @@
-"""Tests for the ``hermes send`` CLI subcommand.
+"""Tests for the ``stoa send`` CLI subcommand.
 
 Covers the argument parsing / stdin / file / list behavior of
 ``stoa_cli.send_cmd``. The underlying ``send_message_tool`` is stubbed so
@@ -25,7 +25,7 @@ def _parse(argv):
     """Build the top-level parser and return the parsed args for ``argv``."""
     import argparse
 
-    parser = argparse.ArgumentParser(prog="hermes")
+    parser = argparse.ArgumentParser(prog="stoa")
     subparsers = parser.add_subparsers(dest="command")
     send_cmd.register_send_subparser(subparsers)
     return parser.parse_args(["send", *argv])
@@ -336,8 +336,8 @@ def test_load_stoa_env_bridges_config_yaml_scalars(tmp_path, monkeypatch):
     """Top-level config.yaml scalars should be bridged into os.environ.
 
     This mirrors the gateway/run.py bootstrap behavior: without this, running
-    ``hermes send`` from a fresh shell cannot resolve the home channel
-    because ``TELEGRAM_HOME_CHANNEL`` (saved by ``hermes config set``) lives
+    ``stoa send`` from a fresh shell cannot resolve the home channel
+    because ``TELEGRAM_HOME_CHANNEL`` (saved by ``stoa config set``) lives
     in config.yaml, not in .env — and the gateway's config loader reads via
     ``os.getenv(...)``.
     """

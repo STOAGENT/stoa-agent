@@ -22,7 +22,7 @@ test_durations.json
 .pytest-cache/
 tmp/
 temp_vision_images/
-hermes-*/*
+stoa-*/*
 examples/
 tests/quick_test_dataset.jsonl
 tests/sample_dataset.jsonl

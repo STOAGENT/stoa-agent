@@ -1,4 +1,4 @@
-"""Tests for xAI Grok OAuth — tokens stored in Hermes auth store (~/.stoa/auth.json)."""
+"""Tests for xAI Grok OAuth — tokens stored in STOA auth store (~/.stoa/auth.json)."""
 
 import base64
 import json
@@ -45,7 +45,7 @@ def _setup_stoa_auth(
     refresh_token: str = "refresh",
     discovery: dict | None = None,
 ):
-    """Write xAI OAuth tokens into the Hermes auth store at the given root."""
+    """Write xAI OAuth tokens into the STOA auth store at the given root."""
     stoa_home.mkdir(parents=True, exist_ok=True)
     state = {
         "tokens": {
@@ -235,7 +235,7 @@ def test_xai_oauth_authorize_url_includes_plan_generic():
 
 
 def test_xai_oauth_authorize_url_includes_referrer_stoa_agent():
-    """Attribution: xAI's OAuth server can identify Hermes-originated logins
+    """Attribution: xAI's OAuth server can identify STOA-originated logins
     via the referrer query param. Must always be present on the authorize URL."""
     url = _xai_oauth_build_authorize_url(
         authorization_endpoint="https://auth.x.ai/oauth2/authorize",
@@ -360,7 +360,7 @@ def test_xai_callback_handler_returns_400_when_callback_url_lacks_code_and_error
         status, body = _get_callback(redirect_uri)
         assert status == 400
         assert "not received" in body.lower()
-        assert "hermes auth add xai-oauth" in body
+        assert "stoa auth add xai-oauth" in body
         # Wait loop must still see no code/error so it raises a real timeout,
         # rather than treating this empty hit as a successful callback.
         assert result["code"] is None
@@ -412,7 +412,7 @@ def test_xai_callback_handler_records_error_callback():
 
 
 def test_save_and_read_xai_oauth_tokens_roundtrip(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stoa_home.mkdir(parents=True, exist_ok=True)
     (stoa_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -436,7 +436,7 @@ def test_save_and_read_xai_oauth_tokens_roundtrip(tmp_path, monkeypatch):
 
 
 def test_read_xai_oauth_tokens_missing(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stoa_home.mkdir(parents=True, exist_ok=True)
     (stoa_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -448,7 +448,7 @@ def test_read_xai_oauth_tokens_missing(tmp_path, monkeypatch):
 
 
 def test_read_xai_oauth_tokens_missing_access_token(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     _setup_stoa_auth(stoa_home, access_token="")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -459,7 +459,7 @@ def test_read_xai_oauth_tokens_missing_access_token(tmp_path, monkeypatch):
 
 
 def test_read_xai_oauth_tokens_missing_refresh_token(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     _setup_stoa_auth(stoa_home, refresh_token="")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -475,7 +475,7 @@ def test_read_xai_oauth_tokens_missing_refresh_token(tmp_path, monkeypatch):
 
 
 def test_resolve_xai_runtime_credentials_returns_singleton_state(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     fresh = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(stoa_home, access_token=fresh)
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -486,12 +486,12 @@ def test_resolve_xai_runtime_credentials_returns_singleton_state(tmp_path, monke
     assert creds["provider"] == "xai-oauth"
     assert creds["api_key"] == fresh
     assert creds["base_url"] == DEFAULT_XAI_OAUTH_BASE_URL
-    assert creds["source"] == "hermes-auth-store"
+    assert creds["source"] == "stoa-auth-store"
     assert creds["auth_mode"] == "oauth_pkce"
 
 
 def test_resolve_xai_runtime_credentials_refreshes_expiring_token(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     expiring = _jwt_with_exp(int(time.time()) - 10)
     _setup_stoa_auth(
         stoa_home,
@@ -519,7 +519,7 @@ def test_resolve_xai_runtime_credentials_refreshes_expiring_token(tmp_path, monk
 
 
 def test_resolve_xai_runtime_credentials_force_refresh(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     fresh = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(
         stoa_home,
@@ -545,7 +545,7 @@ def test_resolve_xai_runtime_credentials_force_refresh(tmp_path, monkeypatch):
 
 
 def test_resolve_xai_runtime_credentials_honours_env_base_url(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     fresh = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(stoa_home, access_token=fresh)
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -668,7 +668,7 @@ def test_resolve_xai_runtime_credentials_rejects_off_origin_env_base_url(tmp_pat
     # The end-to-end guarantee: if the env var points at an attacker host,
     # the resolver MUST silently fall back to the default rather than ship
     # the OAuth bearer to the attacker.
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     fresh = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(stoa_home, access_token=fresh)
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -723,7 +723,7 @@ def test_resolve_credentials_quarantines_dead_tokens_on_terminal_refresh_failure
     last_auth_error marker so subsequent calls fail fast without a network retry.
     Mirrors the credential_pool.py quarantine for the singleton/direct resolve path.
     """
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     _seed_xai_oauth_state(stoa_home, dict(_STALE_XAI_OAUTH_STATE), active_provider="nous")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -773,7 +773,7 @@ def test_resolve_credentials_does_not_quarantine_on_transient_refresh_failure(
     """Transient refresh failure (relogin_required=False, e.g. 429 / 5xx) must
     NOT trigger the quarantine path — tokens stay on disk for the next attempt.
     """
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     _seed_xai_oauth_state(stoa_home, dict(_STALE_XAI_OAUTH_STATE))
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -806,7 +806,7 @@ def test_resolve_credentials_does_not_quarantine_on_transient_refresh_failure(
 
 
 def test_get_xai_oauth_auth_status_logged_in_via_singleton(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     fresh = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(stoa_home, access_token=fresh)
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -818,7 +818,7 @@ def test_get_xai_oauth_auth_status_logged_in_via_singleton(tmp_path, monkeypatch
 
 
 def test_get_xai_oauth_auth_status_logged_out(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stoa_home.mkdir(parents=True, exist_ok=True)
     (stoa_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -867,7 +867,7 @@ def test_refresh_xai_oauth_pure_403_marked_tier_denied_not_relogin(monkeypatch):
 
     Regression test for #26847 — xAI's backend has been seen to 403
     standard SuperGrok subscribers despite the in-app subscription
-    being active. Re-running ``hermes model`` won't help in that
+    being active. Re-running ``stoa model`` won't help in that
     case, so the AuthError must NOT set ``relogin_required=True``,
     and must carry the dedicated ``xai_oauth_tier_denied`` code so
     ``format_auth_error`` doesn't append the misleading re-auth hint.
@@ -889,7 +889,7 @@ def test_refresh_xai_oauth_pure_403_marked_tier_denied_not_relogin(monkeypatch):
 def test_format_auth_error_tier_denied_does_not_suggest_relogin():
     """``xai_oauth_tier_denied`` must not append the re-authenticate hint.
 
-    Regression for #26847: telling a tier-gated user to ``hermes model``
+    Regression for #26847: telling a tier-gated user to ``stoa model``
     is actively wrong — re-logging in won't change xAI's allowlist
     decision. The full message (with ``XAI_API_KEY`` fallback) is built
     into the error itself.
@@ -905,7 +905,7 @@ def test_format_auth_error_tier_denied_does_not_suggest_relogin():
     )
     rendered = format_auth_error(err)
     assert "re-authenticate" not in rendered.lower()
-    assert "hermes model" not in rendered.lower()
+    assert "stoa model" not in rendered.lower()
     assert "XAI_API_KEY" in rendered
 
 
@@ -1040,7 +1040,7 @@ def test_xai_oauth_discovery_raises_typed_error_on_non_object_payload(monkeypatc
 
 def test_refresh_xai_oauth_pure_rejects_non_https_token_endpoint(monkeypatch):
     """A poisoned auth.json (from MITM during initial discovery, or an older
-    Hermes that didn't validate) must not be silently honored on the refresh
+    STOA that didn't validate) must not be silently honored on the refresh
     hot path. A non-HTTPS ``token_endpoint`` would leak the refresh_token in
     cleartext on every refresh; refuse before the POST."""
     # No HTTP stub installed — refresh must fail at validation, not at POST.
@@ -1166,12 +1166,12 @@ def test_xai_oauth_discovery_validates_authorization_endpoint(monkeypatch):
 
 
 def test_credential_pool_seeds_xai_oauth_from_singleton(tmp_path, monkeypatch):
-    """After `hermes model` -> xai-oauth, the singleton holds tokens.  load_pool
-    must surface that as a pool entry so `hermes auth list` reflects truth and
+    """After `stoa model` -> xai-oauth, the singleton holds tokens.  load_pool
+    must surface that as a pool entry so `stoa auth list` reflects truth and
     refreshes route through the pool consistently with codex."""
     from agent.credential_pool import load_pool
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     fresh = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(stoa_home, access_token=fresh, refresh_token="rt-1")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1190,7 +1190,7 @@ def test_credential_pool_seeds_xai_oauth_from_singleton(tmp_path, monkeypatch):
 def test_credential_pool_does_not_seed_when_singleton_missing_access_token(tmp_path, monkeypatch):
     from agent.credential_pool import load_pool
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stoa_home.mkdir(parents=True, exist_ok=True)
     auth_store = {
         "version": 1,
@@ -1209,16 +1209,16 @@ def test_credential_pool_does_not_seed_when_singleton_missing_access_token(tmp_p
 
 
 def test_credential_pool_seed_respects_suppression(tmp_path, monkeypatch):
-    """`hermes auth remove xai-oauth <N>` for the seeded entry suppresses
+    """`stoa auth remove xai-oauth <N>` for the seeded entry suppresses
     further re-seeding so the removal is stable across load_pool calls."""
     from agent.credential_pool import load_pool
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     fresh = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(stoa_home, access_token=fresh)
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
-    # Suppress the source — mimic `hermes auth remove`.
+    # Suppress the source — mimic `stoa auth remove`.
     from stoa_cli.auth import suppress_credential_source
 
     suppress_credential_source("xai-oauth", "loopback_pkce")
@@ -1228,7 +1228,7 @@ def test_credential_pool_seed_respects_suppression(tmp_path, monkeypatch):
 
 
 def test_auth_remove_xai_oauth_clears_singleton_and_sticks(tmp_path, monkeypatch):
-    """End-to-end regression: ``hermes auth remove xai-oauth 1`` for a
+    """End-to-end regression: ``stoa auth remove xai-oauth 1`` for a
     singleton-seeded entry must clear auth.json providers.xai-oauth AND
     suppress further re-seeding — otherwise the next ``load_pool`` call
     silently resurrects the entry from the still-present singleton, making
@@ -1245,7 +1245,7 @@ def test_auth_remove_xai_oauth_clears_singleton_and_sticks(tmp_path, monkeypatch
     from stoa_cli.auth_commands import auth_remove_command
     from types import SimpleNamespace
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     fresh = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(stoa_home, access_token=fresh, refresh_token="rt-1")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1256,7 +1256,7 @@ def test_auth_remove_xai_oauth_clears_singleton_and_sticks(tmp_path, monkeypatch
     raw = json.loads((stoa_home / "auth.json").read_text())
     assert "xai-oauth" in raw.get("providers", {})
 
-    # Act: the user runs `hermes auth remove xai-oauth 1`.
+    # Act: the user runs `stoa auth remove xai-oauth 1`.
     auth_remove_command(SimpleNamespace(provider="xai-oauth", target="1"))
 
     # Post-state: auth.json singleton must be cleared so a re-seed has
@@ -1273,7 +1273,7 @@ def test_auth_remove_xai_oauth_clears_singleton_and_sticks(tmp_path, monkeypatch
     assert not pool_after.has_credentials(), (
         "Removal must stick across load_pool() calls — without the "
         "loopback_pkce RemovalStep, the seed function reads the singleton "
-        "and rebuilds the entry on every Hermes invocation."
+        "and rebuilds the entry on every STOA invocation."
     )
 
 
@@ -1289,7 +1289,7 @@ def test_pool_sync_back_writes_to_singleton(tmp_path, monkeypatch):
     doesn't keep using the consumed refresh token."""
     from agent.credential_pool import load_pool
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     expired = _jwt_with_exp(int(time.time()) - 10)
     _setup_stoa_auth(stoa_home, access_token=expired, refresh_token="rt-old")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1333,7 +1333,7 @@ def test_pool_sync_back_writes_to_singleton(tmp_path, monkeypatch):
 def test_runtime_provider_uses_pool_entry_for_xai_oauth(tmp_path, monkeypatch):
     from stoa_cli.runtime_provider import resolve_runtime_provider
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     fresh = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(stoa_home, access_token=fresh)
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1353,7 +1353,7 @@ def test_runtime_provider_default_base_url_when_pool_entry_missing_url(tmp_path,
     from agent.credential_pool import load_pool, AUTH_TYPE_OAUTH, PooledCredential
     import uuid
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stoa_home.mkdir(parents=True, exist_ok=True)
     (stoa_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1399,7 +1399,7 @@ def test_pool_entry_needs_refresh_when_jwt_within_skew(tmp_path, monkeypatch):
     from stoa_cli.auth import XAI_ACCESS_TOKEN_REFRESH_SKEW_SECONDS
     import uuid
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stoa_home.mkdir(parents=True, exist_ok=True)
     (stoa_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1428,7 +1428,7 @@ def test_pool_entry_no_refresh_for_fresh_jwt(tmp_path, monkeypatch):
     from agent.credential_pool import load_pool, AUTH_TYPE_OAUTH, PooledCredential
     import uuid
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stoa_home.mkdir(parents=True, exist_ok=True)
     (stoa_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1457,7 +1457,7 @@ def test_pool_select_proactively_refreshes_expiring_token(tmp_path, monkeypatch)
     from agent.credential_pool import load_pool, AUTH_TYPE_OAUTH, PooledCredential
     import uuid
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stoa_home.mkdir(parents=True, exist_ok=True)
     (stoa_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1511,7 +1511,7 @@ def test_pool_try_refresh_current_handles_xai_oauth(tmp_path, monkeypatch):
     from agent.credential_pool import load_pool, AUTH_TYPE_OAUTH, PooledCredential
     import uuid
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stoa_home.mkdir(parents=True, exist_ok=True)
     (stoa_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1566,7 +1566,7 @@ def test_pool_refresh_marks_entry_exhausted_on_failure(tmp_path, monkeypatch):
     from stoa_cli.auth import AuthError
     import uuid
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stoa_home.mkdir(parents=True, exist_ok=True)
     (stoa_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1604,7 +1604,7 @@ def test_pool_seeded_entry_sync_back_after_refresh(tmp_path, monkeypatch):
     fresh process load doesn't re-seed the now-consumed refresh token."""
     from agent.credential_pool import load_pool
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     near_expiry = _jwt_with_exp(int(time.time()) + 30)
     _setup_stoa_auth(stoa_home, access_token=near_expiry, refresh_token="rt-singleton")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1636,7 +1636,7 @@ def test_pool_seeded_entry_sync_back_after_refresh(tmp_path, monkeypatch):
 
 
 def test_pool_refresh_adopts_singleton_tokens_when_consumed_elsewhere(tmp_path, monkeypatch):
-    """Multi-process race: another Hermes process refreshed the singleton
+    """Multi-process race: another STOA process refreshed the singleton
     (rotating the refresh_token) while this process held a stale in-memory
     pool entry.  ``_refresh_entry`` must adopt the fresher singleton tokens
     BEFORE spending its own (now-consumed) refresh_token, otherwise the
@@ -1645,10 +1645,10 @@ def test_pool_refresh_adopts_singleton_tokens_when_consumed_elsewhere(tmp_path, 
 
     Mirrors the proactive sync codex/nous already perform for the same
     reason, and is what makes the pool actually safe to share across
-    profiles + Hermes processes."""
+    profiles + STOA processes."""
     from agent.credential_pool import load_pool
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     in_memory_at = _jwt_with_exp(int(time.time()) + 30)  # near-expiry
     _setup_stoa_auth(stoa_home, access_token=in_memory_at, refresh_token="rt-stale")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1701,7 +1701,7 @@ def test_pool_refresh_recovers_when_other_process_already_refreshed(tmp_path, mo
     entry exhausted."""
     from agent.credential_pool import load_pool
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     in_memory_at = _jwt_with_exp(int(time.time()) + 30)
     _setup_stoa_auth(stoa_home, access_token=in_memory_at, refresh_token="rt-shared")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1742,14 +1742,14 @@ def test_pool_refresh_recovers_when_other_process_already_refreshed(tmp_path, mo
 
 def test_pool_exhausted_xai_entry_recovers_after_singleton_refresh(tmp_path, monkeypatch):
     """When a singleton-seeded entry is parked as STATUS_EXHAUSTED and the
-    user runs ``hermes model`` -> xAI Grok OAuth (or another process
+    user runs ``stoa model`` -> xAI Grok OAuth (or another process
     refreshes), the next ``_available_entries`` pass must adopt the fresh
     auth.json tokens instead of leaving the entry frozen until the
     cooldown elapses.  Mirrors the codex/nous self-heal pattern."""
     from agent.credential_pool import load_pool, STATUS_EXHAUSTED
     from dataclasses import replace
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stale_at = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(stoa_home, access_token=stale_at, refresh_token="rt-stale")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1772,7 +1772,7 @@ def test_pool_exhausted_xai_entry_recovers_after_singleton_refresh(tmp_path, mon
     assert pool.has_credentials()
     assert not pool.has_available()  # cooldown blocks everything
 
-    # Simulate the user re-running `hermes model` -> xAI Grok OAuth: the
+    # Simulate the user re-running `stoa model` -> xAI Grok OAuth: the
     # singleton now has fresh tokens.
     fresh_at = _jwt_with_exp(int(time.time()) + 7200)
     raw = json.loads((stoa_home / "auth.json").read_text())
@@ -1797,13 +1797,13 @@ def test_pool_exhausted_xai_entry_recovers_after_singleton_refresh(tmp_path, mon
 def test_pool_manual_xai_entry_not_synced_from_singleton(tmp_path, monkeypatch):
     """Sync from the singleton must apply ONLY to the singleton-seeded
     entry (source='loopback_pkce').  Manually added entries (e.g. via
-    ``hermes auth add xai-oauth``) own their own refresh-token lifecycle
+    ``stoa auth add xai-oauth``) own their own refresh-token lifecycle
     and must not be silently overwritten when the user logs in via
-    ``hermes model``."""
+    ``stoa model``."""
     from agent.credential_pool import load_pool, AUTH_TYPE_OAUTH, PooledCredential
     import uuid
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     singleton_at = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(stoa_home, access_token=singleton_at, refresh_token="rt-singleton")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1833,14 +1833,14 @@ def test_pool_manual_xai_entry_not_synced_from_singleton(tmp_path, monkeypatch):
 
 
 def test_pool_manual_entry_does_not_sync_back_to_singleton(tmp_path, monkeypatch):
-    """`hermes auth add xai-oauth` entries (source='manual:xai_pkce') are
+    """`stoa auth add xai-oauth` entries (source='manual:xai_pkce') are
     independent credentials and must NOT write to the singleton.  Sync-back
     is restricted to entries seeded from the singleton.  Otherwise adding a
     second pool credential would silently overwrite the user's main login."""
     from agent.credential_pool import load_pool, AUTH_TYPE_OAUTH, PooledCredential
     import uuid
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     # Singleton has its own tokens (separate login).
     singleton_at = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(stoa_home, access_token=singleton_at, refresh_token="rt-singleton")
@@ -1910,7 +1910,7 @@ def test_auxiliary_client_routes_xai_oauth_through_responses_api(tmp_path, monke
         resolve_provider_client,
     )
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     fresh = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(stoa_home, access_token=fresh)
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1938,7 +1938,7 @@ def test_auxiliary_client_xai_oauth_returns_none_when_unauthenticated(tmp_path, 
     misconfigured client."""
     from agent.auxiliary_client import resolve_provider_client
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stoa_home.mkdir(parents=True, exist_ok=True)
     (stoa_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1954,7 +1954,7 @@ def test_auxiliary_client_xai_oauth_requires_explicit_model(tmp_path, monkeypatc
     must pass an explicit model (auxiliary.<task>.model in config.yaml)."""
     from agent.auxiliary_client import resolve_provider_client
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     fresh = _jwt_with_exp(int(time.time()) + 3600)
     _setup_stoa_auth(stoa_home, access_token=fresh)
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -1974,12 +1974,12 @@ def test_pool_sync_back_preserves_active_provider(tmp_path, monkeypatch):
     picking a provider.  ``_save_provider_state`` flips ``active_provider``;
     using it on the sync-back path means every xAI/Codex/Nous refresh in a
     multi-provider setup silently overrides the user's chosen active
-    provider (visible to ``hermes auth status``, ``hermes setup``, and the
-    ``hermes`` no-arg dispatcher).  Pin the ``set_active=False`` contract so
+    provider (visible to ``stoa auth status``, ``stoa setup``, and the
+    ``stoa`` no-arg dispatcher).  Pin the ``set_active=False`` contract so
     no future refactor regresses to the legacy semantic."""
     from agent.credential_pool import load_pool
 
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     near_expiry = _jwt_with_exp(int(time.time()) + 30)
     _setup_stoa_auth(stoa_home, access_token=near_expiry, refresh_token="rt-xai")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))

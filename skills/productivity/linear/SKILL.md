@@ -9,7 +9,7 @@ prerequisites:
   env_vars: [LINEAR_API_KEY]
   commands: [curl]
 metadata:
-  hermes:
+  stoa:
     tags: [Linear, Project Management, Issues, GraphQL, API, Productivity]
 ---
 
@@ -20,7 +20,7 @@ Manage Linear issues, projects, and teams directly via the GraphQL API using `cu
 ## Setup
 
 1. Get a personal API key from **Linear Settings > Account > Security & access > Personal API keys** (URL: https://linear.app/settings/account/security). Note: the org-level *Settings > API* page only shows OAuth apps and workspace-member keys, not personal keys.
-2. Set `LINEAR_API_KEY` in your environment (via `hermes setup` or your env config)
+2. Set `LINEAR_API_KEY` in your environment (via `stoa setup` or your env config)
 
 ## API Basics
 
@@ -275,7 +275,7 @@ Document URLs look like:
 https://linear.app/<workspace>/document/<slug>-<hexSlugId>
 ```
 
-The trailing hex segment is the `slugId`. Example: `https://linear.app/nousresearch/document/rfc-hermes-permission-gateway-discord-38359beef67c` → `slugId` is `38359beef67c`.
+The trailing hex segment is the `slugId`. Example: `https://linear.app/nousresearch/document/rfc-stoa-permission-gateway-discord-38359beef67c` → `slugId` is `38359beef67c`.
 
 **Important schema detail:** the Markdown body is in the `content` field. The ProseMirror JSON is in `contentState` (not `contentData` — that field does not exist and the API returns 400).
 

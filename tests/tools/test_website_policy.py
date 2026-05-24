@@ -242,7 +242,7 @@ def test_load_website_blocklist_wraps_shared_file_read_errors(tmp_path, monkeypa
 
 
 def test_check_website_access_uses_dynamic_stoa_home(monkeypatch, tmp_path):
-    stoa_home = tmp_path / "hermes-home"
+    stoa_home = tmp_path / "stoa-home"
     stoa_home.mkdir()
     (stoa_home / "config.yaml").write_text(
         yaml.safe_dump(

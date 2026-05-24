@@ -158,7 +158,7 @@ def test_board_query_param_default_overrides_current_board_pointer(client):
     pointer targets a non-default board.
 
     Regression: selecting the Default board in the dashboard must not fall
-    through to whichever board ``hermes kanban boards switch`` last pinned.
+    through to whichever board ``stoa kanban boards switch`` last pinned.
     """
     default_task = client.post(
         "/api/plugins/kanban/tasks",
@@ -1348,7 +1348,7 @@ def test_create_task_includes_warning_when_no_dispatcher(client, monkeypatch):
     # Force the dispatcher probe to report "not running".
     monkeypatch.setattr(
         "stoa_cli.kanban._check_dispatcher_presence",
-        lambda: (False, "No gateway is running — start `hermes gateway start`."),
+        lambda: (False, "No gateway is running — start `stoa gateway start`."),
     )
     r = client.post(
         "/api/plugins/kanban/tasks",
@@ -2160,7 +2160,7 @@ def test_dashboard_bulk_actions_include_reclaim_first():
     dist = (repo_root / "plugins" / "kanban" / "dashboard" / "dist" / "index.js").read_text()
 
     assert "reclaim_first: reclaimFirst" in dist
-    assert "hermes-kanban-bulk-reclaim-first" in dist
+    assert "stoa-kanban-bulk-reclaim-first" in dist
     assert '"→ todo"' in dist
     assert '"Block"' in dist
     assert '"Unblock"' in dist
@@ -2192,6 +2192,6 @@ def test_dashboard_failed_card_highlight_class_exists():
     js = (repo_root / "plugins" / "kanban" / "dashboard" / "dist" / "index.js").read_text()
     css = (repo_root / "plugins" / "kanban" / "dashboard" / "dist" / "style.css").read_text()
 
-    assert "hermes-kanban-card--failed" in js
-    assert "hermes-kanban-card--failed" in css
+    assert "stoa-kanban-card--failed" in js
+    assert "stoa-kanban-card--failed" in css
     assert "failedIds" in js

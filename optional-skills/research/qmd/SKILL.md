@@ -6,7 +6,7 @@ author: STOA Agent + Teknium
 license: MIT
 platforms: [macos, linux]
 metadata:
-  hermes:
+  stoa:
     tags: [Search, Knowledge-Base, RAG, Notes, MCP, Local-AI]
     related_skills: [obsidian, native-mcp, arxiv]
 ---

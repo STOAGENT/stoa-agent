@@ -20,26 +20,26 @@ class PlatformInfo(NamedTuple):
 # Ordered so that TUI menus are deterministic.
 PLATFORMS: OrderedDict[str, PlatformInfo] = OrderedDict([
     ("cli",            PlatformInfo(label="🖥️  CLI",            default_toolset="stoa-cli")),
-    ("telegram",       PlatformInfo(label="📱 Telegram",        default_toolset="hermes-telegram")),
-    ("discord",        PlatformInfo(label="💬 Discord",         default_toolset="hermes-discord")),
-    ("slack",          PlatformInfo(label="💼 Slack",           default_toolset="hermes-slack")),
-    ("whatsapp",       PlatformInfo(label="📱 WhatsApp",        default_toolset="hermes-whatsapp")),
-    ("signal",         PlatformInfo(label="📡 Signal",          default_toolset="hermes-signal")),
-    ("bluebubbles",    PlatformInfo(label="💙 BlueBubbles",     default_toolset="hermes-bluebubbles")),
-    ("email",          PlatformInfo(label="📧 Email",           default_toolset="hermes-email")),
-    ("homeassistant",  PlatformInfo(label="🏠 Home Assistant",  default_toolset="hermes-homeassistant")),
-    ("mattermost",     PlatformInfo(label="💬 Mattermost",      default_toolset="hermes-mattermost")),
-    ("matrix",         PlatformInfo(label="💬 Matrix",          default_toolset="hermes-matrix")),
-    ("dingtalk",       PlatformInfo(label="💬 DingTalk",        default_toolset="hermes-dingtalk")),
-    ("feishu",         PlatformInfo(label="🪽 Feishu",          default_toolset="hermes-feishu")),
-    ("wecom",          PlatformInfo(label="💬 WeCom",           default_toolset="hermes-wecom")),
-    ("wecom_callback", PlatformInfo(label="💬 WeCom Callback",  default_toolset="hermes-wecom-callback")),
-    ("weixin",         PlatformInfo(label="💬 Weixin",          default_toolset="hermes-weixin")),
-    ("qqbot",          PlatformInfo(label="💬 QQBot",           default_toolset="hermes-qqbot")),
-    ("yuanbao",        PlatformInfo(label="🤖 Yuanbao",         default_toolset="hermes-yuanbao")),
-    ("webhook",        PlatformInfo(label="🔗 Webhook",         default_toolset="hermes-webhook")),
-    ("api_server",     PlatformInfo(label="🌐 API Server",      default_toolset="hermes-api-server")),
-    ("cron",           PlatformInfo(label="⏰ Cron",            default_toolset="hermes-cron")),
+    ("telegram",       PlatformInfo(label="📱 Telegram",        default_toolset="stoa-telegram")),
+    ("discord",        PlatformInfo(label="💬 Discord",         default_toolset="stoa-discord")),
+    ("slack",          PlatformInfo(label="💼 Slack",           default_toolset="stoa-slack")),
+    ("whatsapp",       PlatformInfo(label="📱 WhatsApp",        default_toolset="stoa-whatsapp")),
+    ("signal",         PlatformInfo(label="📡 Signal",          default_toolset="stoa-signal")),
+    ("bluebubbles",    PlatformInfo(label="💙 BlueBubbles",     default_toolset="stoa-bluebubbles")),
+    ("email",          PlatformInfo(label="📧 Email",           default_toolset="stoa-email")),
+    ("homeassistant",  PlatformInfo(label="🏠 Home Assistant",  default_toolset="stoa-homeassistant")),
+    ("mattermost",     PlatformInfo(label="💬 Mattermost",      default_toolset="stoa-mattermost")),
+    ("matrix",         PlatformInfo(label="💬 Matrix",          default_toolset="stoa-matrix")),
+    ("dingtalk",       PlatformInfo(label="💬 DingTalk",        default_toolset="stoa-dingtalk")),
+    ("feishu",         PlatformInfo(label="🪽 Feishu",          default_toolset="stoa-feishu")),
+    ("wecom",          PlatformInfo(label="💬 WeCom",           default_toolset="stoa-wecom")),
+    ("wecom_callback", PlatformInfo(label="💬 WeCom Callback",  default_toolset="stoa-wecom-callback")),
+    ("weixin",         PlatformInfo(label="💬 Weixin",          default_toolset="stoa-weixin")),
+    ("qqbot",          PlatformInfo(label="💬 QQBot",           default_toolset="stoa-qqbot")),
+    ("yuanbao",        PlatformInfo(label="🤖 Yuanbao",         default_toolset="stoa-yuanbao")),
+    ("webhook",        PlatformInfo(label="🔗 Webhook",         default_toolset="stoa-webhook")),
+    ("api_server",     PlatformInfo(label="🌐 API Server",      default_toolset="stoa-api-server")),
+    ("cron",           PlatformInfo(label="⏰ Cron",            default_toolset="stoa-cron")),
 ])
 
 
@@ -76,7 +76,7 @@ def get_all_platforms() -> "OrderedDict[str, PlatformInfo]":
             if entry.name not in merged:
                 merged[entry.name] = PlatformInfo(
                     label=f"{entry.emoji}  {entry.label}" if entry.emoji else entry.label,
-                    default_toolset=f"hermes-{entry.name}",
+                    default_toolset=f"stoa-{entry.name}",
                 )
     except Exception:
         pass

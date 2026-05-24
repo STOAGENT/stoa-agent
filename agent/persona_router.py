@@ -1,5 +1,5 @@
 """
-STOA persona router — maps the six council personas (plus Hermes the seventh)
+STOA persona router — maps the six council personas (plus STOA the seventh)
 to concrete (provider, model, api_mode) tuples.
 
 The mapping lives in ``~/.stoa/cli-config.yaml`` under the ``personas:`` key,
@@ -11,8 +11,8 @@ The router does NOT instantiate clients — it only resolves the routing tuple.
 to look up which provider profile each persona uses, then dispatches in
 parallel through the standard ``ProviderProfile`` transport layer.
 
-Why this matters (STOA's "beyond Hermes" feature):
-    Hermes routes a session to one LLM. STOA routes a single task to six LLMs
+Why this matters (STOA's "beyond STOA" feature):
+    STOA routes a session to one LLM. STOA routes a single task to six LLMs
     in parallel — one per sovereign provider — and a quorum decides. The
     router is the seam where "single brain" becomes "council".
 
@@ -34,13 +34,13 @@ import yaml
 
 from stoa_constants import get_stoa_home
 
-PersonaName = Literal["sokrates", "mira", "veritas", "drax", "lyra", "echo", "hermes"]
+PersonaName = Literal["sokrates", "mira", "veritas", "drax", "lyra", "echo", "stoa"]
 
 CHAMBER_PERSONAS: tuple[PersonaName, ...] = (
     "sokrates", "mira", "veritas", "drax", "lyra", "echo",
 )
-"""The six council agents. Hermes is the seventh (dispatcher) and is NOT
-included in council dispatches — Hermes composes the verdict over the six."""
+"""The six council agents. STOA is the seventh (dispatcher) and is NOT
+included in council dispatches — STOA composes the verdict over the six."""
 
 
 DEFAULT_PERSONAS: dict[str, dict[str, str]] = {
@@ -50,7 +50,7 @@ DEFAULT_PERSONAS: dict[str, dict[str, str]] = {
     "drax":     {"provider": "openrouter", "model": "xai/grok-4",            "api_mode": "chat_completions"},
     "lyra":     {"provider": "openrouter", "model": "meta-llama/llama-3.3-405b", "api_mode": "chat_completions"},
     "echo":     {"provider": "openrouter", "model": "mistralai/mistral-large-3", "api_mode": "chat_completions"},
-    "hermes":   {"provider": "deepseek",   "model": "deepseek-chat",        "api_mode": "chat_completions"},
+    "stoa":   {"provider": "deepseek",   "model": "deepseek-chat",        "api_mode": "chat_completions"},
 }
 
 
@@ -61,7 +61,7 @@ PERSONA_MARKETING_NAME: dict[PersonaName, str] = {
     "drax":     "Grok 4",
     "lyra":     "Llama 3.3 405B",
     "echo":     "Mistral Large 3",
-    "hermes":   "Hermes (dispatcher)",
+    "stoa":   "STOA (dispatcher)",
 }
 """Marketing-public model names. NEVER leak the real backend (DeepSeek,
 OpenRouter, etc.) in user-facing surfaces — pricing, copy, social shares.
@@ -75,7 +75,7 @@ PERSONA_ROLE: dict[PersonaName, str] = {
     "drax":     "the red team",
     "lyra":     "the designer",
     "echo":     "the operator",
-    "hermes":   "the dispatcher (the seventh)",
+    "stoa":   "the dispatcher (the seventh)",
 }
 
 
@@ -161,8 +161,8 @@ def resolve_council() -> list[PersonaRoute]:
 
 
 def resolve_dispatcher() -> PersonaRoute:
-    """Hermes — the seventh agent, composes verdicts over the six."""
-    return resolve_persona("hermes")
+    """STOA — the seventh agent, composes verdicts over the six."""
+    return resolve_persona("stoa")
 
 
 def persona_display_name(persona: PersonaName) -> str:

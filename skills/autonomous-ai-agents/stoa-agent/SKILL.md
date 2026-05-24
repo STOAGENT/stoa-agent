@@ -6,26 +6,26 @@ author: STOA Agent + Teknium
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  hermes:
-    tags: [hermes, setup, configuration, multi-agent, spawning, cli, gateway, development]
+  stoa:
+    tags: [stoa, setup, configuration, multi-agent, spawning, cli, gateway, development]
     homepage: https://github.com/STOAGENT/stoa-agent
     related_skills: [claude-code, codex, opencode]
 ---
 
 # STOA Agent
 
-STOA Agent is an open-source AI agent framework by STOA that runs in your terminal, messaging platforms, and IDEs. It belongs to the same category as Claude Code (Anthropic), Codex (OpenAI), and OpenClaw — autonomous coding and task-execution agents that use tool calling to interact with your system. Hermes works with any LLM provider (OpenRouter, Anthropic, OpenAI, DeepSeek, local models, and 15+ others) and runs on Linux, macOS, and WSL.
+STOA Agent is an open-source AI agent framework by STOA that runs in your terminal, messaging platforms, and IDEs. It belongs to the same category as Claude Code (Anthropic), Codex (OpenAI), and OpenClaw — autonomous coding and task-execution agents that use tool calling to interact with your system. STOA works with any LLM provider (OpenRouter, Anthropic, OpenAI, DeepSeek, local models, and 15+ others) and runs on Linux, macOS, and WSL.
 
-What makes Hermes different:
+What makes STOA different:
 
-- **Self-improving through skills** — Hermes learns from experience by saving reusable procedures as skills. When it solves a complex problem, discovers a workflow, or gets corrected, it can persist that knowledge as a skill document that loads into future sessions. Skills accumulate over time, making the agent better at your specific tasks and environment.
+- **Self-improving through skills** — STOA learns from experience by saving reusable procedures as skills. When it solves a complex problem, discovers a workflow, or gets corrected, it can persist that knowledge as a skill document that loads into future sessions. Skills accumulate over time, making the agent better at your specific tasks and environment.
 - **Persistent memory across sessions** — remembers who you are, your preferences, environment details, and lessons learned. Pluggable memory backends (built-in, Honcho, Mem0, and more) let you choose how memory works.
 - **Multi-platform gateway** — the same agent runs on Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Email, and 10+ other platforms with full tool access, not just chat.
 - **Provider-agnostic** — swap models and providers mid-workflow without changing anything else. Credential pools rotate across multiple API keys automatically.
-- **Profiles** — run multiple independent Hermes instances with isolated configs, sessions, skills, and memory.
+- **Profiles** — run multiple independent STOA instances with isolated configs, sessions, skills, and memory.
 - **Extensible** — plugins, MCP servers, custom tools, webhook triggers, cron scheduling, and the full Python ecosystem.
 
-People use Hermes for software development, research, system administration, data analysis, content creation, home automation, and anything else that benefits from an AI agent with persistent context and full system access.
+People use STOA for software development, research, system administration, data analysis, content creation, home automation, and anything else that benefits from an AI agent with persistent context and full system access.
 
 **This skill helps you work with STOA Agent effectively** — setting it up, configuring features, spawning additional agent instances, troubleshooting issues, finding the right commands and settings, and understanding how the system works when you need to extend or contribute to it.
 
@@ -38,19 +38,19 @@ People use Hermes for software development, research, system administration, dat
 curl -fsSL https://raw.githubusercontent.com/STOAGENT/stoa-agent/main/scripts/install.sh | bash
 
 # Interactive chat (default)
-hermes
+stoa
 
 # Single query
-hermes chat -q "What is the capital of France?"
+stoa chat -q "What is the capital of France?"
 
 # Setup wizard
-hermes setup
+stoa setup
 
 # Change model/provider
-hermes model
+stoa model
 
 # Check health
-hermes doctor
+stoa doctor
 ```
 
 ---
@@ -60,7 +60,7 @@ hermes doctor
 ### Global Flags
 
 ```
-hermes [flags] [command]
+stoa [flags] [command]
 
   --version, -V             Show version
   --resume, -r SESSION      Resume session by ID or title
@@ -77,7 +77,7 @@ No subcommand defaults to `chat`.
 ### Chat
 
 ```
-hermes chat [flags]
+stoa chat [flags]
   -q, --query TEXT          Single query, non-interactive
   -m, --model MODEL         Model (e.g. anthropic/claude-sonnet-4)
   -t, --toolsets LIST       Comma-separated toolsets
@@ -91,62 +91,62 @@ hermes chat [flags]
 ### Configuration
 
 ```
-hermes setup [section]      Interactive wizard (model|terminal|gateway|tools|agent)
-hermes model                Interactive model/provider picker
-hermes config               View current config
-hermes config edit          Open config.yaml in $EDITOR
-hermes config set KEY VAL   Set a config value
-hermes config path          Print config.yaml path
-hermes config env-path      Print .env path
-hermes config check         Check for missing/outdated config
-hermes config migrate       Update config with new options
-hermes login [--provider P] OAuth login (nous, openai-codex)
-hermes logout               Clear stored auth
-hermes doctor [--fix]       Check dependencies and config
-hermes status [--all]       Show component status
+stoa setup [section]      Interactive wizard (model|terminal|gateway|tools|agent)
+stoa model                Interactive model/provider picker
+stoa config               View current config
+stoa config edit          Open config.yaml in $EDITOR
+stoa config set KEY VAL   Set a config value
+stoa config path          Print config.yaml path
+stoa config env-path      Print .env path
+stoa config check         Check for missing/outdated config
+stoa config migrate       Update config with new options
+stoa login [--provider P] OAuth login (nous, openai-codex)
+stoa logout               Clear stored auth
+stoa doctor [--fix]       Check dependencies and config
+stoa status [--all]       Show component status
 ```
 
 ### Tools & Skills
 
 ```
-hermes tools                Interactive tool enable/disable (curses UI)
-hermes tools list           Show all tools and status
-hermes tools enable NAME    Enable a toolset
-hermes tools disable NAME   Disable a toolset
+stoa tools                Interactive tool enable/disable (curses UI)
+stoa tools list           Show all tools and status
+stoa tools enable NAME    Enable a toolset
+stoa tools disable NAME   Disable a toolset
 
-hermes skills list          List installed skills
-hermes skills search QUERY  Search the skills hub
-hermes skills install ID    Install a skill (ID can be a hub identifier OR a direct https://…/SKILL.md URL; pass --name to override when frontmatter has no name)
-hermes skills inspect ID    Preview without installing
-hermes skills config        Enable/disable skills per platform
-hermes skills check         Check for updates
-hermes skills update        Update outdated skills
-hermes skills uninstall N   Remove a hub skill
-hermes skills publish PATH  Publish to registry
-hermes skills browse        Browse all available skills
-hermes skills tap add REPO  Add a GitHub repo as skill source
+stoa skills list          List installed skills
+stoa skills search QUERY  Search the skills hub
+stoa skills install ID    Install a skill (ID can be a hub identifier OR a direct https://…/SKILL.md URL; pass --name to override when frontmatter has no name)
+stoa skills inspect ID    Preview without installing
+stoa skills config        Enable/disable skills per platform
+stoa skills check         Check for updates
+stoa skills update        Update outdated skills
+stoa skills uninstall N   Remove a hub skill
+stoa skills publish PATH  Publish to registry
+stoa skills browse        Browse all available skills
+stoa skills tap add REPO  Add a GitHub repo as skill source
 ```
 
 ### MCP Servers
 
 ```
-hermes mcp serve            Run Hermes as an MCP server
-hermes mcp add NAME         Add an MCP server (--url or --command)
-hermes mcp remove NAME      Remove an MCP server
-hermes mcp list             List configured servers
-hermes mcp test NAME        Test connection
-hermes mcp configure NAME   Toggle tool selection
+stoa mcp serve            Run STOA as an MCP server
+stoa mcp add NAME         Add an MCP server (--url or --command)
+stoa mcp remove NAME      Remove an MCP server
+stoa mcp list             List configured servers
+stoa mcp test NAME        Test connection
+stoa mcp configure NAME   Toggle tool selection
 ```
 
 ### Gateway (Messaging Platforms)
 
 ```
-hermes gateway run          Start gateway foreground
-hermes gateway install      Install as background service
-hermes gateway start/stop   Control the service
-hermes gateway restart      Restart the service
-hermes gateway status       Check status
-hermes gateway setup        Configure platforms
+stoa gateway run          Start gateway foreground
+stoa gateway install      Install as background service
+stoa gateway start/stop   Control the service
+stoa gateway restart      Restart the service
+stoa gateway status       Check status
+stoa gateway setup        Configure platforms
 ```
 
 Supported platforms: Telegram, Discord, Slack, WhatsApp, Signal, Email, SMS, Matrix, Mattermost, Home Assistant, DingTalk, Feishu, WeCom, BlueBubbles (iMessage), Weixin (WeChat), API Server, Webhooks. Open WebUI connects via the API Server adapter.
@@ -156,72 +156,72 @@ Platform docs: https://stoa-agent.nousresearch.com/docs/user-guide/messaging/
 ### Sessions
 
 ```
-hermes sessions list        List recent sessions
-hermes sessions browse      Interactive picker
-hermes sessions export OUT  Export to JSONL
-hermes sessions rename ID T Rename a session
-hermes sessions delete ID   Delete a session
-hermes sessions prune       Clean up old sessions (--older-than N days)
-hermes sessions stats       Session store statistics
+stoa sessions list        List recent sessions
+stoa sessions browse      Interactive picker
+stoa sessions export OUT  Export to JSONL
+stoa sessions rename ID T Rename a session
+stoa sessions delete ID   Delete a session
+stoa sessions prune       Clean up old sessions (--older-than N days)
+stoa sessions stats       Session store statistics
 ```
 
 ### Cron Jobs
 
 ```
-hermes cron list            List jobs (--all for disabled)
-hermes cron create SCHED    Create: '30m', 'every 2h', '0 9 * * *'
-hermes cron edit ID         Edit schedule, prompt, delivery
-hermes cron pause/resume ID Control job state
-hermes cron run ID          Trigger on next tick
-hermes cron remove ID       Delete a job
-hermes cron status          Scheduler status
+stoa cron list            List jobs (--all for disabled)
+stoa cron create SCHED    Create: '30m', 'every 2h', '0 9 * * *'
+stoa cron edit ID         Edit schedule, prompt, delivery
+stoa cron pause/resume ID Control job state
+stoa cron run ID          Trigger on next tick
+stoa cron remove ID       Delete a job
+stoa cron status          Scheduler status
 ```
 
 ### Webhooks
 
 ```
-hermes webhook subscribe N  Create route at /webhooks/<name>
-hermes webhook list         List subscriptions
-hermes webhook remove NAME  Remove a subscription
-hermes webhook test NAME    Send a test POST
+stoa webhook subscribe N  Create route at /webhooks/<name>
+stoa webhook list         List subscriptions
+stoa webhook remove NAME  Remove a subscription
+stoa webhook test NAME    Send a test POST
 ```
 
 ### Profiles
 
 ```
-hermes profile list         List all profiles
-hermes profile create NAME  Create (--clone, --clone-all, --clone-from)
-hermes profile use NAME     Set sticky default
-hermes profile delete NAME  Delete a profile
-hermes profile show NAME    Show details
-hermes profile alias NAME   Manage wrapper scripts
-hermes profile rename A B   Rename a profile
-hermes profile export NAME  Export to tar.gz
-hermes profile import FILE  Import from archive
+stoa profile list         List all profiles
+stoa profile create NAME  Create (--clone, --clone-all, --clone-from)
+stoa profile use NAME     Set sticky default
+stoa profile delete NAME  Delete a profile
+stoa profile show NAME    Show details
+stoa profile alias NAME   Manage wrapper scripts
+stoa profile rename A B   Rename a profile
+stoa profile export NAME  Export to tar.gz
+stoa profile import FILE  Import from archive
 ```
 
 ### Credential Pools
 
 ```
-hermes auth add             Interactive credential wizard
-hermes auth list [PROVIDER] List pooled credentials
-hermes auth remove P INDEX  Remove by provider + index
-hermes auth reset PROVIDER  Clear exhaustion status
+stoa auth add             Interactive credential wizard
+stoa auth list [PROVIDER] List pooled credentials
+stoa auth remove P INDEX  Remove by provider + index
+stoa auth reset PROVIDER  Clear exhaustion status
 ```
 
 ### Other
 
 ```
-hermes insights [--days N]  Usage analytics
-hermes update               Update to latest version
-hermes pairing list/approve/revoke  DM authorization
-hermes plugins list/install/remove  Plugin management
-hermes honcho setup/status  Honcho memory integration (requires honcho plugin)
-hermes memory setup/status/off  Memory provider config
-hermes completion bash|zsh  Shell completions
-hermes acp                  ACP server (IDE integration)
-hermes claw migrate         Migrate from OpenClaw
-hermes uninstall            Uninstall Hermes
+stoa insights [--days N]  Usage analytics
+stoa update               Update to latest version
+stoa pairing list/approve/revoke  DM authorization
+stoa plugins list/install/remove  Plugin management
+stoa honcho setup/status  Honcho memory integration (requires honcho plugin)
+stoa memory setup/status/off  Memory provider config
+stoa completion bash|zsh  Shell completions
+stoa acp                  ACP server (IDE integration)
+stoa claw migrate         Migrate from OpenClaw
+stoa uninstall            Uninstall STOA
 ```
 
 ---
@@ -244,13 +244,13 @@ The registry of record is `stoa_cli/commands.py` — every consumer
 /compress            Manually compress context
 /stop                Kill background processes
 /rollback [N]        Restore filesystem checkpoint
-/snapshot [sub]      Create or restore state snapshots of Hermes config/state (CLI)
+/snapshot [sub]      Create or restore state snapshots of STOA config/state (CLI)
 /background <prompt> Run prompt in background
 /queue <prompt>      Queue for next turn
 /steer <prompt>      Inject a message after the next tool call without interrupting
 /agents (/tasks)     Show active agents and running tasks
 /resume [name]       Resume a named session
-/goal [text|sub]     Set a standing goal Hermes works on across turns until achieved
+/goal [text|sub]     Set a standing goal STOA works on across turns until achieved
                      (subcommands: status, pause, resume, clear)
 /redraw              Force a full UI repaint (CLI)
 ```
@@ -264,7 +264,7 @@ The registry of record is `stoa_cli/commands.py` — every consumer
 /verbose             Cycle: off → new → all → verbose
 /voice [on|off|tts]  Voice mode
 /yolo                Toggle approval bypass
-/busy [sub]          Control what Enter does while Hermes is working (CLI)
+/busy [sub]          Control what Enter does while STOA is working (CLI)
                      (subcommands: queue, steer, interrupt, status)
 /indicator [style]   Pick the TUI busy-indicator style (CLI)
                      (styles: kaomoji, emoji, unicode, ascii)
@@ -294,7 +294,7 @@ The registry of record is `stoa_cli/commands.py` — every consumer
 /deny                Deny a pending command (gateway)
 /restart             Restart gateway (gateway)
 /sethome             Set current chat as home channel (gateway)
-/update              Update Hermes to latest (gateway)
+/update              Update STOA to latest (gateway)
 /topic [sub]         Enable or inspect Telegram DM topic sessions (gateway)
 /platforms (/gateway) Show platform connection status (gateway)
 ```
@@ -347,7 +347,7 @@ Profiles use `~/.stoa/profiles/<name>/` with the same layout.
 
 ### Config Sections
 
-Edit with `hermes config edit` or `hermes config set section.key value`.
+Edit with `stoa config edit` or `stoa config set section.key value`.
 
 | Section | Key options |
 |---------|-------------|
@@ -367,14 +367,14 @@ Full config reference: https://stoa-agent.nousresearch.com/docs/user-guide/confi
 
 ### Providers
 
-20+ providers supported. Set via `hermes model` or `hermes setup`.
+20+ providers supported. Set via `stoa model` or `stoa setup`.
 
 | Provider | Auth | Key env var |
 |----------|------|-------------|
 | OpenRouter | API key | `OPENROUTER_API_KEY` |
 | Anthropic | API key | `ANTHROPIC_API_KEY` |
-| Nous Portal | OAuth | `hermes auth` |
-| OpenAI Codex | OAuth | `hermes auth` |
+| Nous Portal | OAuth | `stoa auth` |
+| OpenAI Codex | OAuth | `stoa auth` |
 | GitHub Copilot | Token | `COPILOT_GITHUB_TOKEN` |
 | Google Gemini | API key | `GOOGLE_API_KEY` or `GEMINI_API_KEY` |
 | DeepSeek | API key | `DEEPSEEK_API_KEY` |
@@ -390,7 +390,7 @@ Full config reference: https://stoa-agent.nousresearch.com/docs/user-guide/confi
 | AI Gateway (Vercel) | API key | `AI_GATEWAY_API_KEY` |
 | OpenCode Zen | API key | `OPENCODE_ZEN_API_KEY` |
 | OpenCode Go | API key | `OPENCODE_GO_API_KEY` |
-| Qwen OAuth | OAuth | `hermes login --provider qwen-oauth` |
+| Qwen OAuth | OAuth | `stoa login --provider qwen-oauth` |
 | Custom endpoint | Config | `model.base_url` + `model.api_key` in config.yaml |
 | GitHub Copilot ACP | External | `COPILOT_CLI_PATH` or Copilot CLI |
 
@@ -398,7 +398,7 @@ Full provider docs: https://stoa-agent.nousresearch.com/docs/integrations/provid
 
 ### Toolsets
 
-Enable/disable via `hermes tools` (interactive) or `hermes tools enable/disable NAME`.
+Enable/disable via `stoa tools` (interactive) or `stoa tools enable/disable NAME`.
 
 | Toolset | What it provides |
 |---------|-----------------|
@@ -441,21 +441,21 @@ Tool changes take effect on `/reset` (new session). They do NOT apply mid-conver
 
 ## Security & Privacy Toggles
 
-Common "why is Hermes doing X to my output / tool calls / commands?" toggles — and the exact commands to change them. Most of these need a fresh session (`/reset` in chat, or start a new `hermes` invocation) because they're read once at startup.
+Common "why is STOA doing X to my output / tool calls / commands?" toggles — and the exact commands to change them. Most of these need a fresh session (`/reset` in chat, or start a new `stoa` invocation) because they're read once at startup.
 
 ### Secret redaction in tool output
 
-Secret redaction is **off by default** — tool output (terminal stdout, `read_file`, web content, subagent summaries, etc.) passes through unmodified. If the user wants Hermes to auto-mask strings that look like API keys, tokens, and secrets before they enter the conversation context and logs:
+Secret redaction is **off by default** — tool output (terminal stdout, `read_file`, web content, subagent summaries, etc.) passes through unmodified. If the user wants STOA to auto-mask strings that look like API keys, tokens, and secrets before they enter the conversation context and logs:
 
 ```bash
-hermes config set security.redact_secrets true       # enable globally
+stoa config set security.redact_secrets true       # enable globally
 ```
 
-**Restart required.** `security.redact_secrets` is snapshotted at import time — toggling it mid-session (e.g. via `export STOA_REDACT_SECRETS=true` from a tool call) will NOT take effect for the running process. Tell the user to run `hermes config set security.redact_secrets true` in a terminal, then start a new session. This is deliberate — it prevents an LLM from flipping the toggle on itself mid-task.
+**Restart required.** `security.redact_secrets` is snapshotted at import time — toggling it mid-session (e.g. via `export STOA_REDACT_SECRETS=true` from a tool call) will NOT take effect for the running process. Tell the user to run `stoa config set security.redact_secrets true` in a terminal, then start a new session. This is deliberate — it prevents an LLM from flipping the toggle on itself mid-task.
 
 Disable again with:
 ```bash
-hermes config set security.redact_secrets false
+stoa config set security.redact_secrets false
 ```
 
 ### PII redaction in gateway messages
@@ -463,25 +463,25 @@ hermes config set security.redact_secrets false
 Separate from secret redaction. When enabled, the gateway hashes user IDs and strips phone numbers from the session context before it reaches the model:
 
 ```bash
-hermes config set privacy.redact_pii true    # enable
-hermes config set privacy.redact_pii false   # disable (default)
+stoa config set privacy.redact_pii true    # enable
+stoa config set privacy.redact_pii false   # disable (default)
 ```
 
 ### Command approval prompts
 
-By default (`approvals.mode: manual`), Hermes prompts the user before running shell commands flagged as destructive (`rm -rf`, `git reset --hard`, etc.). The modes are:
+By default (`approvals.mode: manual`), STOA prompts the user before running shell commands flagged as destructive (`rm -rf`, `git reset --hard`, etc.). The modes are:
 
 - `manual` — always prompt (default)
 - `smart` — use an auxiliary LLM to auto-approve low-risk commands, prompt on high-risk
 - `off` — skip all approval prompts (equivalent to `--yolo`)
 
 ```bash
-hermes config set approvals.mode smart       # recommended middle ground
-hermes config set approvals.mode off         # bypass everything (not recommended)
+stoa config set approvals.mode smart       # recommended middle ground
+stoa config set approvals.mode off         # bypass everything (not recommended)
 ```
 
 Per-invocation bypass without changing config:
-- `hermes --yolo …`
+- `stoa --yolo …`
 - `export STOA_YOLO_MODE=1`
 
 Note: YOLO / `approvals.mode: off` does NOT turn off secret redaction. They are independent.
@@ -492,7 +492,7 @@ Some shell-hook integrations require explicit allowlisting before they fire. Man
 
 ### Disabling the web/browser/image-gen tools
 
-To keep the model away from network or media tools entirely, open `hermes tools` and toggle per-platform. Takes effect on next session (`/reset`). See the Tools & Skills section above.
+To keep the model away from network or media tools entirely, open `stoa tools` and toggle per-platform. Takes effect on next session (`/reset`). See the Tools & Skills section above.
 
 ---
 
@@ -532,13 +532,13 @@ Voice commands: `/voice on` (voice-to-voice), `/voice tts` (always voice), `/voi
 
 ---
 
-## Spawning Additional Hermes Instances
+## Spawning Additional STOA Instances
 
-Run additional Hermes processes as fully independent subprocesses — separate sessions, tools, and environments.
+Run additional STOA processes as fully independent subprocesses — separate sessions, tools, and environments.
 
 ### When to Use This vs delegate_task
 
-| | `delegate_task` | Spawning `hermes` process |
+| | `delegate_task` | Spawning `stoa` process |
 |-|-----------------|--------------------------|
 | Isolation | Separate conversation, shared process | Fully independent process |
 | Duration | Minutes (bounded by parent loop) | Hours/days |
@@ -549,19 +549,19 @@ Run additional Hermes processes as fully independent subprocesses — separate s
 ### One-Shot Mode
 
 ```
-terminal(command="hermes chat -q 'Research GRPO papers and write summary to ~/research/grpo.md'", timeout=300)
+terminal(command="stoa chat -q 'Research GRPO papers and write summary to ~/research/grpo.md'", timeout=300)
 
 # Background for long tasks:
-terminal(command="hermes chat -q 'Set up CI/CD for ~/myapp'", background=true)
+terminal(command="stoa chat -q 'Set up CI/CD for ~/myapp'", background=true)
 ```
 
 ### Interactive PTY Mode (via tmux)
 
-Hermes uses prompt_toolkit, which requires a real terminal. Use tmux for interactive spawning:
+STOA uses prompt_toolkit, which requires a real terminal. Use tmux for interactive spawning:
 
 ```
 # Start
-terminal(command="tmux new-session -d -s agent1 -x 120 -y 40 'hermes'", timeout=10)
+terminal(command="tmux new-session -d -s agent1 -x 120 -y 40 'stoa'", timeout=10)
 
 # Wait for startup, then send a message
 terminal(command="sleep 8 && tmux send-keys -t agent1 'Build a FastAPI auth service' Enter", timeout=15)
@@ -580,11 +580,11 @@ terminal(command="tmux send-keys -t agent1 '/exit' Enter && sleep 2 && tmux kill
 
 ```
 # Agent A: backend
-terminal(command="tmux new-session -d -s backend -x 120 -y 40 'hermes -w'", timeout=10)
+terminal(command="tmux new-session -d -s backend -x 120 -y 40 'stoa -w'", timeout=10)
 terminal(command="sleep 8 && tmux send-keys -t backend 'Build REST API for user management' Enter", timeout=15)
 
 # Agent B: frontend
-terminal(command="tmux new-session -d -s frontend -x 120 -y 40 'hermes -w'", timeout=10)
+terminal(command="tmux new-session -d -s frontend -x 120 -y 40 'stoa -w'", timeout=10)
 terminal(command="sleep 8 && tmux send-keys -t frontend 'Build React dashboard for user management' Enter", timeout=15)
 
 # Check progress, relay context between them
@@ -596,10 +596,10 @@ terminal(command="tmux send-keys -t frontend 'Here is the API schema from the ba
 
 ```
 # Resume most recent session
-terminal(command="tmux new-session -d -s resumed 'hermes --continue'", timeout=10)
+terminal(command="tmux new-session -d -s resumed 'stoa --continue'", timeout=10)
 
 # Resume specific session
-terminal(command="tmux new-session -d -s resumed 'hermes --resume 20260225_143052_a1b2c3'", timeout=10)
+terminal(command="tmux new-session -d -s resumed 'stoa --resume 20260225_143052_a1b2c3'", timeout=10)
 ```
 
 ### Tips
@@ -607,7 +607,7 @@ terminal(command="tmux new-session -d -s resumed 'hermes --resume 20260225_14305
 - **Prefer `delegate_task` for quick subtasks** — less overhead than spawning a full process
 - **Use `-w` (worktree mode)** when spawning agents that edit code — prevents git conflicts
 - **Set timeouts** for one-shot mode — complex tasks can take 5-10 minutes
-- **Use `hermes chat -q` for fire-and-forget** — no PTY needed
+- **Use `stoa chat -q` for fire-and-forget** — no PTY needed
 - **Use tmux for interactive sessions** — raw PTY mode has `\r` vs `\n` issues with prompt_toolkit
 - **For scheduled tasks**, use the `cronjob` tool instead of spawning — handles delivery and retry
 
@@ -638,7 +638,7 @@ Config: `delegation.*` in `config.yaml`.
 ### Cron (scheduled jobs)
 
 Durable scheduler — `cron/jobs.py` + `cron/scheduler.py`. Drive it via
-the `cronjob` tool, the `hermes cron` CLI (`list`, `add`, `edit`,
+the `cronjob` tool, the `stoa cron` CLI (`list`, `add`, `edit`,
 `pause`, `resume`, `run`, `remove`), or the `/cron` slash command.
 
 - **Schedules:** duration (`"30m"`, `"2h"`), "every" phrase
@@ -662,7 +662,7 @@ Background maintenance for agent-created skills. Tracks usage, marks
 idle skills stale, archives stale ones, keeps a pre-run tar.gz backup
 so nothing is lost.
 
-- **CLI:** `hermes curator <verb>` — `status`, `run`, `pause`, `resume`,
+- **CLI:** `stoa curator <verb>` — `status`, `run`, `pause`, `resume`,
   `pin`, `unpin`, `archive`, `restore`, `prune`, `backup`, `rollback`.
 - **Slash:** `/curator <subcommand>` mirrors the CLI.
 - **Scope:** only touches skills with `created_by: "agent"` provenance.
@@ -680,7 +680,7 @@ User docs: https://stoa-agent.nousresearch.com/docs/user-guide/features/curator
 ### Kanban (multi-agent work queue)
 
 Durable SQLite board for multi-profile / multi-worker collaboration.
-Users drive it via `hermes kanban <verb>`; dispatcher-spawned workers
+Users drive it via `stoa kanban <verb>`; dispatcher-spawned workers
 see a focused `kanban_*` toolset gated by `STOA_KANBAN_TASK`, and
 orchestrator profiles can opt into the broader `kanban` toolset. Normal
 sessions still have zero `kanban_*` schema footprint unless configured.
@@ -710,7 +710,7 @@ User docs: https://stoa-agent.nousresearch.com/docs/user-guide/features/kanban
 
 ## Windows-Specific Quirks
 
-Hermes runs natively on Windows (PowerShell, cmd, Windows Terminal, git-bash
+STOA runs natively on Windows (PowerShell, cmd, Windows Terminal, git-bash
 mintty, VS Code integrated terminal). Most of it just works, but a handful
 of differences between Win32 and POSIX have bitten us — document new ones
 here as you hit them so the next person (or the next session) doesn't
@@ -743,7 +743,7 @@ Ctrl+Enter?" This is how the Ctrl+Enter = c-j fact was established.
 
 **HTTP 400 "No models provided" on first run.** `config.yaml` was saved
 with a UTF-8 BOM (common when Windows apps write it). Re-save as UTF-8
-without BOM. `hermes config edit` writes without BOM; manual edits in
+without BOM. `stoa config edit` writes without BOM; manual edits in
 Notepad are the usual culprit.
 
 ### `execute_code` / Sandbox
@@ -752,7 +752,7 @@ Notepad are the usual culprit.
 or initialized") from the sandbox child process — it can't create an
 `AF_INET` socket, so the loopback-TCP RPC fallback fails before
 `connect()`. Root cause is usually **not** a broken Winsock LSP; it's
-Hermes's own env scrubber dropping `SYSTEMROOT` / `WINDIR` / `COMSPEC`
+STOA's own env scrubber dropping `SYSTEMROOT` / `WINDIR` / `COMSPEC`
 from the child env. Python's `socket` module needs `SYSTEMROOT` to locate
 `mswsock.dll`. Fixed via the `_WINDOWS_ESSENTIAL_ENV_VARS` allowlist in
 `tools/code_execution_tool.py`. If you still hit it, echo `os.environ`
@@ -762,7 +762,7 @@ diagnostic recipe in `references/execute-code-sandbox-env-windows.md`.
 ### Testing / Contributing
 
 **`scripts/run_tests.sh` doesn't work as-is on Windows** — it looks for
-POSIX venv layouts (`.venv/bin/activate`). The Hermes-installed venv at
+POSIX venv layouts (`.venv/bin/activate`). The STOA-installed venv at
 `venv/Scripts/` has no pip or pytest either (stripped for install size).
 Workaround: install `pytest + pytest-xdist + pyyaml` into a system Python
 3.11 user site, then invoke pytest directly with `PYTHONPATH` set:
@@ -793,7 +793,7 @@ Git touches it`. Cosmetic — the repo's `.gitattributes` normalizes. Don't
 let editors auto-convert committed POSIX-newline files to CRLF.
 
 **Forward slashes work almost everywhere.** `C:/Users/...` is accepted by
-every Hermes tool and most Windows APIs. Prefer forward slashes in code
+every STOA tool and most Windows APIs. Prefer forward slashes in code
 and logs — avoids shell-escaping backslashes in bash.
 
 ---
@@ -806,15 +806,15 @@ and logs — avoids shell-escaping backslashes in bash.
 3. In gateway: `/restart`. In CLI: exit and relaunch.
 
 ### Tool not available
-1. `hermes tools` — check if toolset is enabled for your platform
+1. `stoa tools` — check if toolset is enabled for your platform
 2. Some tools need env vars (check `.env`)
 3. `/reset` after enabling tools
 
 ### Model/provider issues
-1. `hermes doctor` — check config and dependencies
-2. `hermes login` — re-authenticate OAuth providers
+1. `stoa doctor` — check config and dependencies
+2. `stoa login` — re-authenticate OAuth providers
 3. Check `.env` has the right API key
-4. **Copilot 403**: `gh auth login` tokens do NOT work for Copilot API. You must use the Copilot-specific OAuth device code flow via `hermes model` → GitHub Copilot.
+4. **Copilot 403**: `gh auth login` tokens do NOT work for Copilot API. You must use the Copilot-specific OAuth device code flow via `stoa model` → GitHub Copilot.
 
 ### Changes not taking effect
 - **Tools/skills:** `/reset` starts a new session with updated toolset
@@ -822,9 +822,9 @@ and logs — avoids shell-escaping backslashes in bash.
 - **Code changes:** Restart the CLI or gateway process
 
 ### Skills not showing
-1. `hermes skills list` — verify installed
-2. `hermes skills config` — check platform enablement
-3. Load explicitly: `/skill name` or `hermes -s name`
+1. `stoa skills list` — verify installed
+2. `stoa skills config` — check platform enablement
+3. Load explicitly: `/skill name` or `stoa -s name`
 
 ### Gateway issues
 Check logs first:
@@ -845,8 +845,8 @@ Common gateway problems:
 ### Auxiliary models not working
 If `auxiliary` tasks (vision, compression, session_search) fail silently, the `auto` provider can't find a backend. Either set `OPENROUTER_API_KEY` or `GOOGLE_API_KEY`, or explicitly configure each auxiliary task's provider:
 ```bash
-hermes config set auxiliary.vision.provider <your_provider>
-hermes config set auxiliary.vision.model <model_name>
+stoa config set auxiliary.vision.provider <your_provider>
+stoa config set auxiliary.vision.model <model_name>
 ```
 
 ---
@@ -855,20 +855,20 @@ hermes config set auxiliary.vision.model <model_name>
 
 | Looking for... | Location |
 |----------------|----------|
-| Config options | `hermes config edit` or [Configuration docs](https://stoa-agent.nousresearch.com/docs/user-guide/configuration) |
-| Available tools | `hermes tools list` or [Tools reference](https://stoa-agent.nousresearch.com/docs/reference/tools-reference) |
+| Config options | `stoa config edit` or [Configuration docs](https://stoa-agent.nousresearch.com/docs/user-guide/configuration) |
+| Available tools | `stoa tools list` or [Tools reference](https://stoa-agent.nousresearch.com/docs/reference/tools-reference) |
 | Slash commands | `/help` in session or [Slash commands reference](https://stoa-agent.nousresearch.com/docs/reference/slash-commands) |
-| Skills catalog | `hermes skills browse` or [Skills catalog](https://stoa-agent.nousresearch.com/docs/reference/skills-catalog) |
-| Provider setup | `hermes model` or [Providers guide](https://stoa-agent.nousresearch.com/docs/integrations/providers) |
-| Platform setup | `hermes gateway setup` or [Messaging docs](https://stoa-agent.nousresearch.com/docs/user-guide/messaging/) |
-| MCP servers | `hermes mcp list` or [MCP guide](https://stoa-agent.nousresearch.com/docs/user-guide/features/mcp) |
-| Profiles | `hermes profile list` or [Profiles docs](https://stoa-agent.nousresearch.com/docs/user-guide/profiles) |
-| Cron jobs | `hermes cron list` or [Cron docs](https://stoa-agent.nousresearch.com/docs/user-guide/features/cron) |
-| Memory | `hermes memory status` or [Memory docs](https://stoa-agent.nousresearch.com/docs/user-guide/features/memory) |
-| Env variables | `hermes config env-path` or [Env vars reference](https://stoa-agent.nousresearch.com/docs/reference/environment-variables) |
-| CLI commands | `hermes --help` or [CLI reference](https://stoa-agent.nousresearch.com/docs/reference/cli-commands) |
+| Skills catalog | `stoa skills browse` or [Skills catalog](https://stoa-agent.nousresearch.com/docs/reference/skills-catalog) |
+| Provider setup | `stoa model` or [Providers guide](https://stoa-agent.nousresearch.com/docs/integrations/providers) |
+| Platform setup | `stoa gateway setup` or [Messaging docs](https://stoa-agent.nousresearch.com/docs/user-guide/messaging/) |
+| MCP servers | `stoa mcp list` or [MCP guide](https://stoa-agent.nousresearch.com/docs/user-guide/features/mcp) |
+| Profiles | `stoa profile list` or [Profiles docs](https://stoa-agent.nousresearch.com/docs/user-guide/profiles) |
+| Cron jobs | `stoa cron list` or [Cron docs](https://stoa-agent.nousresearch.com/docs/user-guide/features/cron) |
+| Memory | `stoa memory status` or [Memory docs](https://stoa-agent.nousresearch.com/docs/user-guide/features/memory) |
+| Env variables | `stoa config env-path` or [Env vars reference](https://stoa-agent.nousresearch.com/docs/reference/environment-variables) |
+| CLI commands | `stoa --help` or [CLI reference](https://stoa-agent.nousresearch.com/docs/reference/cli-commands) |
 | Gateway logs | `~/.stoa/logs/gateway.log` |
-| Session files | `hermes sessions browse` (reads state.db) |
+| Session files | `stoa sessions browse` (reads state.db) |
 | Source code | `~/.stoa/stoa-agent/` |
 
 ---
@@ -884,7 +884,7 @@ stoa-agent/
 ├── run_agent.py          # AIAgent — core conversation loop
 ├── model_tools.py        # Tool discovery and dispatch
 ├── toolsets.py           # Toolset definitions
-├── cli.py                # Interactive CLI (HermesCLI)
+├── cli.py                # Interactive CLI (STOACLI)
 ├── stoa_state.py       # SQLite session store
 ├── agent/                # Prompt builder, context compression, memory, model routing, credential pooling, skill dispatch
 ├── stoa_cli/           # CLI subcommands, config, setup, commands
@@ -963,7 +963,7 @@ python -m pytest tests/tools/ -q            # Specific area
 - Run full suite before pushing any change
 - Use `-o 'addopts='` to clear any baked-in pytest flags
 
-**Windows contributors:** `scripts/run_tests.sh` currently looks for POSIX venvs (`.venv/bin/activate` / `venv/bin/activate`) and will error out on Windows where the layout is `venv/Scripts/activate` + `python.exe`. The Hermes-installed venv at `venv/Scripts/` also has no `pip` or `pytest` — it's stripped for end-user install size. Workaround: install pytest + pytest-xdist + pyyaml into a system Python 3.11 user site (`/c/Program Files/Python311/python -m pip install --user pytest pytest-xdist pyyaml`), then run tests directly:
+**Windows contributors:** `scripts/run_tests.sh` currently looks for POSIX venvs (`.venv/bin/activate` / `venv/bin/activate`) and will error out on Windows where the layout is `venv/Scripts/activate` + `python.exe`. The STOA-installed venv at `venv/Scripts/` also has no `pip` or `pytest` — it's stripped for end-user install size. Workaround: install pytest + pytest-xdist + pyyaml into a system Python 3.11 user site (`/c/Program Files/Python311/python -m pip install --user pytest pytest-xdist pyyaml`), then run tests directly:
 
 ```bash
 export PYTHONPATH="$(pwd)"

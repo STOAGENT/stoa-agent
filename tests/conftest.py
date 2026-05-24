@@ -410,7 +410,7 @@ def tmp_dir(tmp_path):
 
 @pytest.fixture()
 def mock_config():
-    """Return a minimal hermes config dict suitable for unit tests."""
+    """Return a minimal stoa config dict suitable for unit tests."""
     return {
         "model": "test/mock-model",
         "toolsets": ["terminal", "file"],
@@ -539,7 +539,7 @@ def _live_system_guard(request, monkeypatch):
     tokens[0]), so ``bash -c "systemctl restart stoa-gateway"``,
     ``sudo systemctl ...``, ``env systemctl ...``, ``setsid systemctl ...``
     are all caught. ``pkill``/``killall``/``taskkill`` invocations
-    targeting hermes/python patterns are also blocked.
+    targeting stoa/python patterns are also blocked.
     """
     if request.node.get_closest_marker(_LIVE_SYSTEM_GUARD_BYPASS_MARK):
         yield
@@ -629,11 +629,11 @@ def _live_system_guard(request, monkeypatch):
     # ── Subprocess command-string inspection (whole-line) ──────────
     _STOA_TOKENS = (
         "stoa-gateway",
-        "hermes.service",
+        "stoa.service",
         "stoa_cli.main gateway",
         "stoa_cli/main.py gateway",
         "gateway/run.py",
-        "hermes gateway",
+        "stoa gateway",
     )
     _MUTATING_VERBS = (
         "restart", "start", "stop", "kill", "reload",
@@ -687,11 +687,11 @@ def _live_system_guard(request, monkeypatch):
             head = tok.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
             if head in _PROCESS_KILLERS:
                 low = cmd_str.lower()
-                # pkill -f pattern: catch hermes-themed patterns + a
+                # pkill -f pattern: catch stoa-themed patterns + a
                 # plain "python" -f which would catch the live gateway
                 # whose cmdline contains "python -m stoa_cli.main".
                 if (
-                    "hermes" in low
+                    "stoa" in low
                     or "gateway" in low
                     or ("python" in low and "-f" in tokens)
                 ):
@@ -711,7 +711,7 @@ def _live_system_guard(request, monkeypatch):
             raise RuntimeError(
                 f"tests/conftest.py live-system guard: blocked "
                 f"subprocess.{name}({cmd!r}) — process-killer command "
-                "targeting hermes/python could hit the live gateway. "
+                "targeting stoa/python could hit the live gateway. "
                 "Mark with @pytest.mark.live_system_guard_bypass if "
                 "intentional."
             )

@@ -21,7 +21,7 @@ STOA Agent supports Amazon Bedrock as a native provider using the **Converse API
   - `bedrock:ListFoundationModels` and `bedrock:ListInferenceProfiles` (for model discovery)
 
 :::tip EC2 / ECS / Lambda
-On AWS compute, attach an IAM role with `AmazonBedrockFullAccess` and you're done. No API keys, no `.env` configuration — Hermes detects the instance role automatically.
+On AWS compute, attach an IAM role with `AmazonBedrockFullAccess` and you're done. No API keys, no `.env` configuration — STOA detects the instance role automatically.
 :::
 
 ## Quick Start
@@ -31,17 +31,17 @@ On AWS compute, attach an IAM role with `AmazonBedrockFullAccess` and you're don
 pip install stoa-agent[bedrock]
 
 # Select Bedrock as your provider
-hermes model
+stoa model
 # → Choose "More providers..." → "AWS Bedrock"
 # → Select your region and model
 
 # Start chatting
-hermes chat
+stoa chat
 ```
 
 ## Configuration
 
-After running `hermes model`, your `~/.stoa/config.yaml` will contain:
+After running `stoa model`, your `~/.stoa/config.yaml` will contain:
 
 ```yaml
 model:
@@ -78,7 +78,7 @@ bedrock:
 
 ### Model Discovery
 
-Hermes auto-discovers available models via the Bedrock control plane. You can customize discovery:
+STOA auto-discovers available models via the Bedrock control plane. You can customize discovery:
 
 ```yaml
 bedrock:
@@ -90,7 +90,7 @@ bedrock:
 
 ## Available Models
 
-Bedrock models use **inference profile IDs** for on-demand invocation. The `hermes model` picker shows these automatically, with recommended models at the top:
+Bedrock models use **inference profile IDs** for on-demand invocation. The `stoa model` picker shows these automatically, with recommended models at the top:
 
 | Model | ID | Notes |
 |-------|-----|-------|
@@ -119,7 +119,7 @@ Use the `/model` command during a conversation:
 ## Diagnostics
 
 ```bash
-hermes doctor
+stoa doctor
 ```
 
 The doctor checks:
@@ -130,11 +130,11 @@ The doctor checks:
 
 ## Gateway (Messaging Platforms)
 
-Bedrock works with all Hermes gateway platforms (Telegram, Discord, Slack, Feishu, etc.). Configure Bedrock as your provider, then start the gateway normally:
+Bedrock works with all STOA gateway platforms (Telegram, Discord, Slack, Feishu, etc.). Configure Bedrock as your provider, then start the gateway normally:
 
 ```bash
-hermes gateway setup
-hermes gateway start
+stoa gateway setup
+stoa gateway start
 ```
 
 The gateway reads `config.yaml` and uses the same Bedrock provider configuration.
@@ -143,7 +143,7 @@ The gateway reads `config.yaml` and uses the same Bedrock provider configuration
 
 ### "No API key found" / "No AWS credentials"
 
-Hermes checks for credentials in this order:
+STOA checks for credentials in this order:
 1. `AWS_BEARER_TOKEN_BEDROCK`
 2. `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`
 3. `AWS_PROFILE`
@@ -161,7 +161,7 @@ Use an **inference profile ID** (prefixed with `us.` or `global.`) instead of th
 
 ### "ThrottlingException"
 
-You've hit the Bedrock per-model rate limit. Hermes automatically retries with backoff. To increase limits, request a quota increase in the [AWS Service Quotas console](https://console.aws.amazon.com/servicequotas/).
+You've hit the Bedrock per-model rate limit. STOA automatically retries with backoff. To increase limits, request a quota increase in the [AWS Service Quotas console](https://console.aws.amazon.com/servicequotas/).
 
 ## One-Click AWS Deployment
 

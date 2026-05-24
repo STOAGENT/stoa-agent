@@ -72,7 +72,7 @@ def _resolve_safe_cwd(cwd: str) -> str:
     return tempfile.gettempdir()
 
 
-# Hermes-internal env vars that should NOT leak into terminal subprocesses.
+# STOA-internal env vars that should NOT leak into terminal subprocesses.
 _STOA_PROVIDER_ENV_FORCE_PREFIX = "_STOA_FORCE_"
 
 
@@ -172,7 +172,7 @@ _STOA_PROVIDER_ENV_BLOCKLIST = _build_provider_env_blocklist()
 
 
 def _inject_context_stoa_home(env: dict) -> None:
-    """Bridge the context-local Hermes home override into subprocess env."""
+    """Bridge the context-local STOA home override into subprocess env."""
     try:
         from stoa_constants import get_stoa_home_override
 
@@ -238,10 +238,10 @@ def _find_bash() -> str:
     #
     # Layouts (both checked so upgrades between MinGit and PortableGit
     # installs work transparently):
-    #   PortableGit: %LOCALAPPDATA%\hermes\git\bin\bash.exe   (primary)
-    #   MinGit:      %LOCALAPPDATA%\hermes\git\usr\bin\bash.exe (legacy/32-bit fallback)
+    #   PortableGit: %LOCALAPPDATA%\stoa\git\bin\bash.exe   (primary)
+    #   MinGit:      %LOCALAPPDATA%\stoa\git\usr\bin\bash.exe (legacy/32-bit fallback)
     _local_appdata = os.environ.get("LOCALAPPDATA", "")
-    _stoa_portable_git = os.path.join(_local_appdata, "hermes", "git") if _local_appdata else ""
+    _stoa_portable_git = os.path.join(_local_appdata, "stoa", "git") if _local_appdata else ""
     if _stoa_portable_git:
         for candidate in (
             os.path.join(_stoa_portable_git, "bin", "bash.exe"),        # PortableGit (primary)
@@ -302,7 +302,7 @@ def _make_run_env(env: dict) -> dict:
     # unrecognisable chunk, which then triggers prepending POSIX paths
     # to a Windows PATH — completely wrong).  Skip the injection entirely
     # on Windows; the native PATH already points at whatever shell
-    # Hermes is driving via _find_bash (Git Bash), and Git Bash itself
+    # STOA is driving via _find_bash (Git Bash), and Git Bash itself
     # prepends its MSYS2 /usr/bin equivalent via the shell-init files.
     if not _IS_WINDOWS and "/usr/bin" not in existing_path.split(":"):
         run_env["PATH"] = f"{existing_path}:{_SANE_PATH}" if existing_path else _SANE_PATH
@@ -357,7 +357,7 @@ def _resolve_shell_init_files() -> list[str]:
     Expands ``~`` and ``${VAR}`` references and drops anything that doesn't
     exist on disk, so a missing ``~/.bashrc`` never breaks the snapshot.
     The ``auto_source_bashrc`` path runs only when the user hasn't supplied
-    an explicit list — once they have, Hermes trusts them.
+    an explicit list — once they have, STOA trusts them.
     """
     explicit, auto_bashrc = _read_terminal_shell_init_config()
 

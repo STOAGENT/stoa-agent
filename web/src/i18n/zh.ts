@@ -119,8 +119,8 @@ export const zh: Translations = {
     starting: "启动中",
     startedInBackground: "已在后台启动 — 请查看日志",
     stopped: "已停止",
-    updateHermes: "更新 Hermes",
-    updatingHermes: "正在更新 Hermes…",
+    updateSTOA: "更新 STOA",
+    updatingSTOA: "正在更新 STOA…",
     waitingForOutput: "等待输出…",
   },
 
@@ -263,7 +263,7 @@ export const zh: Translations = {
     enableAfterInstall: "安装后启用",
     enableRuntime: "启用",
     forceReinstall: "强制重装（先删除已有目录）",
-    headline: "发现、安装、启用和更新 Hermes 插件（对齐 `hermes plugins` CLI）。",
+    headline: "发现、安装、启用和更新 STOA 插件（对齐 `stoa plugins` CLI）。",
     identifierLabel: "Git 地址或 owner/repo",
     inactive: "未启用",
     installBtn: "安装",
@@ -428,11 +428,11 @@ export const zh: Translations = {
   achievements: {
     hero: {
       kicker: "Agentic Gamerscore",
-      title: "Hermes Achievements",
+      title: "STOA Achievements",
       subtitle:
-        "从真实会话历史中获得的 Hermes 可收集徽章。已知尚未达成的成就显示为「已发现」；秘密成就在首次出现匹配行为之前保持隐藏。",
+        "从真实会话历史中获得的 STOA 可收集徽章。已知尚未达成的成就显示为「已发现」；秘密成就在首次出现匹配行为之前保持隐藏。",
       scan_subtitle:
-        "正在扫描 Hermes 会话历史。在历史记录较多时，首次扫描可能需要 5–10 秒。",
+        "正在扫描 STOA 会话历史。在历史记录较多时，首次扫描可能需要 5–10 秒。",
     },
     actions: {
       rescan: "重新扫描",
@@ -447,7 +447,7 @@ export const zh: Translations = {
       highest_tier: "最高等级",
       highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
       latest: "最新",
-      latest_hint_empty: "多多运行 Hermes",
+      latest_hint_empty: "多多运行 STOA",
       none_yet: "暂无",
     },
     state: {
@@ -478,10 +478,10 @@ export const zh: Translations = {
       tiers_header: "等级",
       secret_header: "秘密成就",
       secret_body:
-        "秘密成就会隐藏其确切触发条件。一旦 Hermes 检测到相关信号，卡片将变为「已发现」并显示其要求。",
+        "秘密成就会隐藏其确切触发条件。一旦 STOA 检测到相关信号，卡片将变为「已发现」并显示其要求。",
       scan_status_header: "扫描状态",
       scan_status_body:
-        "Hermes 正在对本地历史进行一次扫描，之后卡片会自动出现。即使这需要几秒钟，也没有卡住。",
+        "STOA 正在对本地历史进行一次扫描，之后卡片会自动出现。即使这需要几秒钟，也没有卡住。",
       what_scanned_header: "扫描内容",
       what_scanned_body:
         "会话、工具调用、模型元数据、错误、成就和本地解锁状态。",

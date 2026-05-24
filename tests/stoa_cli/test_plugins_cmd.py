@@ -1,4 +1,4 @@
-"""Tests for stoa_cli.plugins_cmd — the ``hermes plugins`` CLI subcommand."""
+"""Tests for stoa_cli.plugins_cmd — the ``stoa plugins`` CLI subcommand."""
 
 from __future__ import annotations
 
@@ -430,7 +430,7 @@ class TestCmdList:
 
 
 class TestDiscoverAllPlugins:
-    """Exercise the recursive scan that powers ``hermes plugins list``.
+    """Exercise the recursive scan that powers ``stoa plugins list``.
 
     Mirrors the layouts the runtime loader handles
     (:meth:`PluginManager._scan_directory_level`): flat plugins at the root,

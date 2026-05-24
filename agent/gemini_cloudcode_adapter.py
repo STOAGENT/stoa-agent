@@ -1,6 +1,6 @@
 """OpenAI-compatible facade that talks to Google's Cloud Code Assist backend.
 
-This adapter lets Hermes use the ``google-gemini-cli`` provider as if it were
+This adapter lets STOA use the ``google-gemini-cli`` provider as if it were
 a standard OpenAI-shaped chat completion endpoint, while the underlying HTTP
 traffic goes to ``cloudcode-pa.googleapis.com/v1internal:{generateContent,
 streamGenerateContent}`` with a Bearer access token obtained via OAuth PKCE.
@@ -706,7 +706,7 @@ class GeminiCloudCodeClient:
             "Accept": "application/json",
             "Authorization": f"Bearer {access_token}",
             "User-Agent": "stoa-agent (gemini-cli-compat)",
-            "X-Goog-Api-Client": "gl-python/hermes",
+            "X-Goog-Api-Client": "gl-python/stoa",
             "x-activity-request-id": str(uuid.uuid4()),
         }
         headers.update(self._default_headers)

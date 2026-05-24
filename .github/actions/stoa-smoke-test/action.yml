@@ -1,4 +1,4 @@
-name: Hermes smoke test
+name: STOA smoke test
 description: >
   Run the image's built-in entrypoint against `--help` and `dashboard --help`
   to catch basic runtime regressions before publishing.  Requires the image
@@ -14,27 +14,27 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Ensure /tmp/hermes-test is hermes-writable
+    - name: Ensure /tmp/stoa-test is stoa-writable
       shell: bash
       run: |
-        # The image runs as the hermes user (UID 10000).  GitHub Actions
-        # creates /tmp/hermes-test root-owned by default, which hermes
+        # The image runs as the stoa user (UID 10000).  GitHub Actions
+        # creates /tmp/stoa-test root-owned by default, which stoa
         # can't write to — chown it to match the in-container UID before
         # bind-mounting.  Real users doing `docker run -v ~/.stoa:...`
         # with their own UID hit the same issue and have their own
         # remediations (STOA_UID env var, or chown locally).
-        mkdir -p /tmp/hermes-test
-        sudo chown -R 10000:10000 /tmp/hermes-test
+        mkdir -p /tmp/stoa-test
+        sudo chown -R 10000:10000 /tmp/stoa-test
 
-    - name: hermes --help
+    - name: stoa --help
       shell: bash
       run: |
         docker run --rm \
-          -v /tmp/hermes-test:/opt/data \
-          --entrypoint /opt/hermes/docker/entrypoint.sh \
+          -v /tmp/stoa-test:/opt/data \
+          --entrypoint /opt/stoa/docker/entrypoint.sh \
           "${{ inputs.image }}" --help
 
-    - name: hermes dashboard --help
+    - name: stoa dashboard --help
       shell: bash
       run: |
         # Regression guard for #9153: dashboard was present in source but
@@ -42,6 +42,6 @@ runs:
         # the Dockerfile is excluding the dashboard subcommand from the
         # installed package.
         docker run --rm \
-          -v /tmp/hermes-test:/opt/data \
-          --entrypoint /opt/hermes/docker/entrypoint.sh \
+          -v /tmp/stoa-test:/opt/data \
+          --entrypoint /opt/stoa/docker/entrypoint.sh \
           "${{ inputs.image }}" dashboard --help

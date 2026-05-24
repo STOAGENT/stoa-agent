@@ -9,12 +9,12 @@ description: "How to add a new tool to STOA Agent — schemas, handlers, registr
 Before writing a tool, ask yourself: **should this be a [skill](creating-skills.md) instead?**
 
 :::warning Built-in Core Tools Only
-This page is for adding a **built-in Hermes tool** to the repository itself.
+This page is for adding a **built-in STOA tool** to the repository itself.
 If you want a personal, project-local, or otherwise custom tool without
-modifying Hermes core, use the plugin route instead:
+modifying STOA core, use the plugin route instead:
 
 - [Plugins](/docs/user-guide/features/plugins)
-- [Build a Hermes Plugin](/docs/guides/build-a-hermes-plugin)
+- [Build a STOA Plugin](/docs/guides/build-a-stoa-plugin)
 
 Default to plugins for most custom tool creation. Only follow this page when
 you explicitly want to ship a new built-in tool in `tools/` and `toolsets.py`.
@@ -208,4 +208,4 @@ OPTIONAL_ENV_VARS = {
 - [ ] Handler returns JSON strings, errors returned as `{"error": "..."}`
 - [ ] Optional: API key added to `OPTIONAL_ENV_VARS` in `stoa_cli/config.py`
 - [ ] Optional: Added to `toolset_distributions.py` for batch processing
-- [ ] Tested with `hermes chat -q "Use the weather tool for London"`
+- [ ] Tested with `stoa chat -q "Use the weather tool for London"`

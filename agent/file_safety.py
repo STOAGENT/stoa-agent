@@ -17,7 +17,7 @@ def _stoa_home_path() -> Path:
 
 
 def _stoa_root_path() -> Path:
-    """Resolve the Hermes root dir (always the parent of any profile, never per-profile)."""
+    """Resolve the STOA root dir (always the parent of any profile, never per-profile)."""
     try:
         from stoa_constants import get_default_stoa_root  # local import to avoid cycles
         return get_default_stoa_root()
@@ -97,7 +97,7 @@ def is_write_denied(path: str) -> bool:
         if resolved.startswith(prefix):
             return True
 
-    # Hermes control-plane files: block both the ACTIVE profile's view
+    # STOA control-plane files: block both the ACTIVE profile's view
     # (stoa_home) AND the global root view. Without the root pass, a
     # profile-mode session leaves <root>/auth.json + <root>/config.yaml
     # writable — letting a prompt-injected write_file overwrite the global
@@ -136,14 +136,14 @@ def is_write_denied(path: str) -> bool:
 
 
 def get_read_block_error(path: str) -> Optional[str]:
-    """Return an error message when a read targets a denied Hermes path.
+    """Return an error message when a read targets a denied STOA path.
 
     Two categories are blocked:
 
-      * Internal Hermes cache files under ``STOA_HOME/skills/.hub`` —
+      * Internal STOA cache files under ``STOA_HOME/skills/.hub`` —
         readable metadata that an attacker could use as a prompt-injection
         carrier.
-      * Credential / secret stores under STOA_HOME and the global Hermes
+      * Credential / secret stores under STOA_HOME and the global STOA
         root: ``auth.json``, ``auth.lock``, ``.anthropic_oauth.json``,
         ``.env``, ``webhook_subscriptions.json``, and anything under
         ``mcp-tokens/``. These hold plaintext provider keys, OAuth tokens,
@@ -176,7 +176,7 @@ def get_read_block_error(path: str) -> Optional[str]:
     resolved = Path(path).expanduser().resolve()
 
     # Resolve BOTH the active STOA_HOME (profile-aware) AND the global
-    # Hermes root so credential stores at <root>/auth.json etc. are also
+    # STOA root so credential stores at <root>/auth.json etc. are also
     # blocked when running under a profile (STOA_HOME points at
     # <root>/profiles/<name> in profile mode). Same shape as the write
     # deny widening (#15981, #14157).

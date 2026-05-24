@@ -605,13 +605,13 @@ AUTHOR_MAP = {
     "shokatalishaikh95@gmail.com": "areu01or00",
     "bryan@intertwinesys.com": "bryanyoung",
     "christo.mitov@gmail.com": "christomitov",
-    "hermes@nousresearch.com": "stoa-xyz",
+    "stoa@nousresearch.com": "stoa-xyz",
     "reginaldasr@gmail.com": "ReginaldasR",
     "ntconguit@gmail.com": "0xharryriddle",
     "agent@wildcat.local": "ericnicolaides",
     "georgex8001@gmail.com": "georgex8001",
     "stefan@dimagents.ai": "dimitrovi",
-    "hermes@noushq.ai": "benbarclay",
+    "stoa@noushq.ai": "benbarclay",
     "chinmingcock@gmail.com": "ChimingLiu",
     "allard.quek@singtel.com": "AllardQuek",
     "openclaw@sparklab.ai": "openclaw",
@@ -783,7 +783,7 @@ AUTHOR_MAP = {
     "7093928+0xyg3n@users.noreply.github.com": "0xyg3n",
     "nftpoetrist@gmail.com": "nftpoetrist",  # PR #18982
     "millerc79@users.noreply.github.com": "millerc79",  # PR #19033
-    "hermes@example.com": "shellybotmoyer",  # PR #18915 (bot-committed)
+    "stoa@example.com": "shellybotmoyer",  # PR #18915 (bot-committed)
     "exx@example.com": "exxmen",  # PR #19555
     "hypnosis.mda@gmail.com": "Hypn0sis",
     "ywt000818@gmail.com": "OwenYWT",
@@ -935,7 +935,7 @@ AUTHOR_MAP = {
     "aleksandr.pasevin@openzeppelin.com": "pasevin",
     "ubuntu@localhost.localdomain": "holynn-q",
     "holynn@placeholder.local": "holynn-q",
-    "agent@hermes.local": "jacdevos",
+    "agent@stoa.local": "jacdevos",
     "sunsky.lau@gmail.com": "liuhao1024",
     "fabianoeq@gmail.com": "rodrigoeqnit",
     "178342791+sgtworkman@users.noreply.github.com": "sgtworkman",
@@ -1143,7 +1143,7 @@ AUTHOR_MAP = {
     "pol.kuijken@gmail.com": "polkn",  # PR #6136 salvage (skill_view collision refusal)
     "robin@soal.org": "rewbs",
     # batch salvage (May 2026 LHF run)
-    "sauravsejal40@gmail.com": "Saurav0989",  # PR #27071 (docs: hermes-eval community link)
+    "sauravsejal40@gmail.com": "Saurav0989",  # PR #27071 (docs: stoa-eval community link)
     "220110965+Saurav0989@users.noreply.github.com": "Saurav0989",
     "aviarchi1994@gmail.com": "avifenesh",  # PR #25902 (docs: computer-use-linux MCP)
     "55848801+avifenesh@users.noreply.github.com": "avifenesh",
@@ -1169,8 +1169,8 @@ AUTHOR_MAP = {
     "zealy@tz.co": "dgians",  # PR #26034 (bot-committed by zealy-tzco under dgians' PR)
     "mottei.survive@gmail.com": "flanny7",  # PR #27030 (setup_open_webui python var)
     "20530505+flanny7@users.noreply.github.com": "flanny7",
-    "hermesagent26@gmail.com": "hermesagent26",  # PR #26438 (kimi model-name reasoning pad)
-    "276067471+hermesagent26@users.noreply.github.com": "hermesagent26",
+    "stoaagent26@gmail.com": "stoaagent26",  # PR #26438 (kimi model-name reasoning pad)
+    "276067471+stoaagent26@users.noreply.github.com": "stoaagent26",
     "71590782+kriscolab@users.noreply.github.com": "kriscolab",  # PR #26926 (deepseek default_aux_model)
     # batch salvage (May 2026 LHF run, group 3)
     "darvsum@users.noreply.github.com": "darvsum",  # PR #26766 (preserve discover_models in normalize)
@@ -1212,7 +1212,7 @@ AUTHOR_MAP = {
     "6108320+wesleysimplicio@users.noreply.github.com": "wesleysimplicio",
     "carryzuo00@gmail.com": "Carry00",  # PR #26851 (doctor SSH env vars)
     "alaamohanad169-ship-it@users.noreply.github.com": "alaamohanad169-ship-it",  # PR #26036 (telegram typing after send)
-    "vigo@hermes": "hawknewton",  # PR #26294 (bedrock boto3 lazy_deps)
+    "vigo@stoa": "hawknewton",  # PR #26294 (bedrock boto3 lazy_deps)
     "211668+hawknewton@users.noreply.github.com": "hawknewton",
     "quenvix00@gmail.com": "QuenVix",  # PR #26761/26772 salvage
     "164776164+QuenVix@users.noreply.github.com": "QuenVix",
@@ -1231,7 +1231,7 @@ AUTHOR_MAP = {
     "1743117+burjorjee@users.noreply.github.com": "burjorjee",  # PR #28201 salvage (inline-shell timeout guard)
     "keki@MacBookPro.attlocal.net": "burjorjee",
     "264690993+oseftg@users.noreply.github.com": "oseftg",  # PR #28168 salvage (natural ending emoji/caret)
-    "hex.hermes@agentmail.to": "oseftg",
+    "hex.stoa@agentmail.to": "oseftg",
     "236912655+rudi193-cmd@users.noreply.github.com": "rudi193-cmd",  # PR #28241 salvage (empty credential pool)
     "rudi193@gmail.com": "rudi193-cmd",
     "86684667+sadiksaifi@users.noreply.github.com": "sadiksaifi",  # PR #27982 salvage (kanban horiz scroll)
@@ -1517,7 +1517,7 @@ def parse_coauthors(body: str) -> list:
         return []
     # AI/bot emails to ignore in co-author trailers
     _ignored_emails = {"noreply@anthropic.com", "noreply@github.com",
-                       "cursoragent@cursor.com", "hermes@nousresearch.com"}
+                       "cursoragent@cursor.com", "stoa@nousresearch.com"}
     _ignored_names = re.compile(r"^(Claude|Copilot|Cursor Agent|GitHub Actions?|dependabot|renovate)", re.IGNORECASE)
     pattern = re.compile(r"Co-authored-by:\s*(.+?)\s*<([^>]+)>", re.IGNORECASE)
     results = []

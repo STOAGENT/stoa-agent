@@ -250,7 +250,7 @@ function SkillCard({
               </div>
             )}
             <div className={styles.installHint}>
-              <code>hermes skills install {skill.name}</code>
+              <code>stoa skills install {skill.name}</code>
             </div>
             {skill.docsPath && (
               <a

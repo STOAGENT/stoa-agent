@@ -71,7 +71,7 @@ class TestIsWriteDenied:
         ],
     )
     def test_stoa_control_files_and_mcp_tokens_denied(self, path):
-        """Hermes control files and mcp-tokens entries must be write-denied."""
+        """STOA control files and mcp-tokens entries must be write-denied."""
         from stoa_constants import get_stoa_home
         stoa_home = get_stoa_home()
         full_path = str(stoa_home / path)
@@ -118,7 +118,7 @@ class TestIsWriteDenied:
         # Simulate a profile-mode STOA_HOME layout:
         #   <root>/profiles/coder/{auth.json,config.yaml,...}
         #   <root>/{auth.json,config.yaml,...}        ← must also be denied
-        root = tmp_path / "hermes"
+        root = tmp_path / "stoa"
         profile = root / "profiles" / "coder"
         profile.mkdir(parents=True)
         monkeypatch.setenv("STOA_HOME", str(profile))
@@ -130,7 +130,7 @@ class TestIsWriteDenied:
 
     def test_mcp_tokens_dir_protected_in_profile_mode(self, tmp_path, monkeypatch):
         """mcp-tokens/ under profile AND under root must both be denied."""
-        root = tmp_path / "hermes"
+        root = tmp_path / "stoa"
         profile = root / "profiles" / "coder"
         profile.mkdir(parents=True)
         monkeypatch.setenv("STOA_HOME", str(profile))

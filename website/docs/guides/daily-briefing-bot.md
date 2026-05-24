@@ -15,7 +15,7 @@ By the end, you'll have a fully automated workflow combining **web search**, **c
 Here's the flow:
 
 1. **8:00 AM** — The cron scheduler triggers your job
-2. **Hermes spins up** a fresh agent session with your prompt
+2. **STOA spins up** a fresh agent session with your prompt
 3. **Web search** pulls the latest news on your topics
 4. **Summarization** distills it into a clean briefing format
 5. **Delivery** sends the briefing to your Telegram or Discord
@@ -29,10 +29,10 @@ Before starting, make sure you have:
 - **STOA Agent installed** — see the [Installation guide](/docs/getting-started/installation)
 - **Gateway running** — the gateway daemon handles cron execution:
   ```bash
-  hermes gateway install   # Install as a user service
-  sudo hermes gateway install --system   # Linux servers: boot-time system service
+  stoa gateway install   # Install as a user service
+  sudo stoa gateway install --system   # Linux servers: boot-time system service
   # or
-  hermes gateway           # Run in foreground
+  stoa gateway           # Run in foreground
   ```
 - **Firecrawl API key** — set `FIRECRAWL_API_KEY` in your environment for web search
 - **Messaging configured** (optional but recommended) — [Telegram](/docs/user-guide/messaging/telegram) or Discord set up with a home channel
@@ -46,7 +46,7 @@ You can still follow this tutorial using `deliver: "local"`. Briefings will be s
 Before automating anything, let's make sure the briefing works. Start a chat session:
 
 ```bash
-hermes
+stoa
 ```
 
 Then enter this prompt:
@@ -56,7 +56,7 @@ Search for the latest news about AI agents and open source LLMs.
 Summarize the top 3 stories in a concise briefing format with links.
 ```
 
-Hermes will search the web, read through results, and produce something like:
+STOA will search the web, read through results, and produce something like:
 
 ```
 ☀️ Your AI Briefing — March 8, 2026
@@ -90,11 +90,11 @@ Try different prompts until you get output you love. Add instructions like "use 
 
 Now let's schedule this to run automatically every morning. You can do this in two ways.
 
-Before creating cron jobs, ensure Hermes has a default model and provider configured globally. If you want a specific job to use different values, set explicit per-job model/provider overrides when creating it.
+Before creating cron jobs, ensure STOA has a default model and provider configured globally. If you want a specific job to use different values, set explicit per-job model/provider overrides when creating it.
 
 ### Option A: Natural Language (in chat)
 
-Just tell Hermes what you want:
+Just tell STOA what you want:
 
 ```
 Every morning at 8am, search the web for the latest news about AI agents
@@ -102,7 +102,7 @@ and open source LLMs. Summarize the top 3 stories in a concise briefing
 with links. Use a friendly, professional tone. Deliver to telegram.
 ```
 
-Hermes will create the cron job for you using the unified `cronjob` tool.
+STOA will create the cron job for you using the unified `cronjob` tool.
 
 ### Option B: CLI Slash Command
 
@@ -155,7 +155,7 @@ Format as a clean briefing with section headers and emoji. End with today's date
 
 ### Using Delegation for Parallel Research
 
-For faster briefings, tell Hermes to delegate each topic to a sub-agent:
+For faster briefings, tell STOA to delegate each topic to a sub-agent:
 
 ```
 /cron add "0 8 * * *" "Create a morning briefing by delegating research to sub-agents. Delegate three parallel tasks:
@@ -211,7 +211,7 @@ In chat:
 
 Or from the terminal:
 ```bash
-hermes cron list
+stoa cron list
 ```
 
 You'll see output like:
@@ -235,22 +235,22 @@ Or ask conversationally:
 Remove my morning briefing cron job.
 ```
 
-Hermes will use `cronjob(action="list")` to find it and `cronjob(action="remove")` to delete it.
+STOA will use `cronjob(action="list")` to find it and `cronjob(action="remove")` to delete it.
 
 ### Check Gateway Status
 
 Make sure the scheduler is actually running:
 
 ```bash
-hermes cron status
+stoa cron status
 ```
 
 If the gateway isn't running, your jobs won't execute. Install it as a background service for reliability:
 
 ```bash
-hermes gateway install
+stoa gateway install
 # or on Linux servers
-sudo hermes gateway install --system
+sudo stoa gateway install --system
 ```
 
 ## Going Further

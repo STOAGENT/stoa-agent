@@ -51,29 +51,29 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _STOA_MODEL_WARNING = (
-    "STOA Hermes 3 & 4 models are NOT agentic and are not designed "
+    "STOA STOA 3 & 4 models are NOT agentic and are not designed "
     "for use with STOA Agent. They lack the tool-calling capabilities "
     "required for agent workflows. Consider using an agentic model instead "
     "(Claude, GPT, Gemini, DeepSeek, etc.)."
 )
 
-# Match only the real STOA Hermes 3 / Hermes 4 chat families.
-# The previous substring check (`"hermes" in name.lower()`) false-positived on
-# unrelated local Modelfiles like ``hermes-brain:qwen3-14b-ctx16k`` that just
-# happen to carry "hermes" in their tag but are fully tool-capable.
+# Match only the real STOA STOA 3 / STOA 4 chat families.
+# The previous substring check (`"stoa" in name.lower()`) false-positived on
+# unrelated local Modelfiles like ``stoa-brain:qwen3-14b-ctx16k`` that just
+# happen to carry "stoa" in their tag but are fully tool-capable.
 #
 # Positive examples the regex must match:
-#   stoa-xyz/Hermes-3-Llama-3.1-70B, hermes-4-405b, openrouter/hermes3:70b
+#   stoa-xyz/STOA-3-Llama-3.1-70B, stoa-4-405b, openrouter/stoa3:70b
 # Negative examples it must NOT match:
-#   hermes-brain:qwen3-14b-ctx16k, qwen3:14b, claude-opus-4-6
+#   stoa-brain:qwen3-14b-ctx16k, qwen3:14b, claude-opus-4-6
 _NOUS_STOA_NON_AGENTIC_RE = re.compile(
-    r"(?:^|[/:])hermes[-_ ]?[34](?:[-_.:]|$)",
+    r"(?:^|[/:])stoa[-_ ]?[34](?:[-_.:]|$)",
     re.IGNORECASE,
 )
 
 
 def is_nous_stoa_non_agentic(model_name: str) -> bool:
-    """Return True if *model_name* is a real Nous Hermes 3/4 chat model.
+    """Return True if *model_name* is a real Nous STOA 3/4 chat model.
 
     Used to decide whether to surface the non-agentic warning at startup.
     Callers in :mod:`cli.py` and here should go through this single helper
@@ -85,7 +85,7 @@ def is_nous_stoa_non_agentic(model_name: str) -> bool:
 
 
 def _check_stoa_model_warning(model_name: str) -> str:
-    """Return a warning string if *model_name* is a Nous Hermes 3/4 chat model."""
+    """Return a warning string if *model_name* is a Nous STOA 3/4 chat model."""
     if is_nous_stoa_non_agentic(model_name):
         return _STOA_MODEL_WARNING
     return ""
@@ -191,7 +191,7 @@ def _load_direct_aliases() -> dict[str, DirectAlias]:
             provider: custom
             base_url: "https://ollama.com/v1"
 
-    Also reads ``model.aliases`` (set by ``hermes config set model.aliases.xxx``)
+    Also reads ``model.aliases`` (set by ``stoa config set model.aliases.xxx``)
     and converts simple string entries (``ds-flash: deepseek/deepseek-v4-flash``)
     into DirectAlias objects.  The provider is parsed from the ``provider/``
     prefix in the value; if no slash, the current provider is used.
@@ -685,7 +685,7 @@ def switch_model(
         if pdef is None:
             _switch_err = (
                 f"Unknown provider '{explicit_provider}'. "
-                f"Check 'hermes model' for available providers, or define it "
+                f"Check 'stoa model' for available providers, or define it "
                 f"in config.yaml under 'providers:'."
             )
             # Check for common config issues that cause provider resolution failures
@@ -693,7 +693,7 @@ def switch_model(
                 from stoa_cli.config import validate_config_structure
                 _cfg_issues = validate_config_structure()
                 if _cfg_issues:
-                    _switch_err += "\n\nRun 'hermes doctor' — config issues detected:"
+                    _switch_err += "\n\nRun 'stoa doctor' — config issues detected:"
                     for _ci in _cfg_issues[:3]:
                         _switch_err += f"\n  • {_ci.message}"
             except Exception:
@@ -1158,13 +1158,13 @@ def list_authenticated_providers(
 
     data = fetch_models_dev()
 
-    # Build curated model lists keyed by hermes provider ID
+    # Build curated model lists keyed by stoa provider ID
     curated: dict[str, list[str]] = dict(_PROVIDER_MODELS)
     curated["openrouter"] = [mid for mid, _ in OPENROUTER_MODELS]
     # "nous" pulls from the remote model-catalog manifest published at
     # https://stoa-agent.nousresearch.com/docs/api/model-catalog.json so
     # newly added Portal models surface in the /model picker without
-    # requiring a Hermes release. Falls back to the in-repo
+    # requiring a STOA release. Falls back to the in-repo
     # _PROVIDER_MODELS["nous"] snapshot when the manifest is unreachable.
     curated["nous"] = get_curated_nous_model_ids()
     # Ollama Cloud uses dynamic discovery (no static curated list)
@@ -1200,7 +1200,7 @@ def list_authenticated_providers(
             live = [current_model]
         curated["lmstudio"] = live
 
-    # --- 1. Check Hermes-mapped providers ---
+    # --- 1. Check STOA-mapped providers ---
     for stoa_id, mdev_id in PROVIDER_TO_MODELS_DEV.items():
         # Skip aliases that map to the same models.dev provider (e.g.
         # kimi-coding and kimi-coding-cn both → kimi-for-coding).
@@ -1242,7 +1242,7 @@ def list_authenticated_providers(
         # Use curated list, falling back to models.dev if no curated list.
         # For preferred providers, merge models.dev entries into the curated
         # catalog so newly released models (e.g. mimo-v2.5-pro on opencode-go)
-        # show up in the picker without requiring a Hermes release.
+        # show up in the picker without requiring a STOA release.
         model_ids = curated.get(stoa_id, [])
         if stoa_id in _MODELS_DEV_PREFERRED:
             model_ids = _merge_with_models_dev(stoa_id, model_ids)
@@ -1266,21 +1266,21 @@ def list_authenticated_providers(
         seen_mdev_ids.add(mdev_id)
         _record_builtin_endpoint(slug)
 
-    # --- 2. Check Hermes-only providers (nous, openai-codex, copilot, opencode-go) ---
+    # --- 2. Check STOA-only providers (nous, openai-codex, copilot, opencode-go) ---
     from stoa_cli.providers import STOA_OVERLAYS
     from stoa_cli.auth import PROVIDER_REGISTRY as _auth_registry
 
-    # Build reverse mapping: models.dev ID → Hermes provider ID.
+    # Build reverse mapping: models.dev ID → STOA provider ID.
     # STOA_OVERLAYS keys may be models.dev IDs (e.g. "github-copilot")
-    # while _PROVIDER_MODELS and config.yaml use Hermes IDs ("copilot").
-    _mdev_to_hermes = {v: k for k, v in PROVIDER_TO_MODELS_DEV.items()}
+    # while _PROVIDER_MODELS and config.yaml use STOA IDs ("copilot").
+    _mdev_to_stoa = {v: k for k, v in PROVIDER_TO_MODELS_DEV.items()}
 
     for pid, overlay in STOA_OVERLAYS.items():
         if pid.lower() in seen_slugs:
             continue
 
-        # Resolve Hermes slug — e.g. "github-copilot" → "copilot"
-        stoa_slug = _mdev_to_hermes.get(pid, pid)
+        # Resolve STOA slug — e.g. "github-copilot" → "copilot"
+        stoa_slug = _mdev_to_stoa.get(pid, pid)
         if stoa_slug.lower() in seen_slugs:
             continue
 
@@ -1380,7 +1380,7 @@ def list_authenticated_providers(
             "is_user_defined": False,
             "models": top,
             "total_models": total,
-            "source": "hermes",
+            "source": "stoa",
         })
         seen_slugs.add(pid.lower())
         seen_slugs.add(stoa_slug.lower())
@@ -1389,7 +1389,7 @@ def list_authenticated_providers(
     # --- 2b. Cross-check canonical provider list ---
     # Catches providers that are in CANONICAL_PROVIDERS but weren't found
     # in PROVIDER_TO_MODELS_DEV or STOA_OVERLAYS (keeps /model in sync
-    # with `hermes model`).
+    # with `stoa model`).
     try:
         from stoa_cli.models import CANONICAL_PROVIDERS as _canon_provs
     except ImportError:
@@ -1475,7 +1475,7 @@ def list_authenticated_providers(
             if ep_name.lower() in seen_slugs:
                 continue
             display_name = ep_cfg.get("name", "") or ep_name
-            # ``base_url`` is Hermes's canonical write key (matches
+            # ``base_url`` is STOA's canonical write key (matches
             # custom_providers and _save_custom_provider); ``api`` / ``url``
             # remain as fallbacks for hand-edited / legacy configs.
             api_url = (
@@ -1493,7 +1493,7 @@ def list_authenticated_providers(
             if default_model:
                 models_list.append(default_model)
             # Also include the full models list from config.
-            # Hermes writes ``models:`` as a dict keyed by model id
+            # STOA writes ``models:`` as a dict keyed by model id
             # (see stoa_cli/main.py::_save_custom_provider); older
             # configs or hand-edited files may still use a list.
             cfg_models = ep_cfg.get("models", [])
@@ -1594,7 +1594,7 @@ def list_authenticated_providers(
             if group_key not in groups:
                 # Strip per-model suffix so "Ollama — GLM 5.1" becomes
                 # "Ollama" for the grouped row. Em dash is the convention
-                # Hermes's own writer uses; a hyphen variant is accepted
+                # STOA's own writer uses; a hyphen variant is accepted
                 # for hand-edited configs.
                 display_name = raw_name
                 for sep in ("—", " - "):
@@ -1628,7 +1628,7 @@ def list_authenticated_providers(
                 }
 
             # The singular ``model:`` field only holds the currently
-            # active model. Hermes's own writer (main.py::_save_custom_provider)
+            # active model. STOA's own writer (main.py::_save_custom_provider)
             # stores every configured model as a dict under ``models:``;
             # downstream readers (agent/models_dev.py, gateway/run.py,
             # run_agent.py, stoa_cli/config.py) already consume that dict.

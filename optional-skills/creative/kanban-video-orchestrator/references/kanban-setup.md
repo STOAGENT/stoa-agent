@@ -1,7 +1,7 @@
 # Kanban Setup — Project Bootstrap & Profile Configuration
 
 Once the brief is locked and the team is designed, the next step is producing
-the actual `setup.sh` that creates the project workspace, configures Hermes
+the actual `setup.sh` that creates the project workspace, configures STOA
 profiles, and fires the initial kanban task.
 
 This file documents the patterns. The companion script
@@ -11,7 +11,7 @@ JSON.
 > **Credit:** the single-project-workspace layout, profile-config patching
 > approach, SOUL.md-per-profile convention, and `--workspace dir:<path>` rule
 > are adapted from alt-glitch's original multi-agent video pipeline:
-> [stoa-xyz/kanban-video-pipeline](https://github.com/stoa-xyz/kanban-video-pipeline).
+> [stoa-xyz/kanban-video-pipeline](https://github.com/STOAGENT/kanban-video-pipeline).
 > This skill generalizes those patterns across video styles and replaces the
 > string-replacement config patcher with a PyYAML-based one.
 
@@ -60,20 +60,20 @@ Example: `q3-product-teaser`, `ascii-mood-loop`, `interview-cut-2026-q1`.
 The setup script does six things in order:
 
 1. **Create workspace tree** — all directories above
-2. **Create profiles** — `hermes profile create <name> --clone`
+2. **Create profiles** — `stoa profile create <name> --clone`
 3. **Configure profiles** — patch each profile's
    `~/.stoa/profiles/<name>/config.yaml` to set toolsets, always_load skills,
    and `cwd`
 4. **Write SOUL.md per profile** — the personality + role definition
 5. **Copy any provided assets + write `brief.md`, `TEAM.md`, and `taste/`**
-6. **Fire the initial kanban task** — `hermes kanban create` assigned to the director
+6. **Fire the initial kanban task** — `stoa kanban create` assigned to the director
 
 See `assets/setup.sh.tmpl` for the skeleton.
 
 ### Profile creation pattern
 
 ```bash
-hermes profile create director --clone 2>/dev/null || true
+stoa profile create director --clone 2>/dev/null || true
 ```
 
 The `--clone` flag clones from the active profile (preserving model, base
@@ -116,7 +116,7 @@ PY
 }
 ```
 
-PyYAML must be installed in the user's Python (it ships with most Hermes
+PyYAML must be installed in the user's Python (it ships with most STOA
 installs). If absent: `pip install pyyaml`.
 
 The setup script should also **validate** the patch by re-reading the file
@@ -149,7 +149,7 @@ deeper-than-baseline kanban guidance.
 The final action of setup.sh is firing the kanban:
 
 ```bash
-hermes kanban create "Direct production of <video title>" \
+stoa kanban create "Direct production of <video title>" \
     --assignee director \
     --workspace dir:"$HOME/projects/video-pipeline/${PROJECT_SLUG}" \
     --tenant ${PROJECT_SLUG} \
@@ -237,8 +237,8 @@ check_key() {
     return 1
 }
 
-check_key ELEVENLABS_API_KEY hermes ELEVENLABS_API_KEY || exit 1
-check_key OPENROUTER_API_KEY hermes OPENROUTER_API_KEY || exit 1
+check_key ELEVENLABS_API_KEY stoa ELEVENLABS_API_KEY || exit 1
+check_key OPENROUTER_API_KEY stoa OPENROUTER_API_KEY || exit 1
 # ...
 ```
 

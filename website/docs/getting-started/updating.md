@@ -13,7 +13,7 @@ description: "How to update STOA Agent to the latest version or uninstall it"
 Update to the latest version with a single command:
 
 ```bash
-hermes update
+stoa update
 ```
 
 This pulls the latest code from `main`, updates dependencies, and prompts you to configure any new options that were added since your last update.
@@ -23,8 +23,8 @@ This pulls the latest code from `main`, updates dependencies, and prompts you to
 PyPI releases track **tagged versions** (major and minor releases), not every commit on `main`. Check for updates and upgrade with:
 
 ```bash
-hermes update --check    # see if a newer release is on PyPI
-hermes update            # runs pip install --upgrade stoa-agent
+stoa update --check    # see if a newer release is on PyPI
+stoa update            # runs pip install --upgrade stoa-agent
 ```
 
 Or manually:
@@ -34,29 +34,29 @@ pip install --upgrade stoa-agent    # or: uv pip install --upgrade stoa-agent
 ```
 
 :::tip
-`hermes update` automatically detects new configuration options and prompts you to add them. If you skipped that prompt, you can manually run `hermes config check` to see missing options, then `hermes config migrate` to interactively add them.
+`stoa update` automatically detects new configuration options and prompts you to add them. If you skipped that prompt, you can manually run `stoa config check` to see missing options, then `stoa config migrate` to interactively add them.
 :::
 
 ### What happens during an update (git installs)
 
-When you run `hermes update`, the following steps occur:
+When you run `stoa update`, the following steps occur:
 
-1. **Pairing-data snapshot** — a lightweight pre-update state snapshot is saved (covers `~/.stoa/pairing/`, Feishu comment rules, and other state files that get modified at runtime). Recoverable via the snapshot restore flow described under [Snapshots and rollback](../user-guide/checkpoints-and-rollback.md), or by extracting the most recent quick-snapshot zip Hermes wrote next to your `~/.stoa/` directory.
+1. **Pairing-data snapshot** — a lightweight pre-update state snapshot is saved (covers `~/.stoa/pairing/`, Feishu comment rules, and other state files that get modified at runtime). Recoverable via the snapshot restore flow described under [Snapshots and rollback](../user-guide/checkpoints-and-rollback.md), or by extracting the most recent quick-snapshot zip STOA wrote next to your `~/.stoa/` directory.
 2. **Git pull** — pulls the latest code from the `main` branch and updates submodules
 3. **Dependency install** — runs `uv pip install -e ".[all]"` to pick up new or changed dependencies
 4. **Config migration** — detects new config options added since your version and prompts you to set them
-5. **Gateway auto-restart** — running gateways are refreshed after the update completes so the new code takes effect immediately. Service-managed gateways (systemd on Linux, launchd on macOS) are restarted through the service manager. Manual gateways are relaunched automatically when Hermes can map the running PID back to a profile.
+5. **Gateway auto-restart** — running gateways are refreshed after the update completes so the new code takes effect immediately. Service-managed gateways (systemd on Linux, launchd on macOS) are restarted through the service manager. Manual gateways are relaunched automatically when STOA can map the running PID back to a profile.
 
-### Preview-only: `hermes update --check`
+### Preview-only: `stoa update --check`
 
-Want to know if an update is available before pulling? Run `hermes update --check` — for git installs it fetches and compares commits against `origin/main`; for pip installs it queries PyPI for the latest release. No files are modified, no gateway is restarted. Useful in scripts and cron jobs that gate on "is there an update".
+Want to know if an update is available before pulling? Run `stoa update --check` — for git installs it fetches and compares commits against `origin/main`; for pip installs it queries PyPI for the latest release. No files are modified, no gateway is restarted. Useful in scripts and cron jobs that gate on "is there an update".
 
 ### Full pre-update backup: `--backup`
 
 For high-value profiles (production gateways, shared team installs) you can opt into a full pre-pull backup of `STOA_HOME` (config, auth, sessions, skills, pairing):
 
 ```bash
-hermes update --backup
+stoa update --backup
 ```
 
 Or make it the default for every run:
@@ -69,21 +69,21 @@ updates:
 
 `--backup` was the always-on behavior in earlier builds, but it was adding minutes to every update on large homes, so it's now opt-in. The lightweight pairing-data snapshot above still runs unconditionally.
 
-### Windows: another `hermes.exe` is running
+### Windows: another `stoa.exe` is running
 
-On Windows, `hermes update` will refuse to run if it detects another `hermes.exe` process holding the venv's entry-point executable open — most commonly the Hermes Desktop app's spawned backend, an open `hermes` REPL in another terminal, or a running gateway:
+On Windows, `stoa update` will refuse to run if it detects another `stoa.exe` process holding the venv's entry-point executable open — most commonly the STOA Desktop app's spawned backend, an open `stoa` REPL in another terminal, or a running gateway:
 
 ```
-$ hermes update
-✗ Another hermes.exe is running:
-    PID 12345  hermes.exe
+$ stoa update
+✗ Another stoa.exe is running:
+    PID 12345  stoa.exe
 
-  Updating now would fail to overwrite ...\venv\Scripts\hermes.exe because
+  Updating now would fail to overwrite ...\venv\Scripts\stoa.exe because
   Windows blocks REPLACE on a running executable.
 
-  Close Hermes Desktop, exit any open `hermes` REPLs, and
-  stop the gateway (`hermes gateway stop`) before retrying.
-  Override with `hermes update --force` if you've already
+  Close STOA Desktop, exit any open `stoa` REPLs, and
+  stop the gateway (`stoa gateway stop`) before retrying.
+  Override with `stoa update --force` if you've already
   confirmed those processes will not write to the venv.
 ```
 
@@ -92,7 +92,7 @@ Close the listed processes and re-run. If you're sure the concurrent process won
 Expected output looks like:
 
 ```
-$ hermes update
+$ stoa update
 Updating STOA Agent...
 📥 Pulling latest code...
 Already up to date.  (or: Updating abc1234..def5678)
@@ -107,21 +107,21 @@ Already up to date.  (or: Updating abc1234..def5678)
 
 ### Recommended Post-Update Validation
 
-`hermes update` handles the main update path, but a quick validation confirms everything landed cleanly:
+`stoa update` handles the main update path, but a quick validation confirms everything landed cleanly:
 
 1. `git status --short` — if the tree is unexpectedly dirty, inspect before continuing
-2. `hermes doctor` — checks config, dependencies, and service health
-3. `hermes --version` — confirm the version bumped as expected
-4. If you use the gateway: `hermes gateway status`
+2. `stoa doctor` — checks config, dependencies, and service health
+3. `stoa --version` — confirm the version bumped as expected
+4. If you use the gateway: `stoa gateway status`
 5. If `doctor` reports npm audit issues: run `npm audit fix` in the flagged directory
 
 :::warning Dirty working tree after update
-If `git status --short` shows unexpected changes after `hermes update`, stop and inspect them before continuing. This usually means local modifications were reapplied on top of the updated code, or a dependency step refreshed lockfiles.
+If `git status --short` shows unexpected changes after `stoa update`, stop and inspect them before continuing. This usually means local modifications were reapplied on top of the updated code, or a dependency step refreshed lockfiles.
 :::
 
 ### If your terminal disconnects mid-update
 
-`hermes update` protects itself against accidental terminal loss:
+`stoa update` protects itself against accidental terminal loss:
 
 - The update ignores `SIGHUP`, so closing your SSH session or terminal window no longer kills it mid-install. `pip` and `git` child processes inherit this protection, so the Python environment cannot be left half-installed by a dropped connection.
 - All output is mirrored to `~/.stoa/logs/update.log` while the update runs. If your terminal disappears, reconnect and inspect the log to see whether the update finished and whether the gateway restart succeeded:
@@ -132,12 +132,12 @@ tail -f ~/.stoa/logs/update.log
 
 - `Ctrl-C` (SIGINT) and system shutdown (SIGTERM) are still honored — those are deliberate cancellations, not accidents.
 
-You no longer need to wrap `hermes update` in `screen` or `tmux` to survive a terminal drop.
+You no longer need to wrap `stoa update` in `screen` or `tmux` to survive a terminal drop.
 
 ### Checking your current version
 
 ```bash
-hermes version
+stoa version
 ```
 
 Compare against the latest release at the [GitHub releases page](https://github.com/STOAGENT/stoa-agent/releases).
@@ -167,8 +167,8 @@ git pull origin main
 uv pip install -e ".[all]"
 
 # Check for new config options
-hermes config check
-hermes config migrate   # Interactively add any missing options
+stoa config check
+stoa config migrate   # Interactively add any missing options
 ```
 
 ### Rollback instructions
@@ -187,7 +187,7 @@ git submodule update --init --recursive
 uv pip install -e ".[all]"
 
 # Restart the gateway if running
-hermes gateway restart
+stoa gateway restart
 ```
 
 To roll back to a specific release tag:
@@ -199,7 +199,7 @@ uv pip install -e ".[all]"
 ```
 
 :::warning
-Rolling back may cause config incompatibilities if new options were added. Run `hermes config check` after rolling back and remove any unrecognized options from `config.yaml` if you encounter errors.
+Rolling back may cause config incompatibilities if new options were added. Run `stoa config check` after rolling back and remove any unrecognized options from `config.yaml` if you encounter errors.
 :::
 
 ### Note for Nix users
@@ -229,7 +229,7 @@ See [Nix Setup](./nix-setup.md) for more details.
 ### Git installs
 
 ```bash
-hermes uninstall
+stoa uninstall
 ```
 
 The uninstaller gives you the option to keep your configuration files (`~/.stoa/`) for a future reinstall.
@@ -244,7 +244,7 @@ rm -rf ~/.stoa            # Optional — keep if you plan to reinstall
 ### Manual Uninstall
 
 ```bash
-rm -f ~/.local/bin/hermes
+rm -f ~/.local/bin/stoa
 rm -rf /path/to/stoa-agent
 rm -rf ~/.stoa            # Optional — keep if you plan to reinstall
 ```
@@ -252,8 +252,8 @@ rm -rf ~/.stoa            # Optional — keep if you plan to reinstall
 :::info
 If you installed the gateway as a system service, stop and disable it first:
 ```bash
-hermes gateway stop
+stoa gateway stop
 # Linux: systemctl --user disable stoa-gateway
-# macOS: launchctl remove ai.hermes.gateway
+# macOS: launchctl remove ai.stoa.gateway
 ```
 :::

@@ -648,14 +648,14 @@ class TestGatewayProtection:
         assert "stop/restart" in desc
 
     def test_pkill_stoa_detected(self):
-        """pkill targeting hermes/gateway processes must be caught."""
+        """pkill targeting stoa/gateway processes must be caught."""
         cmd = 'pkill -f "cli.py --gateway"'
         dangerous, key, desc = detect_dangerous_command(cmd)
         assert dangerous is True
         assert "self-termination" in desc
 
     def test_killall_stoa_detected(self):
-        cmd = "killall hermes"
+        cmd = "killall stoa"
         dangerous, key, desc = detect_dangerous_command(cmd)
         assert dangerous is True
         assert "self-termination" in desc
@@ -791,20 +791,20 @@ class TestHeredocScriptExecution:
 
 
 class TestPgrepKillExpansion:
-    """kill -9 $(pgrep hermes) bypasses the pkill/killall name-matching
+    """kill -9 $(pgrep stoa) bypasses the pkill/killall name-matching
     pattern because the command substitution is opaque to regex.
 
     See security audit Test 7.
     """
 
     def test_kill_dollar_pgrep_detected(self):
-        cmd = 'kill -9 $(pgrep -f "hermes.*gateway")'
+        cmd = 'kill -9 $(pgrep -f "stoa.*gateway")'
         dangerous, _, desc = detect_dangerous_command(cmd)
         assert dangerous is True
         assert "pgrep" in desc.lower()
 
     def test_kill_backtick_pgrep_detected(self):
-        cmd = "kill -9 `pgrep hermes`"
+        cmd = "kill -9 `pgrep stoa`"
         dangerous, _, desc = detect_dangerous_command(cmd)
         assert dangerous is True
 
@@ -815,7 +815,7 @@ class TestPgrepKillExpansion:
 
     def test_pkill_stoa_still_detected(self):
         """Existing pkill pattern must not regress."""
-        cmd = "pkill -9 hermes"
+        cmd = "pkill -9 stoa"
         dangerous, _, _ = detect_dangerous_command(cmd)
         assert dangerous is True
 

@@ -6,7 +6,7 @@ description: "Project context files — .stoa.md, AGENTS.md, CLAUDE.md, global S
 
 # Context Files
 
-STOA Agent automatically discovers and loads context files that shape how it behaves. Some are project-local and discovered from your working directory. `SOUL.md` is now global to the Hermes instance and is loaded from `STOA_HOME` only.
+STOA Agent automatically discovers and loads context files that shape how it behaves. Some are project-local and discovered from your working directory. `SOUL.md` is now global to the STOA instance and is loaded from `STOA_HOME` only.
 
 ## Supported Context Files
 
@@ -15,7 +15,7 @@ STOA Agent automatically discovers and loads context files that shape how it beh
 | **.stoa.md** / **STOA.md** | Project instructions (highest priority) | Walks to git root |
 | **AGENTS.md** | Project instructions, conventions, architecture | CWD at startup + subdirectories progressively |
 | **CLAUDE.md** | Claude Code context files (also detected) | CWD at startup + subdirectories progressively |
-| **SOUL.md** | Global personality and tone customization for this Hermes instance | `STOA_HOME/SOUL.md` only |
+| **SOUL.md** | Global personality and tone customization for this STOA instance | `STOA_HOME/SOUL.md` only |
 | **.cursorrules** | Cursor IDE coding conventions | CWD only |
 | **.cursor/rules/*.mdc** | Cursor IDE rule modules | CWD only |
 
@@ -29,7 +29,7 @@ Only **one** project context type is loaded per session (first match wins): `.st
 
 ### Progressive Subdirectory Discovery
 
-At session start, Hermes loads the `AGENTS.md` from your working directory into the system prompt. As the agent navigates into subdirectories during the session (via `read_file`, `terminal`, `search_files`, etc.), it **progressively discovers** context files in those directories and injects them into the conversation at the moment they become relevant.
+At session start, STOA loads the `AGENTS.md` from your working directory into the system prompt. As the agent navigates into subdirectories during the session (via `read_file`, `terminal`, `search_files`, etc.), it **progressively discovers** context files in those directories and injects them into the conversation at the moment they become relevant.
 
 ```
 my-project/
@@ -84,21 +84,21 @@ This is a Next.js 14 web application with a Python FastAPI backend.
 **Location:**
 
 - `~/.stoa/SOUL.md`
-- or `$STOA_HOME/SOUL.md` if you run Hermes with a custom home directory
+- or `$STOA_HOME/SOUL.md` if you run STOA with a custom home directory
 
 Important details:
 
-- Hermes seeds a default `SOUL.md` automatically if one does not exist yet
-- Hermes loads `SOUL.md` only from `STOA_HOME`
-- Hermes does not probe the working directory for `SOUL.md`
+- STOA seeds a default `SOUL.md` automatically if one does not exist yet
+- STOA loads `SOUL.md` only from `STOA_HOME`
+- STOA does not probe the working directory for `SOUL.md`
 - If the file is empty, nothing from `SOUL.md` is added to the prompt
 - If the file has content, the content is injected verbatim after scanning and truncation
 
 ## .cursorrules
 
-Hermes is compatible with Cursor IDE's `.cursorrules` file and `.cursor/rules/*.mdc` rule modules. If these files exist in your project root and no higher-priority context file (`.stoa.md`, `AGENTS.md`, or `CLAUDE.md`) is found, they're loaded as the project context.
+STOA is compatible with Cursor IDE's `.cursorrules` file and `.cursor/rules/*.mdc` rule modules. If these files exist in your project root and no higher-priority context file (`.stoa.md`, `AGENTS.md`, or `CLAUDE.md`) is found, they're loaded as the project context.
 
-This means your existing Cursor conventions automatically apply when using Hermes.
+This means your existing Cursor conventions automatically apply when using STOA.
 
 ## How Context Files Are Loaded
 

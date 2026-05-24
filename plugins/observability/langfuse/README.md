@@ -1,16 +1,16 @@
 # Langfuse Observability Plugin
 
-This plugin ships bundled with Hermes but is **opt-in** — it only loads when
+This plugin ships bundled with STOA but is **opt-in** — it only loads when
 you explicitly enable it.
 
 ## Enable
 
 ```bash
 pip install langfuse
-hermes plugins enable observability/langfuse
+stoa plugins enable observability/langfuse
 ```
 
-Or check the box in the interactive `hermes plugins` UI.
+Or check the box in the interactive `stoa plugins` UI.
 
 ## Required credentials
 
@@ -28,8 +28,8 @@ open.
 ## Verify
 
 ```bash
-hermes plugins list                 # observability/langfuse should show "enabled"
-hermes chat -q "hello"              # then check Langfuse for a "Hermes turn" trace
+stoa plugins list                 # observability/langfuse should show "enabled"
+stoa chat -q "hello"              # then check Langfuse for a "STOA turn" trace
 ```
 
 ## Optional tuning
@@ -45,5 +45,5 @@ STOA_LANGFUSE_DEBUG=true           # verbose plugin logging
 ## Disable
 
 ```bash
-hermes plugins disable observability/langfuse
+stoa plugins disable observability/langfuse
 ```

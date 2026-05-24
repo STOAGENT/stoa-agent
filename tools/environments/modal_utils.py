@@ -1,6 +1,6 @@
-"""Shared Hermes-side execution flow for Modal transports.
+"""Shared STOA-side execution flow for Modal transports.
 
-This module deliberately stops at the Hermes boundary:
+This module deliberately stops at the STOA boundary:
 - command preparation
 - cwd/timeout normalization
 - stdin/sudo shell wrapping

@@ -682,22 +682,22 @@ def test_resolve_model_strips_config_model(monkeypatch):
     monkeypatch.delenv("STOA_MODEL", raising=False)
     monkeypatch.delenv("STOA_INFERENCE_MODEL", raising=False)
     monkeypatch.setattr(
-        server, "_load_cfg", lambda: {"model": {"default": " nous/hermes-test "}}
+        server, "_load_cfg", lambda: {"model": {"default": " nous/stoa-test "}}
     )
 
-    assert server._resolve_model() == "nous/hermes-test"
+    assert server._resolve_model() == "nous/stoa-test"
 
 
 def test_startup_runtime_uses_tui_provider_env(monkeypatch):
-    monkeypatch.setenv("STOA_MODEL", "nous/hermes-test")
+    monkeypatch.setenv("STOA_MODEL", "nous/stoa-test")
     monkeypatch.setenv("STOA_TUI_PROVIDER", "nous")
     monkeypatch.delenv("STOA_INFERENCE_PROVIDER", raising=False)
 
-    assert server._resolve_startup_runtime() == ("nous/hermes-test", "nous")
+    assert server._resolve_startup_runtime() == ("nous/stoa-test", "nous")
 
 
 def test_startup_runtime_does_not_treat_inference_provider_as_explicit(monkeypatch):
-    monkeypatch.setenv("STOA_MODEL", "nous/hermes-test")
+    monkeypatch.setenv("STOA_MODEL", "nous/stoa-test")
     monkeypatch.delenv("STOA_TUI_PROVIDER", raising=False)
     monkeypatch.setenv("STOA_INFERENCE_PROVIDER", "nous")
     monkeypatch.setattr(
@@ -705,7 +705,7 @@ def test_startup_runtime_does_not_treat_inference_provider_as_explicit(monkeypat
         lambda model, provider: None,
     )
 
-    assert server._resolve_startup_runtime() == ("nous/hermes-test", None)
+    assert server._resolve_startup_runtime() == ("nous/stoa-test", None)
 
 
 def test_startup_runtime_detects_provider_for_model_env(monkeypatch):
@@ -2036,7 +2036,7 @@ def test_session_compress_syncs_session_key_after_rotation(monkeypatch):
     """When AIAgent._compress_context rotates session_id (compression split),
     the gateway session_key must follow so subsequent approval routing,
     DB title/history lookups, and slash worker resume target the new
-    continuation session — mirrors HermesCLI._manual_compress's
+    continuation session — mirrors STOACLI._manual_compress's
     session_id sync (cli.py).
     """
     agent = types.SimpleNamespace(session_id="rotated-id")
@@ -2327,7 +2327,7 @@ def test_session_status_reads_live_gateway_agent(monkeypatch):
         server._sessions.pop("sid", None)
 
     out = resp["result"]["output"]
-    assert "Hermes TUI Status" in out
+    assert "STOA TUI Status" in out
     assert "Session ID: session-key" in out
     assert "Title: Live TUI" in out
     assert "Model: live-model (live-provider)" in out
@@ -3538,13 +3538,13 @@ def test_session_delete_success_returns_deleted_id(monkeypatch):
 
 
 # --------------------------------------------------------------------------
-# model.options — curated-list parity with `hermes model` and classic /model
+# model.options — curated-list parity with `stoa model` and classic /model
 # --------------------------------------------------------------------------
 
 
 def test_model_options_does_not_overwrite_curated_models(monkeypatch):
     """The TUI model.options handler must surface the same curated model
-    list as `hermes model` and the classic CLI /model picker.
+    list as `stoa model` and the classic CLI /model picker.
 
     Regression: earlier versions of this handler unconditionally replaced
     each provider's curated ``models`` field with ``provider_model_ids()``

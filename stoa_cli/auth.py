@@ -749,7 +749,7 @@ def format_auth_error(error: Exception) -> str:
         return str(error)
 
     if error.relogin_required:
-        return f"{error} Run `hermes model` to re-authenticate."
+        return f"{error} Run `stoa model` to re-authenticate."
 
     if error.code == "subscription_required":
         return (
@@ -1129,7 +1129,7 @@ def read_credential_pool(provider_id: Optional[str] = None) -> Dict[str, Any]:
 
     Profile entries always win: the global fallback only applies per-provider
     when the profile has zero entries for that provider. Once the user runs
-    ``hermes auth add <provider>`` inside the profile, profile entries
+    ``stoa auth add <provider>`` inside the profile, profile entries
     fully shadow global for that provider on the next read.
 
     Writes always go to the profile (``write_credential_pool`` is unchanged).
@@ -1287,7 +1287,7 @@ def is_provider_explicitly_configured(provider_id: str) -> bool:
 
     # 3. Check provider-specific env vars
     # Exclude CLAUDE_CODE_OAUTH_TOKEN — it's set by Claude Code itself,
-    # not by the user explicitly configuring anthropic in Hermes.
+    # not by the user explicitly configuring anthropic in STOA.
     _IMPLICIT_ENV_VARS = {"CLAUDE_CODE_OAUTH_TOKEN"}
     pconfig = PROVIDER_REGISTRY.get(normalized)
     if pconfig and pconfig.auth_type == "api_key":
@@ -1302,7 +1302,7 @@ def is_provider_explicitly_configured(provider_id: str) -> bool:
 
 def clear_provider_auth(provider_id: Optional[str] = None) -> bool:
     """
-    Clear auth state for a provider. Used by `hermes logout`.
+    Clear auth state for a provider. Used by `stoa logout`.
     If provider_id is None, clears the active provider.
     Returns True if something was cleared.
     """
@@ -1369,7 +1369,7 @@ def _get_config_hint_for_unknown_provider(provider_name: str) -> str:
         if not issues:
             return ""
 
-        lines = ["Config issue detected — run 'hermes doctor' for full diagnostics:"]
+        lines = ["Config issue detected — run 'stoa doctor' for full diagnostics:"]
         for ci in issues:
             prefix = "ERROR" if ci.severity == "error" else "WARNING"
             lines.append(f"  [{prefix}] {ci.message}")
@@ -1462,7 +1462,7 @@ def resolve_provider(
         if _config_hint:
             msg += f"\n\n{_config_hint}"
         else:
-            msg += " Check 'hermes model' for available providers, or run 'hermes doctor' to diagnose config issues."
+            msg += " Check 'stoa model' for available providers, or run 'stoa doctor' to diagnose config issues."
         raise AuthError(msg, code="invalid_provider")
 
     # Explicit one-off CLI creds always mean openrouter/custom
@@ -1509,7 +1509,7 @@ def resolve_provider(
         pass  # boto3 not installed — skip Bedrock auto-detection
 
     raise AuthError(
-        "No inference provider configured. Run 'hermes model' to choose a "
+        "No inference provider configured. Run 'stoa model' to choose a "
         "provider and model, or set an API key (OPENROUTER_API_KEY, "
         "OPENAI_API_KEY, etc.) in ~/.stoa/.env.",
         code="no_provider_configured",
@@ -2067,7 +2067,7 @@ def get_qwen_auth_status() -> Dict[str, Any]:
     try:
         # Validate the runtime credentials, including refresh when the cached
         # CLI token is expired. Otherwise stale tokens show up as "logged in"
-        # and `hermes model` walks users into a broken Qwen setup flow.
+        # and `stoa model` walks users into a broken Qwen setup flow.
         creds = resolve_qwen_runtime_credentials(refresh_if_expiring=True)
         return {
             "logged_in": True,
@@ -2136,7 +2136,7 @@ def resolve_gemini_oauth_runtime_credentials(
 
 
 def get_gemini_oauth_auth_status() -> Dict[str, Any]:
-    """Return a status dict for `hermes auth list` / `hermes status`."""
+    """Return a status dict for `stoa auth list` / `stoa status`."""
     try:
         from agent.google_oauth import _credentials_path, load_credentials
     except ImportError:
@@ -2485,7 +2485,7 @@ def _make_xai_callback_handler(expected_path: str) -> tuple[type[BaseHTTPRequest
                     "<h1>xAI authorization not received.</h1>"
                     "<p>No authorization code was present in this callback URL. "
                     "Return to the terminal and re-run "
-                    "<code>hermes auth add xai-oauth</code> to retry.</p>"
+                    "<code>stoa auth add xai-oauth</code> to retry.</p>"
                     "</body></html>"
                 )
                 self.wfile.write(body.encode("utf-8"))
@@ -2671,7 +2671,7 @@ def _refresh_spotify_oauth_state(
     refresh_token = str(state.get("refresh_token", "") or "").strip()
     if not refresh_token:
         raise AuthError(
-            "Spotify refresh token missing. Run `hermes auth spotify` again.",
+            "Spotify refresh token missing. Run `stoa auth spotify` again.",
             provider="spotify",
             code="spotify_refresh_token_missing",
             relogin_required=True,
@@ -2700,7 +2700,7 @@ def _refresh_spotify_oauth_state(
     if response.status_code >= 400:
         detail = response.text.strip()
         raise AuthError(
-            "Spotify token refresh failed. Run `hermes auth spotify` again."
+            "Spotify token refresh failed. Run `stoa auth spotify` again."
             + (f" Response: {detail}" if detail else ""),
             provider="spotify",
             code="spotify_refresh_failed",
@@ -2738,7 +2738,7 @@ def resolve_spotify_runtime_credentials(
         state = _load_provider_state(auth_store, "spotify")
         if not state:
             raise AuthError(
-                "Spotify is not authenticated. Run `hermes auth spotify` first.",
+                "Spotify is not authenticated. Run `stoa auth spotify` first.",
                 provider="spotify",
                 code="spotify_auth_missing",
                 relogin_required=True,
@@ -2755,7 +2755,7 @@ def resolve_spotify_runtime_credentials(
     access_token = str(state.get("access_token", "") or "").strip()
     if not access_token:
         raise AuthError(
-            "Spotify access token missing. Run `hermes auth spotify` again.",
+            "Spotify access token missing. Run `stoa auth spotify` again.",
             provider="spotify",
             code="spotify_access_token_missing",
             relogin_required=True,
@@ -2842,7 +2842,7 @@ def _spotify_interactive_setup(redirect_uri_hint: str) -> str:
         print(f"No Client ID entered. See {SPOTIFY_DOCS_URL} for the full guide.")
         raise SystemExit("Spotify setup cancelled: empty Client ID.")
 
-    # Persist so subsequent `hermes auth spotify` runs skip the wizard.
+    # Persist so subsequent `stoa auth spotify` runs skip the wizard.
     save_env_value("STOA_SPOTIFY_CLIENT_ID", raw)
     # Only persist the redirect URI if it's non-default, to avoid pinning
     # users to a value the default might later change to.
@@ -2894,7 +2894,7 @@ def login_spotify_command(args) -> None:
     print(f"Redirect URI: {redirect_uri}")
     print("Make sure this redirect URI is allow-listed in your Spotify app settings.")
     print()
-    print("Open this URL to authorize Hermes:")
+    print("Open this URL to authorize STOA:")
     print(authorize_url)
     print()
     print(f"Full setup guide: {SPOTIFY_DOCS_URL}")
@@ -3100,7 +3100,7 @@ def _print_loopback_ssh_hint(redirect_uri: str, *, docs_url: str | None = None) 
     print(divider)
     print("Remote session detected — SSH tunnel required")
     print(divider)
-    print(f"Hermes is waiting for the OAuth callback on {redirect_uri}")
+    print(f"STOA is waiting for the OAuth callback on {redirect_uri}")
     print("but your browser is on a different machine. Run this command")
     print("in a NEW terminal on your local machine BEFORE opening the URL:")
     print()
@@ -3121,7 +3121,7 @@ def _print_loopback_ssh_hint(redirect_uri: str, *, docs_url: str | None = None) 
 # =============================================================================
 # OpenAI Codex auth — tokens stored in ~/.stoa/auth.json (not ~/.codex/)
 #
-# Hermes maintains its own Codex OAuth session separate from the Codex CLI
+# STOA maintains its own Codex OAuth session separate from the Codex CLI
 # and VS Code extension. This prevents refresh token rotation conflicts
 # where one app's refresh invalidates the other's session.
 # =============================================================================
@@ -3140,7 +3140,7 @@ def _read_codex_tokens(*, _lock: bool = True) -> Dict[str, Any]:
     state = _load_provider_state(auth_store, "openai-codex")
     if not state:
         raise AuthError(
-            "No Codex credentials stored. Run `hermes auth` to authenticate.",
+            "No Codex credentials stored. Run `stoa auth` to authenticate.",
             provider="openai-codex",
             code="codex_auth_missing",
             relogin_required=True,
@@ -3148,7 +3148,7 @@ def _read_codex_tokens(*, _lock: bool = True) -> Dict[str, Any]:
     tokens = state.get("tokens")
     if not isinstance(tokens, dict):
         raise AuthError(
-            "Codex auth state is missing tokens. Run `hermes auth` to re-authenticate.",
+            "Codex auth state is missing tokens. Run `stoa auth` to re-authenticate.",
             provider="openai-codex",
             code="codex_auth_invalid_shape",
             relogin_required=True,
@@ -3157,14 +3157,14 @@ def _read_codex_tokens(*, _lock: bool = True) -> Dict[str, Any]:
     refresh_token = tokens.get("refresh_token")
     if not isinstance(access_token, str) or not access_token.strip():
         raise AuthError(
-            "Codex auth is missing access_token. Run `hermes auth` to re-authenticate.",
+            "Codex auth is missing access_token. Run `stoa auth` to re-authenticate.",
             provider="openai-codex",
             code="codex_auth_missing_access_token",
             relogin_required=True,
         )
     if not isinstance(refresh_token, str) or not refresh_token.strip():
         raise AuthError(
-            "Codex auth is missing refresh_token. Run `hermes auth` to re-authenticate.",
+            "Codex auth is missing refresh_token. Run `stoa auth` to re-authenticate.",
             provider="openai-codex",
             code="codex_auth_missing_refresh_token",
             relogin_required=True,
@@ -3199,7 +3199,7 @@ def refresh_codex_oauth_pure(
     del access_token  # Access token is only used by callers to decide whether to refresh.
     if not isinstance(refresh_token, str) or not refresh_token.strip():
         raise AuthError(
-            "Codex auth is missing refresh_token. Run `hermes auth` to re-authenticate.",
+            "Codex auth is missing refresh_token. Run `stoa auth` to re-authenticate.",
             provider="openai-codex",
             code="codex_auth_missing_refresh_token",
             relogin_required=True,
@@ -3248,7 +3248,7 @@ def refresh_codex_oauth_pure(
                 "Codex refresh token was already consumed by another client "
                 "(e.g. Codex CLI or VS Code extension). "
                 "Run `codex` in your terminal to generate fresh tokens, "
-                "then run `hermes auth` to re-authenticate."
+                "then run `stoa auth` to re-authenticate."
             )
             relogin_required = True
         # A 401/403 from the token endpoint always means the refresh token
@@ -3354,7 +3354,7 @@ def resolve_codex_runtime_credentials(
     refresh_if_expiring: bool = True,
     refresh_skew_seconds: int = CODEX_ACCESS_TOKEN_REFRESH_SKEW_SECONDS,
 ) -> Dict[str, Any]:
-    """Resolve runtime credentials from Hermes's own Codex token store."""
+    """Resolve runtime credentials from STOA's own Codex token store."""
     data = _read_codex_tokens()
     tokens = dict(data["tokens"])
     access_token = str(tokens.get("access_token", "") or "").strip()
@@ -3364,7 +3364,7 @@ def resolve_codex_runtime_credentials(
     if (not should_refresh) and refresh_if_expiring:
         should_refresh = _codex_access_token_is_expiring(access_token, refresh_skew_seconds)
     if should_refresh:
-        # Re-read under lock to avoid racing with other Hermes processes
+        # Re-read under lock to avoid racing with other STOA processes
         with _auth_store_lock(timeout_seconds=max(float(AUTH_LOCK_TIMEOUT_SECONDS), refresh_timeout_seconds + 5.0)):
             data = _read_codex_tokens(_lock=False)
             tokens = dict(data["tokens"])
@@ -3387,7 +3387,7 @@ def resolve_codex_runtime_credentials(
         "provider": "openai-codex",
         "base_url": base_url,
         "api_key": access_token,
-        "source": "hermes-auth-store",
+        "source": "stoa-auth-store",
         "last_refresh": data.get("last_refresh"),
         "auth_mode": "chatgpt",
     }
@@ -3406,7 +3406,7 @@ def _read_xai_oauth_tokens(*, _lock: bool = True) -> Dict[str, Any]:
     state = _load_provider_state(auth_store, "xai-oauth")
     if not state:
         raise AuthError(
-            "No xAI OAuth credentials stored. Select xAI Grok OAuth (SuperGrok Subscription) in `hermes model`.",
+            "No xAI OAuth credentials stored. Select xAI Grok OAuth (SuperGrok Subscription) in `stoa model`.",
             provider="xai-oauth",
             code="xai_auth_missing",
             relogin_required=True,
@@ -3414,7 +3414,7 @@ def _read_xai_oauth_tokens(*, _lock: bool = True) -> Dict[str, Any]:
     tokens = state.get("tokens")
     if not isinstance(tokens, dict):
         raise AuthError(
-            "xAI OAuth state is missing tokens. Re-authenticate with `hermes model`.",
+            "xAI OAuth state is missing tokens. Re-authenticate with `stoa model`.",
             provider="xai-oauth",
             code="xai_auth_invalid_shape",
             relogin_required=True,
@@ -3423,14 +3423,14 @@ def _read_xai_oauth_tokens(*, _lock: bool = True) -> Dict[str, Any]:
     refresh_token = str(tokens.get("refresh_token", "") or "").strip()
     if not access_token:
         raise AuthError(
-            "xAI OAuth state is missing access_token. Re-authenticate with `hermes model`.",
+            "xAI OAuth state is missing access_token. Re-authenticate with `stoa model`.",
             provider="xai-oauth",
             code="xai_auth_missing_access_token",
             relogin_required=True,
         )
     if not refresh_token:
         raise AuthError(
-            "xAI OAuth state is missing refresh_token. Re-authenticate with `hermes model`.",
+            "xAI OAuth state is missing refresh_token. Re-authenticate with `stoa model`.",
             provider="xai-oauth",
             code="xai_auth_missing_refresh_token",
             relogin_required=True,
@@ -3518,7 +3518,7 @@ def _xai_validate_oauth_endpoint(url: str, *, field: str) -> str:
             f"xAI OIDC discovery {field} host {host!r} is not on the xAI origin "
             f"(expected x.ai or a *.x.ai subdomain). Refusing to use a cached "
             f"endpoint that may have been substituted by a MITM during initial "
-            f"discovery; re-authenticate with `hermes model` to re-fetch.",
+            f"discovery; re-authenticate with `stoa model` to re-fetch.",
             provider="xai-oauth",
             code="xai_discovery_invalid",
         )
@@ -3640,17 +3640,17 @@ def refresh_xai_oauth_pure(
     del access_token
     if not isinstance(refresh_token, str) or not refresh_token.strip():
         raise AuthError(
-            "xAI OAuth is missing refresh_token. Re-authenticate with `hermes model`.",
+            "xAI OAuth is missing refresh_token. Re-authenticate with `stoa model`.",
             provider="xai-oauth",
             code="xai_auth_missing_refresh_token",
             relogin_required=True,
         )
     endpoint = token_endpoint.strip() or _xai_oauth_discovery(timeout_seconds)["token_endpoint"]
     # Re-validate cached endpoints on the refresh hot path: an auth.json
-    # written by an older Hermes (or hand-edited) may carry a non-xAI
+    # written by an older STOA (or hand-edited) may carry a non-xAI
     # token_endpoint that would receive every future refresh_token in
     # plaintext if we trusted it blindly. Cheap suffix check; fast-fail
-    # with a clear error so the user can re-run `hermes model` to refetch.
+    # with a clear error so the user can re-run `stoa model` to refetch.
     _xai_validate_oauth_endpoint(endpoint, field="token_endpoint")
     timeout = httpx.Timeout(max(5.0, float(timeout_seconds)))
     with httpx.Client(timeout=timeout, headers={"Accept": "application/json"}) as client:
@@ -3667,7 +3667,7 @@ def refresh_xai_oauth_pure(
         detail = response.text.strip()
         # ``403`` from xAI's token endpoint is almost always a tier /
         # entitlement gate (the OAuth grant exists but the account isn't
-        # on the allowlist for API access).  Re-running ``hermes model``
+        # on the allowlist for API access).  Re-running ``stoa model``
         # won't fix that — surface a separate error code so
         # ``format_auth_error`` doesn't append a misleading
         # re-authenticate hint, and point users at the ``XAI_API_KEY``
@@ -3835,7 +3835,7 @@ def resolve_xai_oauth_runtime_credentials(
         "provider": "xai-oauth",
         "base_url": base_url,
         "api_key": access_token,
-        "source": "hermes-auth-store",
+        "source": "stoa-auth-store",
         "last_refresh": data.get("last_refresh"),
         "auth_mode": "oauth_pkce",
     }
@@ -4063,15 +4063,15 @@ def _poll_for_token(
 
 # -----------------------------------------------------------------------------
 # Shared Nous token store — lets OAuth credentials persist across profiles
-# so a new `hermes --profile <name> auth add nous --type oauth` can one-tap
+# so a new `stoa --profile <name> auth add nous --type oauth` can one-tap
 # import instead of running the full device-code flow every time.
 #
 # File lives at ${STOA_SHARED_AUTH_DIR}/nous_auth.json, defaulting to
-# ``<hermes-root>/shared/nous_auth.json`` where ``<hermes-root>`` is what
+# ``<stoa-root>/shared/nous_auth.json`` where ``<stoa-root>`` is what
 # ``get_default_stoa_root()`` returns — ``~/.stoa`` on Linux/macOS,
-# ``%LOCALAPPDATA%\hermes`` on native Windows, or the Docker/custom root.
+# ``%LOCALAPPDATA%\stoa`` on native Windows, or the Docker/custom root.
 # It is OUTSIDE any named profile's STOA_HOME so named profiles (which
-# typically live under ``<hermes-root>/profiles/<name>/``) all see the
+# typically live under ``<stoa-root>/profiles/<name>/``) all see the
 # same file.
 #
 # Written on successful login and on every runtime refresh so the stored
@@ -4089,10 +4089,10 @@ def _nous_shared_auth_dir() -> Path:
 
     Honors ``STOA_SHARED_AUTH_DIR`` so tests can redirect it to a tmp
     path without touching the real user's home. Defaults to
-    ``<hermes-root>/shared/``, where ``<hermes-root>`` is what
+    ``<stoa-root>/shared/``, where ``<stoa-root>`` is what
     :func:`stoa_constants.get_default_stoa_root` returns — so
     Linux/macOS classic installs land at ``~/.stoa/shared/``, native
-    Windows installs at ``%LOCALAPPDATA%\\hermes\\shared\\``, and
+    Windows installs at ``%LOCALAPPDATA%\\stoa\\shared\\``, and
     Docker / custom ``STOA_HOME`` deployments at
     ``<STOA_HOME>/shared/``. Sits outside any named profile so all
     profiles under the same root share the store.
@@ -4107,7 +4107,7 @@ def _nous_shared_auth_dir() -> Path:
 def _nous_shared_store_path() -> Path:
     path = _nous_shared_auth_dir() / NOUS_SHARED_STORE_FILENAME
     # Seat belt: if pytest is running and this resolves to a path under the
-    # real user's Hermes root, refuse rather than silently corrupt cross-profile
+    # real user's STOA root, refuse rather than silently corrupt cross-profile
     # state. Tests must set STOA_SHARED_AUTH_DIR to a tmp_path (conftest
     # does not do this automatically — mirror the _auth_file_path() guard
     # so forgetting to set it fails loudly instead of writing to the real
@@ -4530,22 +4530,22 @@ def _refresh_access_token(
     # Detect the OAuth 2.1 "refresh token reuse" signal from the Nous portal
     # server and surface an actionable message.  This fires when an external
     # process (health-check script, monitoring tool, custom self-heal hook)
-    # called POST /api/oauth/token with Hermes's refresh_token without
+    # called POST /api/oauth/token with STOA's refresh_token without
     # persisting the rotated token back to auth.json — the server then
-    # retires the original RT, Hermes's next refresh uses it, and the whole
+    # retires the original RT, STOA's next refresh uses it, and the whole
     # session chain gets revoked as a token-theft signal (#15099).
     lowered = description.lower()
     if code == "refresh_token_reused" or "reuse" in lowered or "reuse detected" in lowered:
         description = (
             "Nous Portal detected refresh-token reuse and revoked this session.\n"
             "This usually means an external process (monitoring script, "
-            "custom self-heal hook, or another Hermes install sharing "
-            "~/.stoa/auth.json) called POST /api/oauth/token with Hermes's "
+            "custom self-heal hook, or another STOA install sharing "
+            "~/.stoa/auth.json) called POST /api/oauth/token with STOA's "
             "refresh token without persisting the rotated token back.\n"
-            "Nous refresh tokens are single-use — only Hermes may call the "
-            "refresh endpoint. For health checks, use `hermes auth status` "
+            "Nous refresh tokens are single-use — only STOA may call the "
+            "refresh endpoint. For health checks, use `stoa auth status` "
             "instead.\n"
-            "Re-authenticate with: hermes auth add nous"
+            "Re-authenticate with: stoa auth add nous"
         )
         relogin = True
 
@@ -4621,8 +4621,8 @@ def fetch_nous_models(
         model_id = item.get("id")
         if isinstance(model_id, str) and model_id.strip():
             mid = model_id.strip()
-            # Skip Hermes models — they're not reliable for agentic tool-calling
-            if "hermes" in mid.lower():
+            # Skip STOA models — they're not reliable for agentic tool-calling
+            if "stoa" in mid.lower():
                 continue
             model_ids.append(mid)
 
@@ -4671,7 +4671,7 @@ def resolve_nous_access_token(
 
         if not state:
             raise AuthError(
-                "Hermes is not logged into Nous Portal.",
+                "STOA is not logged into Nous Portal.",
                 provider="nous",
                 relogin_required=True,
             )
@@ -4931,7 +4931,7 @@ def persist_nous_credentials(
       ``_seed_from_singletons()`` during pool load.
     - ``credential_pool.nous``: used by the runtime ``pool.select()`` path.
 
-    Historically ``hermes auth add nous`` wrote a ``manual:device_code`` pool
+    Historically ``stoa auth add nous`` wrote a ``manual:device_code`` pool
     entry only, skipping ``providers.nous``.  When the 24h agent_key TTL
     expired, the recovery path read the empty singleton state and raised
     ``AuthError`` silently (``logger.debug`` at INFO level).
@@ -4942,7 +4942,7 @@ def persist_nous_credentials(
     place; the pool never accumulates duplicate device_code rows.
 
     ``label`` is an optional user-chosen display name (from
-    ``hermes auth add nous --label <name>``).  It gets embedded in the
+    ``stoa auth add nous --label <name>``).  It gets embedded in the
     singleton state so that ``_seed_from_singletons`` uses it as the pool
     entry's label on every subsequent ``load_pool("nous")`` instead of the
     auto-derived token fingerprint.  When ``None``, the auto-derived label
@@ -4963,7 +4963,7 @@ def persist_nous_credentials(
         _save_auth_store(auth_store)
 
     # Mirror to the shared store so a new profile can one-tap import
-    # these credentials via `hermes auth add nous --type oauth`. Best-
+    # these credentials via `stoa auth add nous --type oauth`. Best-
     # effort: any I/O failure is logged and swallowed (the per-profile
     # auth.json is still the source of truth).
     _write_shared_nous_state(state)
@@ -5012,7 +5012,7 @@ def resolve_nous_runtime_credentials(
         state = _load_provider_state(auth_store, "nous")
 
         if not state:
-            raise AuthError("Hermes is not logged into Nous Portal.",
+            raise AuthError("STOA is not logged into Nous Portal.",
                             provider="nous", relogin_required=True)
 
         persisted_state = dict(state)
@@ -5435,11 +5435,11 @@ def _snapshot_nous_pool_status() -> Dict[str, Any]:
 # ── Process-level memo for get_nous_auth_status() ──
 # get_nous_auth_status() validates state by calling resolve_nous_runtime_credentials(),
 # which does a synchronous OAuth refresh POST to portal.nousresearch.com. That can take
-# ~350ms even on the failure path, and read-only UI surfaces (`hermes tools`, status panels,
-# subscription-feature checks) call it many times per render — `hermes tools` → "All Platforms"
+# ~350ms even on the failure path, and read-only UI surfaces (`stoa tools`, status panels,
+# subscription-feature checks) call it many times per render — `stoa tools` → "All Platforms"
 # was firing the refresh ~31× during one menu paint, racking up >13s of HTTP and burning
 # single-use refresh tokens. Cache the snapshot for a few seconds, keyed on the auth.json
-# mtime so that `hermes auth login/logout/add/remove` invalidate naturally on the next call.
+# mtime so that `stoa auth login/logout/add/remove` invalidate naturally on the next call.
 _NOUS_AUTH_STATUS_CACHE_TTL = 15.0  # seconds
 _nous_auth_status_cache: Optional[Tuple[float, Optional[float], Dict[str, Any]]] = None
 
@@ -5546,11 +5546,11 @@ def _compute_nous_auth_status() -> Dict[str, Any]:
 def get_codex_auth_status() -> Dict[str, Any]:
     """Status snapshot for Codex auth.
     
-    Checks the credential pool first (where `hermes auth` stores credentials),
+    Checks the credential pool first (where `stoa auth` stores credentials),
     then falls back to the legacy provider state.
     """
-    # Check credential pool first — this is where `hermes auth` and
-    # `hermes model` store device_code tokens.
+    # Check credential pool first — this is where `stoa auth` and
+    # `stoa model` store device_code tokens.
     try:
         from agent.credential_pool import load_pool
         pool = load_pool("openai-codex")
@@ -5786,7 +5786,7 @@ def _get_azure_foundry_auth_status() -> Dict[str, Any]:
             if not installed:
                 info["hint"] = (
                     "azure-identity not installed. Install with: "
-                    "pip install azure-identity  (or rely on Hermes' "
+                    "pip install azure-identity  (or rely on STOA' "
                     "lazy-install at first use)."
                 )
             else:
@@ -6000,7 +6000,7 @@ def _should_reset_config_provider_on_logout(provider_id: Optional[str]) -> bool:
 def _logout_default_provider_from_config() -> Optional[str]:
     """Fallback logout target when auth.json has no active provider.
 
-    `hermes logout` historically keyed off auth.json.active_provider only.
+    `stoa logout` historically keyed off auth.json.active_provider only.
     That left users stuck when auth state had already been cleared but
     config.yaml still selected an OAuth provider such as openai-codex for the
     agent model: there was no active auth provider to target, so logout printed
@@ -6225,10 +6225,10 @@ def _save_model_choice(model_id: str) -> None:
 
 
 def login_command(args) -> None:
-    """Deprecated: use 'hermes model' or 'hermes setup' instead."""
-    print("The 'hermes login' command has been removed.")
-    print("Use 'hermes auth' to manage credentials,")
-    print("'hermes model' to select a provider, or 'hermes setup' for full setup.")
+    """Deprecated: use 'stoa model' or 'stoa setup' instead."""
+    print("The 'stoa login' command has been removed.")
+    print("Use 'stoa auth' to manage credentials,")
+    print("'stoa model' to select a provider, or 'stoa setup' for full setup.")
     raise SystemExit(0)
 
 
@@ -6242,7 +6242,7 @@ def _login_openai_codex(
 
     del args, pconfig  # kept for parity with other provider login helpers
 
-    # Check for existing Hermes-owned credentials
+    # Check for existing STOA-owned credentials
     if not force_new_login:
         try:
             existing = resolve_codex_runtime_credentials()
@@ -6273,7 +6273,7 @@ def _login_openai_codex(
         cli_tokens = _import_codex_cli_tokens()
         if cli_tokens:
             print("Found existing Codex CLI credentials at ~/.codex/auth.json")
-            print("Hermes will create its own session to avoid conflicts with Codex CLI / VS Code.")
+            print("STOA will create its own session to avoid conflicts with Codex CLI / VS Code.")
             try:
                 do_import = input("Import these credentials? (a separate login is recommended) [y/N]: ").strip().lower()
             except (EOFError, KeyboardInterrupt):
@@ -6284,14 +6284,14 @@ def _login_openai_codex(
                 config_path = _update_config_for_provider("openai-codex", base_url)
                 print()
                 print("Credentials imported. Note: if Codex CLI refreshes its token,")
-                print("Hermes will keep working independently with its own session.")
+                print("STOA will keep working independently with its own session.")
                 print(f"  Config updated: {config_path} (model.provider=openai-codex)")
                 return
 
-    # Run a fresh device code flow — Hermes gets its own OAuth session
+    # Run a fresh device code flow — STOA gets its own OAuth session
     print()
     print("Signing in to OpenAI Codex...")
-    print("(Hermes creates its own session — won't affect Codex CLI or VS Code)")
+    print("(STOA creates its own session — won't affect Codex CLI or VS Code)")
     print()
 
     creds = _codex_device_code_login()
@@ -6338,7 +6338,7 @@ def _login_xai_oauth(
 
     print()
     print("Signing in to xAI Grok OAuth (SuperGrok Subscription)...")
-    print("(Hermes creates its own local OAuth session)")
+    print("(STOA creates its own local OAuth session)")
     print()
 
     timeout_seconds = float(getattr(args, "timeout", None) or 20.0)
@@ -6377,7 +6377,7 @@ def _xai_oauth_build_authorize_url(
     # `plan=generic` opts the consent screen into xAI's generic OAuth plan
     # tier instead of falling back to the per-account default. Without it,
     # accounts.x.ai rejects loopback OAuth from non-allowlisted clients.
-    # `referrer=stoa-agent` lets xAI attribute Hermes-originated logins
+    # `referrer=stoa-agent` lets xAI attribute STOA-originated logins
     # in their OAuth server logs (we still impersonate the upstream Grok-CLI
     # client_id; this is best-effort attribution until xAI mints us our own).
     authorize_params = {
@@ -6429,7 +6429,7 @@ def _xai_oauth_exchange_code_for_tokens(
     if not code_verifier:
         raise AuthError(
             "xAI token exchange refused locally: PKCE code_verifier is empty. "
-            "This is a bug in Hermes — please report at "
+            "This is a bug in STOA — please report at "
             "https://github.com/STOAGENT/stoa-agent/issues/26990.",
             provider="xai-oauth",
             code="xai_pkce_verifier_missing",
@@ -6558,7 +6558,7 @@ def _xai_oauth_loopback_login(
             nonce=nonce,
         )
 
-        print("Open this URL to authorize Hermes with xAI:")
+        print("Open this URL to authorize STOA with xAI:")
         print(authorize_url)
         callback = _prompt_manual_callback_paste(redirect_uri)
     else:
@@ -6577,7 +6577,7 @@ def _xai_oauth_loopback_login(
                 nonce=nonce,
             )
 
-            print("Open this URL to authorize Hermes with xAI:")
+            print("Open this URL to authorize STOA with xAI:")
             print(authorize_url)
             print()
             print(f"Waiting for callback on {redirect_uri}")
@@ -6978,7 +6978,7 @@ def _minimax_oauth_login(
     if _is_remote_session():
         open_browser = False
 
-    print(f"Starting Hermes login via MiniMax ({region}) OAuth...")
+    print(f"Starting STOA login via MiniMax ({region}) OAuth...")
     print(f"Portal: {portal_base_url}")
 
     with httpx.Client(timeout=httpx.Timeout(timeout_seconds),
@@ -7161,7 +7161,7 @@ def build_minimax_oauth_token_provider() -> Callable[[], str]:
         state = get_provider_auth_state("minimax-oauth")
         if not state or not state.get("access_token"):
             raise AuthError(
-                "Not logged into MiniMax OAuth. Run `hermes model` and select "
+                "Not logged into MiniMax OAuth. Run `stoa model` and select "
                 "MiniMax (OAuth).",
                 provider="minimax-oauth", code="not_logged_in", relogin_required=True,
             )
@@ -7195,13 +7195,13 @@ def resolve_minimax_oauth_runtime_credentials(
     :func:`build_minimax_oauth_token_provider` for the rationale.
 
     The default (string ``api_key``) preserves the historical contract for
-    diagnostic call sites like ``hermes status`` that just want to know
+    diagnostic call sites like ``stoa status`` that just want to know
     whether a valid token exists right now.
     """
     state = get_provider_auth_state("minimax-oauth")
     if not state or not state.get("access_token"):
         raise AuthError(
-            "Not logged into MiniMax OAuth. Run `hermes model` and select "
+            "Not logged into MiniMax OAuth. Run `stoa model` and select "
             "MiniMax (OAuth).",
             provider="minimax-oauth", code="not_logged_in", relogin_required=True,
         )
@@ -7290,7 +7290,7 @@ def _nous_device_code_login(
     if _is_remote_session():
         open_browser = False
 
-    print(f"Starting Hermes login via {pconfig.name}...")
+    print(f"Starting STOA login via {pconfig.name}...")
     print(f"Portal: {portal_base_url}")
     if insecure:
         print("TLS verification: disabled (--insecure)")
@@ -7384,7 +7384,7 @@ def _nous_device_code_login(
             print("Your Nous Portal account does not have an active subscription.")
             print(f"  Subscribe here: {portal_url}/billing")
             print()
-            print("After subscribing, run `hermes model` again to finish setup.")
+            print("After subscribing, run `stoa model` again to finish setup.")
             raise SystemExit(1)
         raise
 
@@ -7499,7 +7499,7 @@ def _login_nous(args, pconfig: ProviderConfig) -> None:
                     # The Portal's freeRecommendedModels endpoint is the
                     # source of truth for what's free *right now*. Augment
                     # the curated list with anything new the Portal flags
-                    # as free so users on older Hermes builds still see
+                    # as free so users on older STOA builds still see
                     # newly-launched free models without a CLI release.
                     model_ids, pricing = union_with_portal_free_recommendations(
                         model_ids, pricing, _portal_for_recs,
@@ -7553,7 +7553,7 @@ def _login_nous(args, pconfig: ProviderConfig) -> None:
                 _save_auth_store(auth_store)
             print()
             print("No provider change. Nous credentials saved for future use.")
-            print("  Run `hermes model` again to switch to Nous Portal.")
+            print("  Run `stoa model` again to switch to Nous Portal.")
             return
 
         config_path = _update_config_for_provider(
@@ -7595,9 +7595,9 @@ def logout_command(args) -> None:
             _reset_config_provider()
         print(f"Logged out of {provider_name}.")
         if should_reset_config and os.getenv("OPENROUTER_API_KEY"):
-            print("Hermes will use OpenRouter for inference.")
+            print("STOA will use OpenRouter for inference.")
         elif should_reset_config:
-            print("Run `hermes model` or configure an API key to use Hermes.")
+            print("Run `stoa model` or configure an API key to use STOA.")
         else:
             print("Model provider configuration was unchanged.")
     else:

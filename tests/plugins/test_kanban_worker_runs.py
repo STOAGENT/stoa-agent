@@ -278,7 +278,7 @@ def test_inspect_run_live_pid(client, monkeypatch):
         "num_threads": 4,
         "status": "sleeping",
         "create_time": time.time() - 300,
-        "cmdline": ["python", "-m", "hermes"],
+        "cmdline": ["python", "-m", "stoa"],
     }
     fake_proc.num_fds.return_value = 12
     mock_psutil.Process.return_value = fake_proc

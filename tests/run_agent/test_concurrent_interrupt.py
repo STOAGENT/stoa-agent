@@ -9,7 +9,7 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def _isolate_hermes(tmp_path, monkeypatch):
+def _isolate_stoa(tmp_path, monkeypatch):
     monkeypatch.setenv("STOA_HOME", str(tmp_path / ".stoa"))
     (tmp_path / ".stoa").mkdir(exist_ok=True)
 

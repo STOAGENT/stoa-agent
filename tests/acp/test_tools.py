@@ -31,7 +31,7 @@ COMMON_STOA_TOOLS = ["read_file", "search_files", "terminal", "patch", "write_fi
 
 class TestToolKindMap:
     def test_all_stoa_tools_have_kind(self):
-        """Every common hermes tool should appear in TOOL_KIND_MAP."""
+        """Every common stoa tool should appear in TOOL_KIND_MAP."""
         for tool in COMMON_STOA_TOOLS:
             assert tool in TOOL_KIND_MAP, f"{tool} missing from TOOL_KIND_MAP"
 
@@ -402,18 +402,18 @@ class TestBuildToolComplete:
         result = build_tool_complete(
             "tc-skill-manage",
             "skill_manage",
-            '{"success":true,"message":"Patched references/hermes-acp-zed-rendering.md in skill \'stoa-agent-operations\' (1 replacement)."}',
+            '{"success":true,"message":"Patched references/stoa-acp-zed-rendering.md in skill \'stoa-agent-operations\' (1 replacement)."}',
             function_args={
                 "action": "patch",
                 "name": "stoa-agent-operations",
-                "file_path": "references/hermes-acp-zed-rendering.md",
+                "file_path": "references/stoa-acp-zed-rendering.md",
             },
         )
         text = result.content[0].content.text
         assert "**✅ Skill updated**" in text
         assert "`patch`" in text
         assert "`stoa-agent-operations`" in text
-        assert "references/hermes-acp-zed-rendering.md" in text
+        assert "references/stoa-acp-zed-rendering.md" in text
         assert "{\"success\"" not in text
         assert result.raw_output is None
 
@@ -602,13 +602,13 @@ class TestBuildToolComplete:
     def test_build_tool_complete_for_write_file_summarizes_without_repeating_diff(self, tmp_path):
         target = tmp_path / "diff-test.txt"
         snapshot = type("Snapshot", (), {"paths": [target], "before": {str(target): None}})()
-        target.write_text("hello from hermes\n", encoding="utf-8")
+        target.write_text("hello from stoa\n", encoding="utf-8")
 
         result = build_tool_complete(
             "tc-wf1",
             "write_file",
             '{"bytes_written": 18, "dirs_created": false}',
-            function_args={"path": str(target), "content": "hello from hermes\n"},
+            function_args={"path": str(target), "content": "hello from stoa\n"},
             snapshot=snapshot,
         )
         assert isinstance(result, ToolCallProgress)

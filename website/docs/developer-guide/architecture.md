@@ -53,7 +53,7 @@ This page is the top-level map of STOA Agent internals. Use it to orient yoursel
 ```text
 stoa-agent/
 ├── run_agent.py              # AIAgent — core conversation loop (large file)
-├── cli.py                    # HermesCLI — interactive terminal UI (large file)
+├── cli.py                    # STOACLI — interactive terminal UI (large file)
 ├── model_tools.py            # Tool discovery, schema collection, dispatch
 ├── toolsets.py               # Tool groupings and platform presets
 ├── stoa_state.py           # SQLite session/state database with FTS5
@@ -76,7 +76,7 @@ stoa-agent/
 │   └── trajectory.py         # Trajectory saving helpers
 │
 ├── stoa_cli/               # CLI subcommands and setup
-│   ├── main.py               # Entry point — all `hermes` subcommands (large file)
+│   ├── main.py               # Entry point — all `stoa` subcommands (large file)
 │   ├── config.py             # DEFAULT_CONFIG, OPTIONAL_ENV_VARS, migration
 │   ├── commands.py           # COMMAND_REGISTRY — central slash command definitions
 │   ├── auth.py               # PROVIDER_REGISTRY, credential resolution
@@ -85,12 +85,12 @@ stoa-agent/
 │   ├── model_switch.py       # /model command logic (CLI + gateway shared)
 │   ├── setup.py              # Interactive setup wizard (large file)
 │   ├── skin_engine.py        # CLI theming engine
-│   ├── skills_config.py      # hermes skills — enable/disable per platform
+│   ├── skills_config.py      # stoa skills — enable/disable per platform
 │   ├── skills_hub.py         # /skills slash command
-│   ├── tools_config.py       # hermes tools — enable/disable per platform
+│   ├── tools_config.py       # stoa tools — enable/disable per platform
 │   ├── plugins.py            # PluginManager — discovery, loading, hooks
 │   ├── callbacks.py          # Terminal callbacks (clarify, sudo, approval)
-│   └── gateway.py            # hermes gateway start/stop
+│   └── gateway.py            # stoa gateway start/stop
 │
 ├── tools/                    # Tool implementations (one file per tool)
 │   ├── registry.py           # Central tool registry
@@ -138,7 +138,7 @@ stoa-agent/
 ### CLI Session
 
 ```text
-User input → HermesCLI.process_input()
+User input → STOACLI.process_input()
   → AIAgent.run_conversation()
     → prompt_builder.build_system_prompt()
     → runtime_provider.resolve_runtime_provider()
@@ -229,9 +229,9 @@ Long-running process with 20 platform adapters, unified session routing, user au
 
 ### Plugin System
 
-Three discovery sources: `~/.stoa/plugins/` (user), `.stoa/plugins/` (project), and pip entry points. Plugins register tools, hooks, and CLI commands through a context API. Two specialized plugin types exist: memory providers (`plugins/memory/`) and context engines (`plugins/context_engine/`). Both are single-select — only one of each can be active at a time, configured via `hermes plugins` or `config.yaml`.
+Three discovery sources: `~/.stoa/plugins/` (user), `.stoa/plugins/` (project), and pip entry points. Plugins register tools, hooks, and CLI commands through a context API. Two specialized plugin types exist: memory providers (`plugins/memory/`) and context engines (`plugins/context_engine/`). Both are single-select — only one of each can be active at a time, configured via `stoa plugins` or `config.yaml`.
 
-→ [Plugin Guide](/docs/guides/build-a-hermes-plugin), [Memory Provider Plugin](./memory-provider-plugin.md)
+→ [Plugin Guide](/docs/guides/build-a-stoa-plugin), [Memory Provider Plugin](./memory-provider-plugin.md)
 
 ### Cron
 
@@ -241,7 +241,7 @@ First-class agent tasks (not shell tasks). Jobs store in JSON, support multiple 
 
 ### ACP Integration
 
-Exposes Hermes as an editor-native agent over stdio/JSON-RPC for VS Code, Zed, and JetBrains.
+Exposes STOA as an editor-native agent over stdio/JSON-RPC for VS Code, Zed, and JetBrains.
 
 → [ACP Internals](./acp-internals.md)
 
@@ -260,7 +260,7 @@ Generates ShareGPT-format trajectories from agent sessions for training data gen
 | **Interruptible** | API calls and tool execution can be cancelled mid-flight by user input or signals. |
 | **Platform-agnostic core** | One AIAgent class serves CLI, gateway, ACP, batch, and API server. Platform differences live in the entry point, not the agent. |
 | **Loose coupling** | Optional subsystems (MCP, plugins, memory providers, RL environments) use registry patterns and check_fn gating, not hard dependencies. |
-| **Profile isolation** | Each profile (`hermes -p <name>`) gets its own STOA_HOME, config, memory, sessions, and gateway PID. Multiple profiles run concurrently. |
+| **Profile isolation** | Each profile (`stoa -p <name>`) gets its own STOA_HOME, config, memory, sessions, and gateway PID. Multiple profiles run concurrently. |
 
 ## File Dependency Chain
 

@@ -120,8 +120,8 @@ export const af: Translations = {
     starting: "Begin",
     startedInBackground: "Begin in agtergrond — kyk logs vir vordering",
     stopped: "Gestop",
-    updateHermes: "Werk Hermes op",
-    updatingHermes: "Besig om Hermes op te werk…",
+    updateSTOA: "Werk STOA op",
+    updatingSTOA: "Besig om STOA op te werk…",
     waitingForOutput: "Wag vir uitset…",
   },
 
@@ -267,7 +267,7 @@ export const af: Translations = {
     enableRuntime: "Aktiveer",
     forceReinstall: "Forseer herinstallasie (skrap eers bestaande gids)",
     headline:
-      "Ontdek, installeer, aktiveer en werk Hermes-inproppe op (`hermes plugins` ekwivalent).",
+      "Ontdek, installeer, aktiveer en werk STOA-inproppe op (`stoa plugins` ekwivalent).",
     identifierLabel: "Git-URL of owner/repo",
     inactive: "onaktief",
     installBtn: "Installeer",
@@ -433,11 +433,11 @@ export const af: Translations = {
   achievements: {
     hero: {
       kicker: "Agentic Gamerscore",
-      title: "Hermes Achievements",
+      title: "STOA Achievements",
       subtitle:
-        "Versamelbare Hermes-kentekens wat verdien word uit werklike sessiegeskiedenis. Bekende, onvoltooide prestasies word as Ontdek vertoon; Geheime prestasies bly verborge totdat die eerste ooreenstemmende gedrag verskyn.",
+        "Versamelbare STOA-kentekens wat verdien word uit werklike sessiegeskiedenis. Bekende, onvoltooide prestasies word as Ontdek vertoon; Geheime prestasies bly verborge totdat die eerste ooreenstemmende gedrag verskyn.",
       scan_subtitle:
-        "Hermes-sessiegeskiedenis word geskandeer. Die eerste skandering kan 5–10 sekondes neem op groot geskiedenisse.",
+        "STOA-sessiegeskiedenis word geskandeer. Die eerste skandering kan 5–10 sekondes neem op groot geskiedenisse.",
     },
     actions: {
       rescan: "Herskandeer",
@@ -452,7 +452,7 @@ export const af: Translations = {
       highest_tier: "Hoogste vlak",
       highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
       latest: "Jongste",
-      latest_hint_empty: "gebruik Hermes meer",
+      latest_hint_empty: "gebruik STOA meer",
       none_yet: "Nog geen",
     },
     state: {
@@ -483,10 +483,10 @@ export const af: Translations = {
       tiers_header: "Vlakke",
       secret_header: "Geheime prestasies",
       secret_body:
-        "Geheime hou hul presiese sneller verborge. Sodra Hermes 'n verwante sein sien, word die kaart Ontdek en wys sy vereiste.",
+        "Geheime hou hul presiese sneller verborge. Sodra STOA 'n verwante sein sien, word die kaart Ontdek en wys sy vereiste.",
       scan_status_header: "Skanderingstatus",
       scan_status_body:
-        "Hermes skandeer plaaslike geskiedenis een keer, daarna verskyn kaarte outomaties. Niks is vasgevang as dit 'n paar sekondes neem nie.",
+        "STOA skandeer plaaslike geskiedenis een keer, daarna verskyn kaarte outomaties. Niks is vasgevang as dit 'n paar sekondes neem nie.",
       what_scanned_header: "Wat geskandeer word",
       what_scanned_body:
         "Sessies, gereedskaproepe, modelmetadata, foute, prestasies en plaaslike ontsluitstatus.",

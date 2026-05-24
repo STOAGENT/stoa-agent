@@ -6,7 +6,7 @@ description: "Three protocols for driving stoa-agent from external programs: ACP
 
 # Programmatic Integration
 
-Hermes ships three protocols for driving the agent from external programs — IDE plugins, custom UIs, CI pipelines, embedded sub-agents. Pick the one that matches your transport and consumer.
+STOA ships three protocols for driving the agent from external programs — IDE plugins, custom UIs, CI pipelines, embedded sub-agents. Pick the one that matches your transport and consumer.
 
 | Protocol | Transport | Best for | Defined by |
 |----------|-----------|----------|------------|
@@ -20,22 +20,22 @@ All three drive the same `AIAgent` core. They differ only in wire format and whi
 
 ## ACP (Agent Client Protocol)
 
-`hermes acp` starts a stdio JSON-RPC server speaking ACP. Used in production by VS Code (Zed Industries' ACP extension), Zed, and any JetBrains IDE with an ACP plugin.
+`stoa acp` starts a stdio JSON-RPC server speaking ACP. Used in production by VS Code (Zed Industries' ACP extension), Zed, and any JetBrains IDE with an ACP plugin.
 
 Capabilities exposed: session creation, prompt submission, streaming agent message chunks, tool-call events, permission requests, session fork, cancel, and authentication. Tool output is rendered into ACP `Diff`/`ToolCall` content blocks the IDE understands.
 
 Full lifecycle, event bridge, and approval flow: [ACP Internals](./acp-internals).
 
 ```bash
-hermes acp                  # serve ACP on stdio
-hermes acp --bootstrap      # print install snippet for an ACP-capable IDE
+stoa acp                  # serve ACP on stdio
+stoa acp --bootstrap      # print install snippet for an ACP-capable IDE
 ```
 
 ---
 
 ## TUI Gateway JSON-RPC
 
-`tui_gateway/server.py` is the protocol the Ink TUI (`hermes --tui`) and the embedded dashboard PTY bridge talk to. Any external host can speak the same protocol over stdio (or WebSocket via `tui_gateway/ws.py`).
+`tui_gateway/server.py` is the protocol the Ink TUI (`stoa --tui`) and the embedded dashboard PTY bridge talk to. Any external host can speak the same protocol over stdio (or WebSocket via `tui_gateway/ws.py`).
 
 ### Method catalog (selected)
 
@@ -60,7 +60,7 @@ terminal.resize         clipboard.paste         image.attach
 
 Every command in the Pi-mono RPC spec ([issue #360](https://github.com/STOAGENT/stoa-agent/issues/360)) has a TUI-gateway equivalent:
 
-| Pi command | Hermes equivalent |
+| Pi command | STOA equivalent |
 |------------|-------------------|
 | `prompt` | `prompt.submit` (or ACP `session/prompt`) |
 | `steer` | `session.steer` |
@@ -78,7 +78,7 @@ Every command in the Pi-mono RPC spec ([issue #360](https://github.com/STOAGENT/
 
 ## OpenAI-Compatible API Server
 
-`gateway/platforms/api_server.py` exposes hermes over HTTP for any client that already speaks the OpenAI format. Useful when you want a web frontend, a curl-driven CI runner, or a non-Python consumer.
+`gateway/platforms/api_server.py` exposes stoa over HTTP for any client that already speaks the OpenAI format. Useful when you want a web frontend, a curl-driven CI runner, or a non-Python consumer.
 
 Endpoints:
 
@@ -95,14 +95,14 @@ GET  /v1/models                  Lists stoa-agent
 GET  /health, /health/detailed
 ```
 
-Setup, headers (`X-Hermes-Session-Id`, `X-Hermes-Session-Key`), and frontend wiring: [API Server](../user-guide/features/api-server).
+Setup, headers (`X-STOA-Session-Id`, `X-STOA-Session-Key`), and frontend wiring: [API Server](../user-guide/features/api-server).
 
 ---
 
 ## Which one should I use?
 
 - **You're writing an IDE plugin and the IDE already speaks ACP** → ACP. Zero protocol work on the IDE side.
-- **You're writing a custom desktop / web / TUI host and want every Hermes feature** (slash commands, approvals, clarify, multi-agent, session branching) → TUI gateway JSON-RPC.
+- **You're writing a custom desktop / web / TUI host and want every STOA feature** (slash commands, approvals, clarify, multi-agent, session branching) → TUI gateway JSON-RPC.
 - **You want any OpenAI-compatible frontend, a language-agnostic HTTP client, or curl-driven automation** → API server.
 - **You want a Python in-process embed without a subprocess** → import `run_agent.AIAgent` directly. See [Agent Loop](./agent-loop).
 
@@ -115,7 +115,7 @@ Mid-session model switching works on every surface — it's the `/model` slash c
 - **CLI / TUI:** `/model claude-sonnet-4` or `/model openrouter:anthropic/claude-sonnet-4.6`
 - **TUI gateway RPC:** `command.dispatch` with `{"command": "/model claude-sonnet-4"}`
 - **ACP:** the IDE sends the slash command as a prompt; the agent dispatches it
-- **API server:** include a `model` field in the request body or set `X-Hermes-Model`
+- **API server:** include a `model` field in the request body or set `X-STOA-Model`
 
 Provider-aware resolution (the same model name picks the right format for whatever provider you're on) is built in. See `stoa_cli/model_switch.py`.
 
@@ -123,4 +123,4 @@ Provider-aware resolution (the same model name picks the right format for whatev
 
 ## A note on `--mode rpc`
 
-Hermes does not have a `--mode rpc` flag. The three protocols above already cover the use cases — ACP for IDE-protocol clients, the TUI gateway for stdio JSON-RPC hosts, and the API server for HTTP. If you find a real gap that none of them fill, open an issue with the concrete consumer you're building.
+STOA does not have a `--mode rpc` flag. The three protocols above already cover the use cases — ACP for IDE-protocol clients, the TUI gateway for stdio JSON-RPC hosts, and the API server for HTTP. If you find a real gap that none of them fill, open an issue with the concrete consumer you're building.

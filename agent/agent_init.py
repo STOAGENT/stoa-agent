@@ -825,13 +825,13 @@ def init_agent(
                         raise RuntimeError(
                             f"Provider '{_explicit}' is set in config.yaml but no API key "
                             f"was found. Set the {_env_hint} environment "
-                            f"variable, or switch to a different provider with `hermes model`."
+                            f"variable, or switch to a different provider with `stoa model`."
                         )
                 if not getattr(agent, "_fallback_activated", False):
                     # No provider configured — reject with a clear message.
                     raise RuntimeError(
-                        "No LLM provider configured. Run `hermes model` to "
-                        "select a provider, or run `hermes setup` for first-time "
+                        "No LLM provider configured. Run `stoa model` to "
+                        "select a provider, or run `stoa setup` for first-time "
                         "configuration."
                     )
         
@@ -1130,7 +1130,7 @@ def init_agent(
                         from stoa_cli.profiles import get_active_profile_name
                         _profile = get_active_profile_name()
                         _init_kwargs["agent_identity"] = _profile
-                        _init_kwargs["agent_workspace"] = "hermes"
+                        _init_kwargs["agent_workspace"] = "stoa"
                     except Exception:
                         pass
                     agent._memory_manager.initialize_all(**_init_kwargs)

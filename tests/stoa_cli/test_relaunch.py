@@ -7,30 +7,30 @@ import pytest
 from stoa_cli import relaunch as relaunch_mod
 
 
-class TestResolveHermesBin:
+class TestResolveSTOABin:
     def test_prefers_absolute_argv0_when_executable(self, monkeypatch):
-        fake = "/nix/store/abc/bin/hermes"
+        fake = "/nix/store/abc/bin/stoa"
         monkeypatch.setattr(sys, "argv", [fake])
         monkeypatch.setattr(relaunch_mod.os.path, "isfile", lambda p: p == fake)
         monkeypatch.setattr(relaunch_mod.os, "access", lambda p, mode: p == fake)
         assert relaunch_mod.resolve_stoa_bin() == fake
 
     def test_resolves_relative_argv0(self, monkeypatch, tmp_path):
-        fake = tmp_path / "hermes"
+        fake = tmp_path / "stoa"
         fake.write_text("#!/bin/sh\n")
         fake.chmod(0o755)
         monkeypatch.setattr(sys, "argv", [str(fake.name)])
         monkeypatch.chdir(tmp_path)
-        # Ensure we don't accidentally match a real 'hermes' on PATH
+        # Ensure we don't accidentally match a real 'stoa' on PATH
         monkeypatch.setattr(relaunch_mod.shutil, "which", lambda _name: None)
         assert relaunch_mod.resolve_stoa_bin() == str(fake)
 
     def test_falls_back_to_path_which(self, monkeypatch):
         monkeypatch.setattr(sys, "argv", ["-c"])  # not a real path
         monkeypatch.setattr(
-            relaunch_mod.shutil, "which", lambda name: "/usr/bin/hermes" if name == "hermes" else None
+            relaunch_mod.shutil, "which", lambda name: "/usr/bin/stoa" if name == "stoa" else None
         )
-        assert relaunch_mod.resolve_stoa_bin() == "/usr/bin/hermes"
+        assert relaunch_mod.resolve_stoa_bin() == "/usr/bin/stoa"
 
     def test_returns_none_when_unresolvable(self, monkeypatch):
         monkeypatch.setattr(sys, "argv", ["-c"])
@@ -105,9 +105,9 @@ class TestInheritedFlagTable:
 
 class TestBuildRelaunchArgv:
     def test_uses_bin_when_available(self, monkeypatch):
-        monkeypatch.setattr(relaunch_mod, "resolve_stoa_bin", lambda: "/usr/bin/hermes")
+        monkeypatch.setattr(relaunch_mod, "resolve_stoa_bin", lambda: "/usr/bin/stoa")
         argv = relaunch_mod.build_relaunch_argv(["--resume", "abc"])
-        assert argv[0] == "/usr/bin/hermes"
+        assert argv[0] == "/usr/bin/stoa"
 
     def test_falls_back_to_python_module(self, monkeypatch):
         monkeypatch.setattr(relaunch_mod, "resolve_stoa_bin", lambda: None)
@@ -115,7 +115,7 @@ class TestBuildRelaunchArgv:
         assert argv == [sys.executable, "-m", "stoa_cli.main", "--resume", "abc"]
 
     def test_preserves_inherited_flags(self, monkeypatch):
-        monkeypatch.setattr(relaunch_mod, "resolve_stoa_bin", lambda: "/usr/bin/hermes")
+        monkeypatch.setattr(relaunch_mod, "resolve_stoa_bin", lambda: "/usr/bin/stoa")
         original = ["--tui", "--dev", "--profile", "work", "sessions", "browse"]
         argv = relaunch_mod.build_relaunch_argv(["--resume", "abc"], original_argv=original)
         assert "--tui" in argv
@@ -129,13 +129,13 @@ class TestBuildRelaunchArgv:
         assert "browse" not in argv
 
     def test_can_disable_preserve(self, monkeypatch):
-        monkeypatch.setattr(relaunch_mod, "resolve_stoa_bin", lambda: "/usr/bin/hermes")
+        monkeypatch.setattr(relaunch_mod, "resolve_stoa_bin", lambda: "/usr/bin/stoa")
         original = ["--tui", "chat"]
         argv = relaunch_mod.build_relaunch_argv(
             ["--resume", "abc"], preserve_inherited=False, original_argv=original
         )
         assert "--tui" not in argv
-        assert argv == ["/usr/bin/hermes", "--resume", "abc"]
+        assert argv == ["/usr/bin/stoa", "--resume", "abc"]
 
 
 class TestRelaunch:
@@ -147,20 +147,20 @@ class TestRelaunch:
             raise SystemExit(0)
 
         monkeypatch.setattr(relaunch_mod.os, "execvp", fake_execvp)
-        monkeypatch.setattr(relaunch_mod, "resolve_stoa_bin", lambda: "/usr/bin/hermes")
+        monkeypatch.setattr(relaunch_mod, "resolve_stoa_bin", lambda: "/usr/bin/stoa")
 
         with pytest.raises(SystemExit):
             relaunch_mod.relaunch(["--resume", "abc"])
 
-        assert calls == [("/usr/bin/hermes", ["/usr/bin/hermes", "--resume", "abc"])]
+        assert calls == [("/usr/bin/stoa", ["/usr/bin/stoa", "--resume", "abc"])]
 
     def test_windows_uses_subprocess_not_execvp(self, monkeypatch):
         """On Windows, os.execvp raises OSError "Exec format error" when the
         target is a .cmd shim or console-script wrapper (both common for
-        hermes).  relaunch() must detect win32 and use subprocess.run +
+        stoa).  relaunch() must detect win32 and use subprocess.run +
         sys.exit instead."""
         monkeypatch.setattr(relaunch_mod.sys, "platform", "win32")
-        monkeypatch.setattr(relaunch_mod, "resolve_stoa_bin", lambda: r"C:\Users\test\hermes.exe")
+        monkeypatch.setattr(relaunch_mod, "resolve_stoa_bin", lambda: r"C:\Users\test\stoa.exe")
 
         import subprocess as _subprocess
 
@@ -188,12 +188,12 @@ class TestRelaunch:
 
         assert exc_info.value.code == 0
         assert execvp_calls == []
-        assert captured_argv == [[r"C:\Users\test\hermes.exe", "chat"]]
+        assert captured_argv == [[r"C:\Users\test\stoa.exe", "chat"]]
 
     def test_windows_propagates_child_exit_code(self, monkeypatch):
         """A non-zero exit from the child should flow through to sys.exit."""
         monkeypatch.setattr(relaunch_mod.sys, "platform", "win32")
-        monkeypatch.setattr(relaunch_mod, "resolve_stoa_bin", lambda: r"C:\hermes.exe")
+        monkeypatch.setattr(relaunch_mod, "resolve_stoa_bin", lambda: r"C:\stoa.exe")
 
         import subprocess as _subprocess
 
@@ -232,7 +232,7 @@ class TestRelaunch:
         assert "open a new terminal" in err.lower() or "path" in err.lower()
 
 
-class TestResolveHermesBinWindowsPyGuard:
+class TestResolveSTOABinWindowsPyGuard:
     """On Windows, resolve_stoa_bin MUST NOT return a .py path.
     os.access(x, os.X_OK) returns True for .py files on Windows because
     PATHEXT includes .py when the Python launcher is installed — but
@@ -249,16 +249,16 @@ class TestResolveHermesBinWindowsPyGuard:
 
         monkeypatch.setattr(relaunch_mod.sys, "platform", "win32")
         monkeypatch.setattr(relaunch_mod.sys, "argv", [str(script), "chat"])
-        # Force PATH lookup to return a hermes.exe so the test doesn't
+        # Force PATH lookup to return a stoa.exe so the test doesn't
         # exercise the None-fallback path (that's a separate test).
         monkeypatch.setattr(
             relaunch_mod.shutil, "which",
-            lambda name: r"C:\venv\Scripts\hermes.exe" if name == "hermes" else None,
+            lambda name: r"C:\venv\Scripts\stoa.exe" if name == "stoa" else None,
         )
 
         bin_path = relaunch_mod.resolve_stoa_bin()
-        # Must NOT be the .py — must be the hermes.exe PATH entry.
-        assert bin_path == r"C:\venv\Scripts\hermes.exe"
+        # Must NOT be the .py — must be the stoa.exe PATH entry.
+        assert bin_path == r"C:\venv\Scripts\stoa.exe"
 
     def test_posix_still_accepts_py_argv0(self, monkeypatch, tmp_path):
         """POSIX behaviour unchanged: argv[0] pointing at an executable
@@ -266,14 +266,14 @@ class TestResolveHermesBinWindowsPyGuard:
         because POSIX exec can route through the shebang line."""
         if sys.platform == "win32":
             pytest.skip("POSIX semantics")
-        script = tmp_path / "hermes"
+        script = tmp_path / "stoa"
         script.write_text("#!/usr/bin/env python3\n")
         script.chmod(0o755)
         monkeypatch.setattr(relaunch_mod.sys, "argv", [str(script), "chat"])
         assert relaunch_mod.resolve_stoa_bin() == str(script)
 
     def test_windows_py_argv0_with_no_stoa_on_path_returns_none(self, monkeypatch, tmp_path):
-        """Bulletproof fallback: if argv0 is .py on Windows AND hermes.exe
+        """Bulletproof fallback: if argv0 is .py on Windows AND stoa.exe
         isn't on PATH, return None so the caller falls back to
         python -m stoa_cli.main."""
         script = tmp_path / "main.py"

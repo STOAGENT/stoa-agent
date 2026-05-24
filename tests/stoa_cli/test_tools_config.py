@@ -132,7 +132,7 @@ def test_get_platform_tools_x_search_auto_enabled_when_xai_oauth_present(monkeyp
     tokens are present, mirroring the HASS_TOKEN → homeassistant rule.
 
     The user already authenticated via SuperGrok OAuth; they shouldn't have
-    to also click through `hermes tools` → X (Twitter) Search to flip the
+    to also click through `stoa tools` → X (Twitter) Search to flip the
     toolset on. Tool's check_fn still gates schema registration if creds
     later go missing.
     """
@@ -168,7 +168,7 @@ def test_get_platform_tools_x_search_off_when_no_xai_credentials(monkeypatch):
 
 
 def test_get_platform_tools_x_search_respects_explicit_config(monkeypatch):
-    """Once the user has saved an explicit toolset list via `hermes tools`,
+    """Once the user has saved an explicit toolset list via `stoa tools`,
     that list is authoritative — x_search auto-enable does NOT fire even
     when xAI creds exist. The saved list represents deliberate choices."""
     monkeypatch.delenv("XAI_API_KEY", raising=False)
@@ -176,7 +176,7 @@ def test_get_platform_tools_x_search_respects_explicit_config(monkeypatch):
         "stoa_cli.tools_config._xai_credentials_present", lambda: True
     )
 
-    # User explicitly opted into spotify but not x_search via `hermes tools`.
+    # User explicitly opted into spotify but not x_search via `stoa tools`.
     config = {"platform_toolsets": {"cli": ["stoa-cli", "spotify"]}}
     enabled = _get_platform_tools(config, "cli")
     assert "x_search" not in enabled
@@ -250,7 +250,7 @@ def test_get_platform_tools_preserves_explicit_empty_selection():
     # terminal, memory, …). Non-configurable platform toolsets that ride
     # along on the platform's default composite (e.g. `kanban`, whose tools
     # live in _STOA_CORE_TOOLS but aren't user-toggleable) are still
-    # auto-recovered by _get_platform_tools so saving via `hermes tools`
+    # auto-recovered by _get_platform_tools so saving via `stoa tools`
     # doesn't silently drop them. The contract this test guards is the
     # configurable side: nothing the user could have checked in the TUI
     # checklist should reappear here.
@@ -449,7 +449,7 @@ def test_save_platform_tools_handles_invalid_existing_config():
 
 
 def test_save_platform_tools_does_not_preserve_platform_default_toolsets():
-    """Platform default toolsets (stoa-cli, hermes-telegram, etc.) must NOT
+    """Platform default toolsets (stoa-cli, stoa-telegram, etc.) must NOT
     be preserved across saves.
 
     These "super" toolsets resolve to ALL tools, so if they survive in the
@@ -459,7 +459,7 @@ def test_save_platform_tools_does_not_preserve_platform_default_toolsets():
     (like MCP server names), causing them to be kept unconditionally.
 
     Regression test: user unchecks image_gen and homeassistant via
-    ``hermes tools``, but stoa-cli stays in the config and re-enables
+    ``stoa tools``, but stoa-cli stays in the config and re-enables
     everything on the next read.
     """
     config = {
@@ -500,11 +500,11 @@ def test_save_platform_tools_does_not_preserve_platform_default_toolsets():
 
 
 def test_save_platform_tools_does_not_preserve_stoa_telegram():
-    """Same bug for Telegram — hermes-telegram must not be preserved."""
+    """Same bug for Telegram — stoa-telegram must not be preserved."""
     config = {
         "platform_toolsets": {
             "telegram": [
-                "browser", "file", "hermes-telegram", "terminal", "web",
+                "browser", "file", "stoa-telegram", "terminal", "web",
             ]
         }
     }
@@ -515,7 +515,7 @@ def test_save_platform_tools_does_not_preserve_stoa_telegram():
         _save_platform_tools(config, "telegram", new_selection)
 
     saved = config["platform_toolsets"]["telegram"]
-    assert "hermes-telegram" not in saved
+    assert "stoa-telegram" not in saved
     assert "web" in saved
 
 
@@ -763,7 +763,7 @@ def test_toolset_has_keys_treats_no_key_providers_as_configured():
 def test_computer_use_needs_configuration_when_cua_driver_post_setup_pending():
     """No-key providers can still need setup when their post_setup is unsatisfied.
 
-    Returning users enabling Computer Use through `hermes tools` must reach the
+    Returning users enabling Computer Use through `stoa tools` must reach the
     cua-driver post-setup installer even though the provider has no API keys.
     """
     with patch("shutil.which", return_value=None):
@@ -943,7 +943,7 @@ def test_save_platform_tools_normalizes_numeric_entries():
 
 
 def test_save_platform_tools_clears_no_mcp_sentinel():
-    """`hermes tools` has no UI for no_mcp, so saving from the picker clears
+    """`stoa tools` has no UI for no_mcp, so saving from the picker clears
     the sentinel unconditionally — otherwise a user who once set no_mcp by
     hand could never re-enable MCP servers through the UI.
     """
@@ -992,14 +992,14 @@ def test_get_platform_tools_recovers_non_configurable_toolsets_from_composite():
         "tools": ["_test_special_tool"],
         "includes": [],
     }
-    fake_toolsets["hermes-_test_platform"] = {
+    fake_toolsets["stoa-_test_platform"] = {
         "description": "test composite",
         "tools": ["web_search", "web_extract", "terminal", "process", "_test_special_tool"],
         "includes": [],
     }
 
     test_platforms = {
-        "_test_platform": {"label": "Test", "default_toolset": "hermes-_test_platform"},
+        "_test_platform": {"label": "Test", "default_toolset": "stoa-_test_platform"},
     }
 
     with mock_patch("stoa_cli.tools_config.PLATFORMS", {**PLATFORMS, **test_platforms}):
@@ -1013,7 +1013,7 @@ def test_get_platform_tools_recovers_non_configurable_toolsets_from_composite():
 
 def test_get_platform_tools_second_pass_skips_fully_claimed_toolsets():
     """Toolsets whose tools are fully covered by configurable keys should NOT
-    be added by the second pass (prevents 'search', 'hermes-acp' noise).
+    be added by the second pass (prevents 'search', 'stoa-acp' noise).
     """
     enabled = _get_platform_tools({}, "cli")
 
@@ -1021,7 +1021,7 @@ def test_get_platform_tools_second_pass_skips_fully_claimed_toolsets():
 
 
 def test_get_platform_tools_discord_both_off_by_default():
-    """Both `discord` and `discord_admin` are opt-in via `hermes tools`,
+    """Both `discord` and `discord_admin` are opt-in via `stoa tools`,
     even on the Discord platform itself.  Users shouldn't auto-inherit 19
     extra tools just because DISCORD_BOT_TOKEN is set."""
     enabled = _get_platform_tools({}, "discord")
@@ -1056,7 +1056,7 @@ def test_discord_toolsets_not_available_on_other_platforms():
 
 
 def test_discord_toolsets_user_enabled_are_honored():
-    """When the user opts in via `hermes tools`, the toolset appears."""
+    """When the user opts in via `stoa tools`, the toolset appears."""
     config = {"platform_toolsets": {"discord": ["web", "terminal", "discord"]}}
     enabled = _get_platform_tools(config, "discord")
     assert "discord" in enabled
@@ -1092,7 +1092,7 @@ def test_get_platform_tools_feishu_tools_not_on_other_platforms():
 def test_get_effective_configurable_toolsets_dedupes_bundled_plugins():
     """Bundled plugins (plugins/spotify) share their toolset key with the
     built-in CONFIGURABLE_TOOLSETS entry. The effective list must not list
-    them twice — otherwise `hermes tools` → "reconfigure existing" shows
+    them twice — otherwise `stoa tools` → "reconfigure existing" shows
     the same toolset two rows in a row.
     """
     from stoa_cli.tools_config import _get_effective_configurable_toolsets

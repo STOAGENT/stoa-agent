@@ -1,6 +1,6 @@
 """Regression tests for _apply_profile_override STOA_HOME guard (issue #22502).
 
-When STOA_HOME is set to the hermes root (e.g. systemd hardcodes
+When STOA_HOME is set to the stoa root (e.g. systemd hardcodes
 STOA_HOME=/root/.stoa), _apply_profile_override must still read
 active_profile and update STOA_HOME to the profile directory.
 
@@ -42,7 +42,7 @@ def _run_apply_profile_override(
     else:
         monkeypatch.delenv("STOA_HOME", raising=False)
 
-    monkeypatch.setattr(sys, "argv", argv or ["hermes", "gateway", "start"])
+    monkeypatch.setattr(sys, "argv", argv or ["stoa", "gateway", "start"])
 
     from stoa_cli.main import _apply_profile_override
     _apply_profile_override()
@@ -50,10 +50,10 @@ def _run_apply_profile_override(
     return os.environ.get("STOA_HOME")
 
 
-class TestApplyProfileOverrideHermesHomeGuard:
+class TestApplyProfileOverrideSTOAHomeGuard:
     """Regression guard for issue #22502.
 
-    Verifies that STOA_HOME pointing to the hermes root does NOT suppress
+    Verifies that STOA_HOME pointing to the stoa root does NOT suppress
     the active_profile check, while STOA_HOME already pointing to a
     profile directory IS trusted as-is.
     """
@@ -64,8 +64,8 @@ class TestApplyProfileOverrideHermesHomeGuard:
         """STOA_HOME=/root/.stoa + active_profile=coder must redirect
         STOA_HOME to .../profiles/coder.
 
-        Bug scenario from #22502: systemd sets STOA_HOME to the hermes root
-        and the user switches to a profile via `hermes profile use`.
+        Bug scenario from #22502: systemd sets STOA_HOME to the stoa root
+        and the user switches to a profile via `stoa profile use`.
         Before the fix, the guard returned early and active_profile was ignored.
         """
         stoa_root = tmp_path / ".stoa"
@@ -102,7 +102,7 @@ class TestApplyProfileOverrideHermesHomeGuard:
 
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setenv("STOA_HOME", str(profile_dir))
-        monkeypatch.setattr(sys, "argv", ["hermes", "gateway", "start"])
+        monkeypatch.setattr(sys, "argv", ["stoa", "gateway", "start"])
 
         from stoa_cli.main import _apply_profile_override
         _apply_profile_override()
@@ -132,7 +132,7 @@ class TestApplyProfileOverrideHermesHomeGuard:
 
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.delenv("STOA_HOME", raising=False)
-        monkeypatch.setattr(sys, "argv", ["hermes", "gateway", "start"])
+        monkeypatch.setattr(sys, "argv", ["stoa", "gateway", "start"])
         (stoa_root / "active_profile").write_text("default")
 
         from stoa_cli.main import _apply_profile_override

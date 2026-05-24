@@ -1,5 +1,5 @@
 """
-Session-scoped context variables for the Hermes gateway.
+Session-scoped context variables for the STOA gateway.
 
 Replaces the previous ``os.environ``-based session state
 (``STOA_SESSION_PLATFORM``, ``STOA_SESSION_CHAT_ID``, etc.) with

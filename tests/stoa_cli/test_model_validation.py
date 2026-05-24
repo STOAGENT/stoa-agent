@@ -76,9 +76,9 @@ class TestParseModelInput:
         assert model == "gpt-5.4"
 
     def test_nous_provider_switch(self):
-        provider, model = parse_model_input("nous:hermes-3", "openrouter")
+        provider, model = parse_model_input("nous:stoa-3", "openrouter")
         assert provider == "nous"
-        assert model == "hermes-3"
+        assert model == "stoa-3"
 
     def test_empty_model_after_colon_keeps_current(self):
         provider, model = parse_model_input("openrouter:", "nous")
@@ -775,7 +775,7 @@ class TestValidateCodexAutoCorrection:
 # -- probe_api_models — Cloudflare UA mitigation --------------------------------
 
 class TestProbeApiModelsUserAgent:
-    """Probing custom /v1/models must send a Hermes User-Agent.
+    """Probing custom /v1/models must send a STOA User-Agent.
 
     Some custom Claude proxies (e.g. ``packyapi.com``) sit behind Cloudflare with
     Browser Integrity Check enabled. The default ``Python-urllib/3.x`` signature

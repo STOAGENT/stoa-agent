@@ -6,7 +6,7 @@ author: STOA Agent
 license: MIT
 platforms: [macos]
 metadata:
-  hermes:
+  stoa:
     tags: [Reminders, tasks, todo, macOS, Apple]
 prerequisites:
   commands: [remindctl]

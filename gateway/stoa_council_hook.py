@@ -3,7 +3,7 @@ STOA council hook for the gateway — routes ``/council``, ``/persona``,
 ``/attest``, ``/verdict`` slash commands from any of the 21 messaging
 platforms to the council dispatcher.
 
-Hermes inherits 21 platform adapters (Telegram, Discord, Slack, WhatsApp,
+STOA inherits 21 platform adapters (Telegram, Discord, Slack, WhatsApp,
 Signal, Matrix, Mattermost, Email, SMS, BlueBubbles, MSGraph, Webhook,
 HomeAssistant, DingTalk, Feishu, WeCom, QQ, api_server, +). All of them
 already understand slash commands via the ``COMMAND_REGISTRY`` in

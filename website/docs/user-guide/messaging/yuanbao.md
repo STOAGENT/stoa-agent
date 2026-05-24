@@ -6,7 +6,7 @@ description: "Connect STOA Agent to the Yuanbao enterprise messaging platform vi
 
 # Yuanbao
 
-Connect Hermes to [Yuanbao](https://yuanbao.tencent.com/), Tencent's enterprise messaging platform. The adapter uses a WebSocket gateway for real-time message delivery and supports both direct (C2C) and group conversations.
+Connect STOA to [Yuanbao](https://yuanbao.tencent.com/), Tencent's enterprise messaging platform. The adapter uses a WebSocket gateway for real-time message delivery and supports both direct (C2C) and group conversations.
 
 :::info
 Yuanbao is an enterprise messaging platform primarily used within Tencent and enterprise environments. It uses WebSocket for real-time communication, HMAC-based authentication, and supports rich media including images, files, and voice messages.
@@ -38,7 +38,7 @@ pip install websockets httpx aiofiles
 The easiest way to configure Yuanbao is through the interactive setup:
 
 ```bash
-hermes gateway setup
+stoa gateway setup
 ```
 
 Select **Yuanbao** when prompted. The wizard will:
@@ -79,7 +79,7 @@ YUANBAO_ALLOWED_USERS=user_account_1,user_account_2
 ### 4. Start the Gateway
 
 ```bash
-hermes gateway
+stoa gateway
 ```
 
 The adapter will connect to the Yuanbao WebSocket gateway, authenticate using HMAC signatures, and begin processing messages.
@@ -170,7 +170,7 @@ The bot responds in the same conversation thread.
 
 ### Available Commands
 
-All standard Hermes commands work on Yuanbao:
+All standard STOA commands work on Yuanbao:
 
 | Command | Description |
 |---------|-------------|
@@ -278,7 +278,7 @@ platforms:
 
 ### Message Chunking
 
-Yuanbao has a maximum message size. Hermes automatically chunks large responses with Markdown-aware splitting (respects code fences, tables, and paragraph boundaries).
+Yuanbao has a maximum message size. STOA automatically chunks large responses with Markdown-aware splitting (respects code fences, tables, and paragraph boundaries).
 
 ### Connection Parameters
 
@@ -302,7 +302,7 @@ These values are currently not configurable via environment variables. They are 
 Enable debug logging to troubleshoot connection issues:
 
 ```bash
-STOA_LOG_LEVEL=debug hermes gateway
+STOA_LOG_LEVEL=debug stoa gateway
 ```
 
 ## Integration with Other Features
@@ -330,7 +330,7 @@ Run long operations without blocking the conversation:
 Send a message from CLI to Yuanbao:
 
 ```bash
-hermes chat -q "Send 'Hello from CLI' to yuanbao:group:group_code"
+stoa chat -q "Send 'Hello from CLI' to yuanbao:group:group_code"
 ```
 
 ## Related Documentation

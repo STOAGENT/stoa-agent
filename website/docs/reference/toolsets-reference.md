@@ -1,7 +1,7 @@
 ---
 sidebar_position: 4
 title: "Toolsets Reference"
-description: "Reference for Hermes core, composite, platform, and dynamic toolsets"
+description: "Reference for STOA core, composite, platform, and dynamic toolsets"
 ---
 
 # Toolsets Reference
@@ -21,9 +21,9 @@ Every tool belongs to exactly one toolset. When you enable a toolset, all tools 
 ### Per-session (CLI)
 
 ```bash
-hermes chat --toolsets web,file,terminal
-hermes chat --toolsets debugging        # composite — expands to file + terminal + web
-hermes chat --toolsets all              # everything
+stoa chat --toolsets web,file,terminal
+stoa chat --toolsets debugging        # composite — expands to file + terminal + web
+stoa chat --toolsets all              # everything
 ```
 
 ### Per-platform (config.yaml)
@@ -31,13 +31,13 @@ hermes chat --toolsets all              # everything
 ```yaml
 toolsets:
   - stoa-cli          # default for CLI
-  # - hermes-telegram   # override for Telegram gateway
+  # - stoa-telegram   # override for Telegram gateway
 ```
 
 ### Interactive management
 
 ```bash
-hermes tools                            # curses UI to enable/disable per platform
+stoa tools                            # curses UI to enable/disable per platform
 ```
 
 Or in-session:
@@ -54,12 +54,12 @@ Or in-session:
 |---------|-------|---------|
 | `browser` | `browser_back`, `browser_cdp`, `browser_click`, `browser_console`, `browser_dialog`, `browser_get_images`, `browser_navigate`, `browser_press`, `browser_scroll`, `browser_snapshot`, `browser_type`, `browser_vision`, `web_search` | Core browser automation. Includes `web_search` as a fallback for quick lookups. `browser_cdp` and `browser_dialog` are gated at runtime — registered only when a CDP endpoint is reachable at session start (via `/browser connect`, `browser.cdp_url` config, Browserbase, or Camofox). `browser_dialog` works together with the `pending_dialogs` and `frame_tree` fields that `browser_snapshot` adds when a CDP supervisor is attached. |
 | `clarify` | `clarify` | Ask the user a question when the agent needs clarification. |
-| `code_execution` | `execute_code` | Run Python scripts that call Hermes tools programmatically. |
+| `code_execution` | `execute_code` | Run Python scripts that call STOA tools programmatically. |
 | `cronjob` | `cronjob` | Schedule and manage recurring tasks. |
 | `debugging` | composite (`file` + `terminal` + `web`) | Debug bundle — file, process/terminal, web extract/search. |
 | `delegation` | `delegate_task` | Spawn isolated subagent instances for parallel work. |
-| `discord` | `discord` | Core Discord text/embed/DM actions (gateway-only). Active on the `hermes-discord` toolset. |
-| `discord_admin` | `discord_admin` | Discord moderation (bans, role changes, channel management). Active on the `hermes-discord` toolset; requires the bot to hold the relevant Discord permissions. |
+| `discord` | `discord` | Core Discord text/embed/DM actions (gateway-only). Active on the `stoa-discord` toolset. |
+| `discord_admin` | `discord_admin` | Discord moderation (bans, role changes, channel management). Active on the `stoa-discord` toolset; requires the bot to hold the relevant Discord permissions. |
 | `feishu_doc` | `feishu_doc_read` | Read Feishu/Lark document content. Used by the Feishu document-comment intelligent-reply handler. |
 | `feishu_drive` | `feishu_drive_add_comment`, `feishu_drive_list_comments`, `feishu_drive_list_comment_replies`, `feishu_drive_reply_comment` | Feishu/Lark drive comment operations. Scoped to the comment agent; not exposed on `stoa-cli` or other messaging toolsets. |
 | `file` | `patch`, `read_file`, `search_files`, `write_file` | File reading, writing, searching, and editing. |
@@ -82,8 +82,8 @@ Or in-session:
 | `vision` | `vision_analyze` | Image analysis via vision-capable models. |
 | `video` | `video_analyze` | Video analysis and understanding tools (opt-in, not in the default toolset — add explicitly via `--toolsets`). |
 | `web` | `web_extract`, `web_search` | Web search and page content extraction. |
-| `x_search` | `x_search` | Search X (Twitter) posts and threads via xAI's built-in `x_search` Responses tool. Off by default; opt in via `hermes tools`. Schema only registered when xAI credentials (SuperGrok OAuth or `XAI_API_KEY`) are configured. |
-| `yuanbao` | `yb_query_group_info`, `yb_query_group_members`, `yb_search_sticker`, `yb_send_dm`, `yb_send_sticker` | Yuanbao DM/group actions and sticker search. Registered only on `hermes-yuanbao`. |
+| `x_search` | `x_search` | Search X (Twitter) posts and threads via xAI's built-in `x_search` Responses tool. Off by default; opt in via `stoa tools`. Schema only registered when xAI credentials (SuperGrok OAuth or `XAI_API_KEY`) are configured. |
+| `yuanbao` | `yb_query_group_info`, `yb_query_group_members`, `yb_search_sticker`, `yb_send_dm`, `yb_send_sticker` | Yuanbao DM/group actions and sticker search. Registered only on `stoa-yuanbao`. |
 
 ## Platform Toolsets
 
@@ -92,29 +92,29 @@ Platform toolsets define the complete tool configuration for a deployment target
 | Toolset | Differences from `stoa-cli` |
 |---------|-------------------------------|
 | `stoa-cli` | Full toolset — the default for interactive CLI sessions. Includes file, terminal, web, browser, memory, skills, vision, image_gen, todo, tts, delegation, code_execution, cronjob, session_search, clarify, and `safe` (read-only) bundles plus the standard messaging tools. |
-| `hermes-acp` | Drops `clarify`, `cronjob`, `image_generate`, `send_message`, `text_to_speech`, and all four Home Assistant tools. Focused on coding tasks in IDE context. |
-| `hermes-api-server` | Drops `clarify`, `send_message`, and `text_to_speech`. Keeps everything else — suitable for programmatic access where user interaction isn't possible. |
-| `hermes-cron` | Same as `stoa-cli`. |
-| `hermes-telegram` | Same as `stoa-cli`. |
-| `hermes-discord` | Adds `discord` and `discord_admin` on top of `stoa-cli`. |
-| `hermes-slack` | Same as `stoa-cli`. |
-| `hermes-whatsapp` | Same as `stoa-cli`. |
-| `hermes-signal` | Same as `stoa-cli`. |
-| `hermes-matrix` | Same as `stoa-cli`. |
-| `hermes-mattermost` | Same as `stoa-cli`. |
-| `hermes-email` | Same as `stoa-cli`. |
-| `hermes-sms` | Same as `stoa-cli`. |
-| `hermes-bluebubbles` | Same as `stoa-cli`. |
-| `hermes-dingtalk` | Same as `stoa-cli`. |
-| `hermes-feishu` | Adds the five `feishu_doc_*` / `feishu_drive_*` tools (only used by the document-comment handler, not the regular chat adapter). |
-| `hermes-qqbot` | Same as `stoa-cli`. |
-| `hermes-wecom` | Same as `stoa-cli`. |
-| `hermes-wecom-callback` | Same as `stoa-cli`. |
-| `hermes-weixin` | Same as `stoa-cli`. |
-| `hermes-yuanbao` | Adds the five `yb_*` tools (DM/group/sticker) on top of `stoa-cli`. |
-| `hermes-homeassistant` | Same as `stoa-cli` (the Home Assistant tools are already present by default and activate when `HASS_TOKEN` is set). |
-| `hermes-webhook` | Same as `stoa-cli`. |
-| `stoa-gateway` | Internal gateway orchestrator toolset — union of every `hermes-<platform>` toolset; used when the gateway needs to accept any message source. |
+| `stoa-acp` | Drops `clarify`, `cronjob`, `image_generate`, `send_message`, `text_to_speech`, and all four Home Assistant tools. Focused on coding tasks in IDE context. |
+| `stoa-api-server` | Drops `clarify`, `send_message`, and `text_to_speech`. Keeps everything else — suitable for programmatic access where user interaction isn't possible. |
+| `stoa-cron` | Same as `stoa-cli`. |
+| `stoa-telegram` | Same as `stoa-cli`. |
+| `stoa-discord` | Adds `discord` and `discord_admin` on top of `stoa-cli`. |
+| `stoa-slack` | Same as `stoa-cli`. |
+| `stoa-whatsapp` | Same as `stoa-cli`. |
+| `stoa-signal` | Same as `stoa-cli`. |
+| `stoa-matrix` | Same as `stoa-cli`. |
+| `stoa-mattermost` | Same as `stoa-cli`. |
+| `stoa-email` | Same as `stoa-cli`. |
+| `stoa-sms` | Same as `stoa-cli`. |
+| `stoa-bluebubbles` | Same as `stoa-cli`. |
+| `stoa-dingtalk` | Same as `stoa-cli`. |
+| `stoa-feishu` | Adds the five `feishu_doc_*` / `feishu_drive_*` tools (only used by the document-comment handler, not the regular chat adapter). |
+| `stoa-qqbot` | Same as `stoa-cli`. |
+| `stoa-wecom` | Same as `stoa-cli`. |
+| `stoa-wecom-callback` | Same as `stoa-cli`. |
+| `stoa-weixin` | Same as `stoa-cli`. |
+| `stoa-yuanbao` | Adds the five `yb_*` tools (DM/group/sticker) on top of `stoa-cli`. |
+| `stoa-homeassistant` | Same as `stoa-cli` (the Home Assistant tools are already present by default and activate when `HASS_TOKEN` is set). |
+| `stoa-webhook` | Same as `stoa-cli`. |
+| `stoa-gateway` | Internal gateway orchestrator toolset — union of every `stoa-<platform>` toolset; used when the gateway needs to accept any message source. |
 
 ## Dynamic Toolsets
 
@@ -156,8 +156,8 @@ custom_toolsets:
 
 - `all` or `*` — expands to every registered toolset (built-in + dynamic + plugin)
 
-## Relationship to `hermes tools`
+## Relationship to `stoa tools`
 
-The `hermes tools` command provides a curses-based UI for toggling individual tools on or off per platform. This operates at the tool level (finer than toolsets) and persists to `config.yaml`. Disabled tools are filtered out even if their toolset is enabled.
+The `stoa tools` command provides a curses-based UI for toggling individual tools on or off per platform. This operates at the tool level (finer than toolsets) and persists to `config.yaml`. Disabled tools are filtered out even if their toolset is enabled.
 
 See also: [Tools Reference](./tools-reference.md) for the complete list of individual tools and their parameters.

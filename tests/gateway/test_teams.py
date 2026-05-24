@@ -352,7 +352,7 @@ class TestTeamsInteractiveSetup:
         from stoa_cli.cli_output (not stoa_cli.config) and persist
         credentials to .env without crashing.
         """
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
         import stoa_cli.cli_output as cli_output_mod
@@ -690,7 +690,7 @@ class TestTeamsMessageHandling:
         adapter.handle_message = AsyncMock()
 
         activity = self._make_activity(
-            text="<at>Hermes</at> what is the weather?",
+            text="<at>STOA</at> what is the weather?",
             from_id="user-id",
         )
         await adapter._on_message(self._make_ctx(activity))

@@ -630,7 +630,7 @@ def test_cli_status_pings_via_node_client(capsys, monkeypatch):
             assert token == "tok"
 
         def ping(self):
-            return {"type": "pong", "display_name": "hermes-meet-node"}
+            return {"type": "pong", "display_name": "stoa-meet-node"}
 
     monkeypatch.setattr(node_cli, "NodeClient", _FakeClient)
 

@@ -760,7 +760,7 @@ class TestHasAnyProviderConfigured:
         assert _has_any_provider_configured() is True
 
     def test_claude_code_creds_ignored_on_fresh_install(self, monkeypatch, tmp_path):
-        """Claude Code credentials should NOT skip the wizard when Hermes is unconfigured."""
+        """Claude Code credentials should NOT skip the wizard when STOA is unconfigured."""
         from stoa_cli import config as config_module
         from stoa_cli.auth import PROVIDER_REGISTRY
         stoa_home = tmp_path / ".stoa"
@@ -876,7 +876,7 @@ class TestHasAnyProviderConfigured:
         assert _has_any_provider_configured() is False
 
     def test_claude_code_creds_counted_when_stoa_configured(self, monkeypatch, tmp_path):
-        """Claude Code credentials should count when Hermes has been explicitly configured."""
+        """Claude Code credentials should count when STOA has been explicitly configured."""
         import yaml
         from stoa_cli import config as config_module
         stoa_home = tmp_path / ".stoa"

@@ -22,8 +22,8 @@ We value contributions in this order:
 
 ## Common contribution paths
 
-- Building a custom/local tool without modifying Hermes core? Start with [Build a Hermes Plugin](../guides/build-a-hermes-plugin.md)
-- Building a new built-in core tool for Hermes itself? Start with [Adding Tools](./adding-tools.md)
+- Building a custom/local tool without modifying STOA core? Start with [Build a STOA Plugin](../guides/build-a-stoa-plugin.md)
+- Building a new built-in core tool for STOA itself? Start with [Adding Tools](./adding-tools.md)
 - Building a new skill? Start with [Creating Skills](./creating-skills.md)
 - Building a new inference provider? Start with [Adding Providers](./adding-providers.md)
 
@@ -71,11 +71,11 @@ echo 'OPENROUTER_API_KEY=sk-or-v1-your-key' >> ~/.stoa/.env
 ```bash
 # Symlink for global access
 mkdir -p ~/.local/bin
-ln -sf "$(pwd)/venv/bin/hermes" ~/.local/bin/hermes
+ln -sf "$(pwd)/venv/bin/stoa" ~/.local/bin/stoa
 
 # Verify
-hermes doctor
-hermes chat -q "Hello"
+stoa doctor
+stoa chat -q "Hello"
 ```
 
 ### Run Tests
@@ -94,7 +94,7 @@ pytest tests/ -v
 
 ## Cross-Platform Compatibility
 
-Hermes officially supports **Linux, macOS, WSL2, and native Windows (early beta — via PowerShell install)**.  Native Windows uses Git Bash (from [Git for Windows](https://git-scm.com/download/win)) for shell commands.  A few features require POSIX kernel primitives and are gated: the dashboard's embedded PTY terminal pane (`/chat` tab) is WSL2-only. The native-Windows path is new and moves fast — if you're doing Windows-heavy dev, expect to hit and fix rough edges.
+STOA officially supports **Linux, macOS, WSL2, and native Windows (early beta — via PowerShell install)**.  Native Windows uses Git Bash (from [Git for Windows](https://git-scm.com/download/win)) for shell commands.  A few features require POSIX kernel primitives and are gated: the dashboard's embedded PTY terminal pane (`/chat` tab) is WSL2-only. The native-Windows path is new and moves fast — if you're doing Windows-heavy dev, expect to hit and fix rough edges.
 
 When contributing code, keep these rules in mind:
 
@@ -149,7 +149,7 @@ Use `pathlib.Path` instead of string concatenation with `/`.
 
 ## Security Considerations
 
-Hermes has terminal access. Security matters.
+STOA has terminal access. Security matters.
 
 ### Existing Protections
 
@@ -186,7 +186,7 @@ refactor/description   # Code restructuring
 ### Before Submitting
 
 1. **Run tests**: `pytest tests/ -v`
-2. **Test manually**: Run `hermes` and exercise the code path you changed
+2. **Test manually**: Run `stoa` and exercise the code path you changed
 3. **Check cross-platform impact**: Consider macOS and different Linux distros
 4. **Keep PRs focused**: One logical change per PR
 
@@ -227,7 +227,7 @@ fix(security): prevent shell injection in sudo password piping
 ## Reporting Issues
 
 - Use [GitHub Issues](https://github.com/STOAGENT/stoa-agent/issues)
-- Include: OS, Python version, Hermes version (`hermes version`), full error traceback
+- Include: OS, Python version, STOA version (`stoa version`), full error traceback
 - Include steps to reproduce
 - Check existing issues before creating duplicates
 - For security vulnerabilities, please report privately

@@ -1,5 +1,5 @@
 """
-Top-level argparse construction for the hermes CLI.
+Top-level argparse construction for the stoa CLI.
 
 Lives in its own module so other modules (e.g. ``relaunch.py``) can
 introspect the parser to discover which flags exist without running the
@@ -39,43 +39,43 @@ def _inherited_flag(parser, *args, **kwargs):
 
 _EPILOGUE = """
 Examples:
-    hermes                        Start interactive chat
-    hermes chat -q "Hello"        Single query mode
-    hermes -c                     Resume the most recent session
-    hermes -c "my project"        Resume a session by name (latest in lineage)
-    hermes --resume <session_id>  Resume a specific session by ID
-    hermes setup                  Run setup wizard
-    hermes logout                 Clear stored authentication
-    hermes auth add <provider>    Add a pooled credential
-    hermes auth list              List pooled credentials
-    hermes auth remove <p> <t>    Remove pooled credential by index, id, or label
-    hermes auth reset <provider>  Clear exhaustion status for a provider
-    hermes model                  Select default model
-    hermes fallback [list]        Show fallback provider chain
-    hermes fallback add           Add a fallback provider (same picker as `hermes model`)
-    hermes fallback remove        Remove a fallback provider from the chain
-    hermes config                 View configuration
-    hermes config edit            Edit config in $EDITOR
-    hermes config set model gpt-4 Set a config value
-    hermes gateway                Run messaging gateway
-    hermes -s stoa-agent-dev,github-auth
-    hermes -w                     Start in isolated git worktree
-    hermes gateway install        Install gateway background service
-    hermes sessions list          List past sessions
-    hermes sessions browse        Interactive session picker
-    hermes sessions rename ID T   Rename/title a session
-    hermes logs                   View agent.log (last 50 lines)
-    hermes logs -f                Follow agent.log in real time
-    hermes logs errors            View errors.log
-    hermes logs --since 1h        Lines from the last hour
-    hermes debug share             Upload debug report for support
-    hermes update                 Update to latest version
-    hermes dashboard              Start web UI dashboard (port 9119)
-    hermes dashboard --stop       Stop running dashboard processes
-    hermes dashboard --status     List running dashboard processes
+    stoa                        Start interactive chat
+    stoa chat -q "Hello"        Single query mode
+    stoa -c                     Resume the most recent session
+    stoa -c "my project"        Resume a session by name (latest in lineage)
+    stoa --resume <session_id>  Resume a specific session by ID
+    stoa setup                  Run setup wizard
+    stoa logout                 Clear stored authentication
+    stoa auth add <provider>    Add a pooled credential
+    stoa auth list              List pooled credentials
+    stoa auth remove <p> <t>    Remove pooled credential by index, id, or label
+    stoa auth reset <provider>  Clear exhaustion status for a provider
+    stoa model                  Select default model
+    stoa fallback [list]        Show fallback provider chain
+    stoa fallback add           Add a fallback provider (same picker as `stoa model`)
+    stoa fallback remove        Remove a fallback provider from the chain
+    stoa config                 View configuration
+    stoa config edit            Edit config in $EDITOR
+    stoa config set model gpt-4 Set a config value
+    stoa gateway                Run messaging gateway
+    stoa -s stoa-agent-dev,github-auth
+    stoa -w                     Start in isolated git worktree
+    stoa gateway install        Install gateway background service
+    stoa sessions list          List past sessions
+    stoa sessions browse        Interactive session picker
+    stoa sessions rename ID T   Rename/title a session
+    stoa logs                   View agent.log (last 50 lines)
+    stoa logs -f                Follow agent.log in real time
+    stoa logs errors            View errors.log
+    stoa logs --since 1h        Lines from the last hour
+    stoa debug share             Upload debug report for support
+    stoa update                 Update to latest version
+    stoa dashboard              Start web UI dashboard (port 9119)
+    stoa dashboard --stop       Stop running dashboard processes
+    stoa dashboard --status     List running dashboard processes
 
 For more help on a command:
-    hermes <command> --help
+    stoa <command> --help
 """
 
 
@@ -87,7 +87,7 @@ def build_top_level_parser():
     other subparsers via ``subparsers.add_parser(...)``.
     """
     parser = argparse.ArgumentParser(
-        prog="hermes",
+        prog="stoa",
         description="STOA Agent - AI assistant with tool-calling capabilities",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=_EPILOGUE,
@@ -112,7 +112,7 @@ def build_top_level_parser():
     # --model / --provider are accepted at the top level so they can pair
     # with -z without needing the `chat` subcommand.  If neither -z nor a
     # subcommand consumes them, they fall through harmlessly as None.
-    # Mirrors `hermes chat --model ... --provider ...` semantics.
+    # Mirrors `stoa chat --model ... --provider ...` semantics.
     _inherited_flag(
         parser,
         "-m",
@@ -130,7 +130,7 @@ def build_top_level_parser():
         help=(
             "Provider override for this invocation (e.g. openrouter, anthropic). "
             "Applies to -z/--oneshot and --tui. The persistent provider lives in config.yaml "
-            "under model.provider — use `hermes setup` or edit the file to change it."
+            "under model.provider — use `stoa setup` or edit the file to change it."
         ),
     )
     parser.add_argument(

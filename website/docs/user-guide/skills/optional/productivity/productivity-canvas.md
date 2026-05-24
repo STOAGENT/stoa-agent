@@ -14,7 +14,7 @@ Canvas LMS integration — fetch enrolled courses and assignments using API toke
 
 | | |
 |---|---|
-| Source | Optional — install with `hermes skills install official/productivity/canvas` |
+| Source | Optional — install with `stoa skills install official/productivity/canvas` |
 | Path | `optional-skills/productivity/canvas` |
 | Version | `1.0.0` |
 | Author | community |
@@ -25,7 +25,7 @@ Canvas LMS integration — fetch enrolled courses and assignments using API toke
 ## Reference: full SKILL.md
 
 :::info
-The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
+The following is the complete skill definition that STOA loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 :::
 
 # Canvas LMS — Course & Assignment Access

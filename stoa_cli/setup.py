@@ -144,7 +144,7 @@ from stoa_cli.config import (
     get_env_value,
     ensure_stoa_home,
 )
-# display_stoa_home imported lazily at call sites (stale-module safety during hermes update)
+# display_stoa_home imported lazily at call sites (stale-module safety during stoa update)
 
 from stoa_cli.colors import Colors, color
 
@@ -177,19 +177,19 @@ def is_interactive_stdin() -> bool:
 def print_noninteractive_setup_guidance(reason: str | None = None) -> None:
     """Print guidance for headless/non-interactive setup flows."""
     print()
-    print(color("⚕ Hermes Setup — Non-interactive mode", Colors.CYAN, Colors.BOLD))
+    print(color("⚕ STOA Setup — Non-interactive mode", Colors.CYAN, Colors.BOLD))
     print()
     if reason:
         print_info(reason)
     print_info("The interactive wizard cannot be used here.")
     print()
-    print_info("Configure Hermes using environment variables or config commands:")
-    print_info("  hermes config set model.provider custom")
-    print_info("  hermes config set model.base_url http://localhost:8080/v1")
-    print_info("  hermes config set model.default your-model-name")
+    print_info("Configure STOA using environment variables or config commands:")
+    print_info("  stoa config set model.provider custom")
+    print_info("  stoa config set model.base_url http://localhost:8080/v1")
+    print_info("  stoa config set model.default your-model-name")
     print()
     print_info("Or set OPENROUTER_API_KEY / OPENAI_API_KEY in your environment.")
-    print_info("Run 'hermes setup' in an interactive terminal to use the full wizard.")
+    print_info("Run 'stoa setup' in an interactive terminal to use the full wizard.")
     print()
 
 
@@ -353,7 +353,7 @@ def _prompt_api_key(var: dict):
         save_env_value(var["name"], value)
         print_success("  ✓ Saved")
     else:
-        print_warning("  Skipped (configure later with 'hermes setup')")
+        print_warning("  Skipped (configure later with 'stoa setup')")
 
 
 def _print_setup_summary(config: dict, stoa_home):
@@ -376,7 +376,7 @@ def _print_setup_summary(config: dict, stoa_home):
     if _vision_backends:
         tool_status.append(("Vision (image analysis)", True, None))
     else:
-        tool_status.append(("Vision (image analysis)", False, "run 'hermes setup' to configure"))
+        tool_status.append(("Vision (image analysis)", False, "run 'stoa setup' to configure"))
 
     # Mixture of Agents — requires OpenRouter specifically (calls multiple models)
     if get_env_value("OPENROUTER_API_KEY"):
@@ -454,7 +454,7 @@ def _print_setup_summary(config: dict, stoa_home):
         else:
             tool_status.append(("Image Generation", False, "FAL_KEY or OPENAI_API_KEY"))
 
-    # Video generation — opt-in via `hermes tools` → Video Generation.
+    # Video generation — opt-in via `stoa tools` → Video Generation.
     # Only show the row when a plugin reports available so we don't badger
     # users who don't care about video gen with a "missing" status line.
     try:
@@ -498,7 +498,7 @@ def _print_setup_summary(config: dict, stoa_home):
         if neutts_ok:
             tool_status.append(("Text-to-Speech (NeuTTS local)", True, None))
         else:
-            tool_status.append(("Text-to-Speech (NeuTTS — not installed)", False, "run 'hermes setup tts'"))
+            tool_status.append(("Text-to-Speech (NeuTTS — not installed)", False, "run 'stoa setup tts'"))
     elif tts_provider == "kittentts":
         try:
             import importlib.util
@@ -508,7 +508,7 @@ def _print_setup_summary(config: dict, stoa_home):
         if kittentts_ok:
             tool_status.append(("Text-to-Speech (KittenTTS local)", True, None))
         else:
-            tool_status.append(("Text-to-Speech (KittenTTS — not installed)", False, "run 'hermes setup tts'"))
+            tool_status.append(("Text-to-Speech (KittenTTS — not installed)", False, "run 'stoa setup tts'"))
     else:
         tool_status.append(("Text-to-Speech (Edge TTS)", True, None))
 
@@ -518,7 +518,7 @@ def _print_setup_summary(config: dict, stoa_home):
         if subscription_features.modal.direct_override:
             tool_status.append(("Modal Execution (direct Modal)", True, None))
         else:
-            tool_status.append(("Modal Execution", False, "run 'hermes setup terminal'"))
+            tool_status.append(("Modal Execution", False, "run 'stoa setup terminal'"))
     elif managed_nous_tools_enabled() and subscription_features.nous_auth_present:
         tool_status.append(("Modal Execution (optional via Nous subscription)", True, None))
 
@@ -526,7 +526,7 @@ def _print_setup_summary(config: dict, stoa_home):
     if get_env_value("HASS_TOKEN"):
         tool_status.append(("Smart Home (Home Assistant)", True, None))
 
-    # Spotify (OAuth via hermes auth spotify — check auth.json, not env vars)
+    # Spotify (OAuth via stoa auth spotify — check auth.json, not env vars)
     try:
         from stoa_cli.auth import get_provider_auth_state
         _spotify_state = get_provider_auth_state("spotify") or {}
@@ -570,7 +570,7 @@ def _print_setup_summary(config: dict, stoa_home):
     disabled_tools = [(name, var) for name, avail, var in tool_status if not avail]
     if disabled_tools:
         print_warning(
-            "Some tools are disabled. Run 'hermes setup tools' to configure them,"
+            "Some tools are disabled. Run 'stoa setup tools' to configure them,"
         )
         from stoa_constants import display_stoa_home as _dhh
         print_warning(f"or edit {_dhh()}/.env directly to add the missing API keys.")
@@ -610,17 +610,17 @@ def _print_setup_summary(config: dict, stoa_home):
     print()
     print(color("📝 To edit your configuration:", Colors.CYAN, Colors.BOLD))
     print()
-    print(f"   {color('hermes setup', Colors.GREEN)}          Re-run the full wizard")
-    print(f"   {color('hermes setup model', Colors.GREEN)}    Change model/provider")
-    print(f"   {color('hermes setup terminal', Colors.GREEN)} Change terminal backend")
-    print(f"   {color('hermes setup gateway', Colors.GREEN)}  Configure messaging")
-    print(f"   {color('hermes setup tools', Colors.GREEN)}    Configure tool providers")
+    print(f"   {color('stoa setup', Colors.GREEN)}          Re-run the full wizard")
+    print(f"   {color('stoa setup model', Colors.GREEN)}    Change model/provider")
+    print(f"   {color('stoa setup terminal', Colors.GREEN)} Change terminal backend")
+    print(f"   {color('stoa setup gateway', Colors.GREEN)}  Configure messaging")
+    print(f"   {color('stoa setup tools', Colors.GREEN)}    Configure tool providers")
     print()
-    print(f"   {color('hermes config', Colors.GREEN)}         View current settings")
+    print(f"   {color('stoa config', Colors.GREEN)}         View current settings")
     print(
-        f"   {color('hermes config edit', Colors.GREEN)}    Open config in your editor"
+        f"   {color('stoa config edit', Colors.GREEN)}    Open config in your editor"
     )
-    print(f"   {color('hermes config set <key> <value>', Colors.GREEN)}")
+    print(f"   {color('stoa config set <key> <value>', Colors.GREEN)}")
     print("                          Set a specific value")
     print()
     print("   Or edit the files directly:")
@@ -632,9 +632,9 @@ def _print_setup_summary(config: dict, stoa_home):
     print()
     print(color("🚀 Ready to go!", Colors.CYAN, Colors.BOLD))
     print()
-    print(f"   {color('hermes', Colors.GREEN)}              Start chatting")
-    print(f"   {color('hermes gateway', Colors.GREEN)}      Start messaging gateway")
-    print(f"   {color('hermes doctor', Colors.GREEN)}       Check for issues")
+    print(f"   {color('stoa', Colors.GREEN)}              Start chatting")
+    print(f"   {color('stoa gateway', Colors.GREEN)}      Start messaging gateway")
+    print(f"   {color('stoa doctor', Colors.GREEN)}       Check for issues")
     print()
 
 
@@ -777,7 +777,7 @@ def _read_nearest_vercel_project(start: Path | None = None) -> dict[str, str]:
 
 
 # Tool categories and provider config are now in tools_config.py (shared
-# between `hermes tools` and `hermes setup tools`).
+# between `stoa tools` and `stoa setup tools`).
 
 
 # =============================================================================
@@ -789,10 +789,10 @@ def _read_nearest_vercel_project(start: Path | None = None) -> dict[str, str]:
 def setup_model_provider(config: dict, *, quick: bool = False):
     """Configure the inference provider and default model.
 
-    Delegates to ``cmd_model()`` (the same flow used by ``hermes model``)
+    Delegates to ``cmd_model()`` (the same flow used by ``stoa model``)
     for provider selection, credential prompting, and model picking.
     This ensures a single code path for all provider setup — any new
-    provider added to ``hermes model`` is automatically available here.
+    provider added to ``stoa model`` is automatically available here.
 
     When *quick* is True, skips credential rotation, vision, and TTS
     configuration — used by the streamlined first-time quick setup.
@@ -804,7 +804,7 @@ def setup_model_provider(config: dict, *, quick: bool = False):
     print_info(f"   Guide: {_DOCS_BASE}/integrations/providers")
     print()
 
-    # Delegate to the shared hermes model flow — handles provider picker,
+    # Delegate to the shared stoa model flow — handles provider picker,
     # credential prompting, model selection, and config persistence.
     from stoa_cli.main import select_provider_and_model
     try:
@@ -815,7 +815,7 @@ def setup_model_provider(config: dict, *, quick: bool = False):
     except Exception as exc:
         logger.debug("select_provider_and_model error during setup: %s", exc)
         print_warning(f"Provider setup encountered an error: {exc}")
-        print_info("You can try again later with: hermes model")
+        print_info("You can try again later with: stoa model")
 
     # Re-sync the wizard's config dict from what cmd_model saved to disk.
     # This is critical: cmd_model writes to disk via its own load/save cycle,
@@ -848,7 +848,7 @@ def setup_model_provider(config: dict, *, quick: bool = False):
             print()
             print_header("Same-Provider Fallback & Rotation")
             print_info(
-                "Hermes can keep multiple credentials for one provider and rotate between"
+                "STOA can keep multiple credentials for one provider and rotate between"
             )
             print_info(
                 "them when a credential is exhausted or rate-limited. This preserves"
@@ -945,7 +945,7 @@ def setup_model_provider(config: dict, *, quick: bool = False):
         print()
         print_header("Vision & Image Analysis (optional)")
         print_info(f"Vision uses a separate multimodal backend. {_prov_display}")
-        print_info("doesn't currently provide one Hermes can auto-use for vision,")
+        print_info("doesn't currently provide one STOA can auto-use for vision,")
         print_info("so choose a backend now or skip and configure later.")
         print()
 
@@ -995,7 +995,7 @@ def setup_model_provider(config: dict, *, quick: bool = False):
             else:
                 print_info("Skipped — vision won't be available")
         else:
-            print_info("Skipped — add later with 'hermes setup' or configure AUXILIARY_VISION_* settings")
+            print_info("Skipped — add later with 'stoa setup' or configure AUXILIARY_VISION_* settings")
 
 
     # Tool Gateway prompt is already shown by _model_flow_nous() above.
@@ -1094,7 +1094,7 @@ def _xai_oauth_logged_in_for_setup() -> bool:
     """True iff xAI Grok OAuth credentials are already stored locally.
 
     Lets TTS / STT setup skip the API-key prompt for users who logged in
-    through ``hermes model`` -> xAI Grok OAuth (SuperGrok Subscription).
+    through ``stoa model`` -> xAI Grok OAuth (SuperGrok Subscription).
     """
     try:
         from stoa_cli.auth import get_xai_oauth_auth_status
@@ -1295,7 +1295,7 @@ def _setup_tts_provider(config: dict):
                     from stoa_constants import display_stoa_home as _dhh
                     print_warning(
                         "No xAI API key provided for TTS. Configure XAI_API_KEY "
-                        f"via hermes setup model or {_dhh()}/.env to use xAI TTS. "
+                        f"via stoa setup model or {_dhh()}/.env to use xAI TTS. "
                         "Falling back to Edge TTS."
                     )
                     selected = "edge"
@@ -1380,7 +1380,7 @@ def _setup_tts_provider(config: dict):
 
 
 def setup_tts(config: dict):
-    """Standalone TTS setup (for 'hermes setup tts')."""
+    """Standalone TTS setup (for 'stoa setup tts')."""
     _setup_tts_provider(config)
 
 
@@ -1393,7 +1393,7 @@ def setup_terminal_backend(config: dict):
     """Configure the terminal execution backend."""
     import platform as _platform
     print_header("Terminal Backend")
-    print_info("Choose where Hermes runs shell commands and code.")
+    print_info("Choose where STOA runs shell commands and code.")
     print_info("This affects tool execution, file access, and isolation.")
     print_info(f"   Guide: {_DOCS_BASE}/developer-guide/environments")
     print()
@@ -1783,7 +1783,7 @@ def _apply_default_agent_settings(config: dict):
     print_info("  Tool progress: all")
     print_info("  Compression threshold: 0.50")
     print_info("  Session reset: inactivity (1440 min) + daily (4:00)")
-    print_info("  Run `hermes setup agent` later to customize.")
+    print_info("  Run `stoa setup agent` later to customize.")
 
 
 def setup_agent_settings(config: dict):
@@ -2014,7 +2014,7 @@ def _setup_telegram():
         print_info("⚠️  No allowlist set - anyone who finds your bot can use it!")
 
     print()
-    print_info("📬 Home Channel: where Hermes delivers cron job results,")
+    print_info("📬 Home Channel: where STOA delivers cron job results,")
     print_info("   cross-platform messages, and notifications.")
     print_info("   For Telegram DMs, this is your user ID (same as above).")
 
@@ -2045,7 +2045,7 @@ def _setup_slack():
             # new commands (e.g. /btw, /stop, ...) get registered in Slack.
             if prompt_yes_no(
                 "Regenerate the Slack app manifest with the latest command "
-                "list? (recommended after `hermes update`)",
+                "list? (recommended after `stoa update`)",
                 True,
             ):
                 _write_slack_manifest_and_instruct()
@@ -2092,7 +2092,7 @@ def _setup_slack():
         print_info("   Set SLACK_ALLOW_ALL_USERS=true or GATEWAY_ALLOW_ALL_USERS=true only if you intentionally want open workspace access.")
 
     print()
-    print_info("📬 Home Channel: where Hermes delivers cron job results,")
+    print_info("📬 Home Channel: where STOA delivers cron job results,")
     print_info("   cross-platform messages, and notifications.")
     print_info("   To get a channel ID: open the channel in Slack, then right-click")
     print_info("   the channel name → Copy link — the ID starts with C (e.g. C01ABC2DE3F).")
@@ -2117,8 +2117,8 @@ def _write_slack_manifest_and_instruct():
         from stoa_constants import get_stoa_home
 
         manifest = _build_full_manifest(
-            bot_name="Hermes",
-            bot_description="Your Hermes agent on Slack",
+            bot_name="STOA",
+            bot_description="Your STOA agent on Slack",
         )
         target = Path(get_stoa_home()) / "slack-manifest.json"
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -2134,14 +2134,14 @@ def _write_slack_manifest_and_instruct():
             "reinstall if scopes or slash commands changed."
         )
         print_info(
-            "   Re-run `hermes slack manifest --write` anytime to refresh after "
-            "Hermes adds new commands."
+            "   Re-run `stoa slack manifest --write` anytime to refresh after "
+            "STOA adds new commands."
         )
     except Exception as exc:  # pragma: no cover - best-effort UX helper
         print_warning(f"Couldn't write Slack manifest: {exc}")
         print_info(
             "   You can generate it manually later with: "
-            "hermes slack manifest --write"
+            "stoa slack manifest --write"
         )
 
 
@@ -2223,7 +2223,7 @@ def _setup_matrix():
             print_info("⚠️  No allowlist set - anyone who can message the bot can use it!")
 
         print()
-        print_info("📬 Home Room: where Hermes delivers cron job results and notifications.")
+        print_info("📬 Home Room: where STOA delivers cron job results and notifications.")
         print_info("   Room IDs look like !abc123:server (shown in Element room settings)")
         print_info("   You can also set this later by typing /set-home in a Matrix room.")
         home_room = prompt("Home room ID (leave empty to set later with /set-home)")
@@ -2266,13 +2266,13 @@ def _setup_mattermost():
         print_info("⚠️  No allowlist set - anyone who can message the bot can use it!")
 
     print()
-    print_info("📬 Home Channel: where Hermes delivers cron job results and notifications.")
+    print_info("📬 Home Channel: where STOA delivers cron job results and notifications.")
     print_info("   To get a channel ID: click channel name → View Info → copy the ID")
     print_info("   You can also set this later by typing /set-home in a Mattermost channel.")
     home_channel = prompt("Home channel ID (leave empty to set later with /set-home)")
     if home_channel:
         save_env_value("MATTERMOST_HOME_CHANNEL", home_channel)
-    print_info("   Open config in your editor:  hermes config edit")
+    print_info("   Open config in your editor:  stoa config edit")
 
 
 def _setup_bluebubbles():
@@ -2284,7 +2284,7 @@ def _setup_bluebubbles():
         if not prompt_yes_no("Reconfigure BlueBubbles?", False):
             return
 
-    print_info("Connects Hermes to iMessage via BlueBubbles — a free, open-source")
+    print_info("Connects STOA to iMessage via BlueBubbles — a free, open-source")
     print_info("macOS server that bridges iMessage to any device.")
     print_info("   Requires a Mac running BlueBubbles Server v1.0.0+")
     print_info("   Download: https://bluebubbles.app/")
@@ -2389,8 +2389,8 @@ def _setup_webhooks():
     print_info("   Route configuration guide:")
     print_info("   https://stoa-agent.nousresearch.com/docs/user-guide/messaging/webhooks/#configuring-routes")
     print()
-    print_info("   Open config in your editor:  hermes config edit")
-    print_info("   Open config in your editor:  hermes config edit")
+    print_info("   Open config in your editor:  stoa config edit")
+    print_info("   Open config in your editor:  stoa config edit")
 
 
 def setup_gateway(config: dict):
@@ -2398,7 +2398,7 @@ def setup_gateway(config: dict):
     from stoa_cli.gateway import _all_platforms, _platform_status, _configure_platform
 
     print_header("Messaging Platforms")
-    print_info("Connect to messaging platforms to chat with Hermes from anywhere.")
+    print_info("Connect to messaging platforms to chat with STOA from anywhere.")
     print_info("Toggle with Space, confirm with Enter.")
     print()
 
@@ -2416,7 +2416,7 @@ def setup_gateway(config: dict):
     selected = prompt_checklist("Select platforms to configure:", items, pre_selected)
 
     if not selected:
-        print_info("No platforms selected. Run 'hermes setup gateway' later to configure.")
+        print_info("No platforms selected. Run 'stoa setup gateway' later to configure.")
         return
 
     for idx in selected:
@@ -2469,7 +2469,7 @@ def setup_gateway(config: dict):
             print_info("   Set one later with /set-home in your chat, or:")
             for plat in missing_home:
                 print_info(
-                    f"     hermes config set {plat.upper()}_HOME_CHANNEL <channel_id>"
+                    f"     stoa config set {plat.upper()}_HOME_CHANNEL <channel_id>"
                 )
 
         # Offer to install the gateway as a system service
@@ -2606,24 +2606,24 @@ def setup_gateway(config: dict):
                             print_error(f"  Start failed: {e}")
                 except Exception as e:
                     print_error(f"  Install failed: {e}")
-                    print_info("  You can try manually: hermes gateway install")
+                    print_info("  You can try manually: stoa gateway install")
             else:
-                print_info("  You can install later: hermes gateway install")
+                print_info("  You can install later: stoa gateway install")
                 if supports_systemd:
-                    print_info("  Or as a boot-time service: sudo hermes gateway install --system")
-                print_info("  Or run in foreground:  hermes gateway")
+                    print_info("  Or as a boot-time service: sudo stoa gateway install --system")
+                print_info("  Or run in foreground:  stoa gateway")
         else:
             from stoa_constants import is_container
             if is_container():
                 print_info("Start the gateway to bring your bots online:")
-                print_info("   hermes gateway run          # Run as container main process")
+                print_info("   stoa gateway run          # Run as container main process")
                 print_info("")
                 print_info("For automatic restarts, use a Docker restart policy:")
                 print_info("   docker run --restart unless-stopped ...")
                 print_info("   docker restart <container>  # Manual restart")
             else:
                 print_info("Start the gateway to bring your bots online:")
-                print_info("   hermes gateway              # Run in foreground")
+                print_info("   stoa gateway              # Run in foreground")
 
         print_info("━" * 50)
 
@@ -2636,7 +2636,7 @@ def setup_gateway(config: dict):
 def setup_tools(config: dict, first_install: bool = False):
     """Configure tools — delegates to the unified tools_command() in tools_config.py.
 
-    Both `hermes setup tools` and `hermes tools` use the same flow:
+    Both `stoa setup tools` and `stoa tools` use the same flow:
     platform selection → toolset toggles → provider/API key configuration.
 
     Args:
@@ -2834,15 +2834,15 @@ def _load_openclaw_migration_module():
 
 # Item kinds that represent high-impact changes warranting explicit warnings.
 # Gateway tokens/channels can hijack messaging platforms from the old agent.
-# Config values may have different semantics between OpenClaw and Hermes.
+# Config values may have different semantics between OpenClaw and STOA.
 # Instruction/context files (.md) can contain incompatible setup procedures.
 _HIGH_IMPACT_KIND_KEYWORDS = {
-    "gateway": "⚠ Gateway/messaging — this will configure Hermes to use your OpenClaw messaging channels",
-    "telegram": "⚠ Telegram — this will point Hermes at your OpenClaw Telegram bot",
-    "slack": "⚠ Slack — this will point Hermes at your OpenClaw Slack workspace",
-    "discord": "⚠ Discord — this will point Hermes at your OpenClaw Discord bot",
-    "whatsapp": "⚠ WhatsApp — this will point Hermes at your OpenClaw WhatsApp connection",
-    "config": "⚠ Config values — OpenClaw settings may not map 1:1 to Hermes equivalents",
+    "gateway": "⚠ Gateway/messaging — this will configure STOA to use your OpenClaw messaging channels",
+    "telegram": "⚠ Telegram — this will point STOA at your OpenClaw Telegram bot",
+    "slack": "⚠ Slack — this will point STOA at your OpenClaw Slack workspace",
+    "discord": "⚠ Discord — this will point STOA at your OpenClaw Discord bot",
+    "whatsapp": "⚠ WhatsApp — this will point STOA at your OpenClaw WhatsApp connection",
+    "config": "⚠ Config values — OpenClaw settings may not map 1:1 to STOA equivalents",
     "soul": "⚠ Instruction file — may contain OpenClaw-specific setup/restart procedures",
     "memory": "⚠ Memory/context file — may reference OpenClaw-specific infrastructure",
     "context": "⚠ Context file — may contain OpenClaw-specific instructions",
@@ -2886,7 +2886,7 @@ def _print_migration_preview(report: dict):
         print()
 
     if conflict_items:
-        print(color("  Would overwrite (conflicts with existing Hermes config):", Colors.YELLOW))
+        print(color("  Would overwrite (conflicts with existing STOA config):", Colors.YELLOW))
         for item in conflict_items:
             kind = item.get("kind", "unknown")
             reason = item.get("reason", "already exists")
@@ -2907,8 +2907,8 @@ def _print_migration_preview(report: dict):
         for warning in sorted(warnings_shown):
             print(color(f"    {warning}", Colors.YELLOW))
         print()
-        print(color("  Note: OpenClaw config values may have different semantics in Hermes.", Colors.YELLOW))
-        print(color("  For example, OpenClaw's tool_call_execution: \"auto\" ≠ Hermes's yolo mode.", Colors.YELLOW))
+        print(color("  Note: OpenClaw config values may have different semantics in STOA.", Colors.YELLOW))
+        print(color("  For example, OpenClaw's tool_call_execution: \"auto\" ≠ STOA's yolo mode.", Colors.YELLOW))
         print(color("  Instruction files (.md) from OpenClaw may contain incompatible procedures.", Colors.YELLOW))
         print()
 
@@ -2931,12 +2931,12 @@ def _offer_openclaw_migration(stoa_home: Path) -> bool:
     print()
     print_header("OpenClaw Installation Detected")
     print_info(f"Found OpenClaw data at {openclaw_dir}")
-    print_info("Hermes can preview what would be imported before making any changes.")
+    print_info("STOA can preview what would be imported before making any changes.")
     print()
 
     if not prompt_yes_no("Would you like to see what can be imported?", default=True):
         print_info(
-            "Skipping migration. You can run it later with: hermes claw migrate --dry-run"
+            "Skipping migration. You can run it later with: stoa claw migrate --dry-run"
         )
         return False
 
@@ -2994,14 +2994,14 @@ def _offer_openclaw_migration(stoa_home: Path) -> bool:
     # ── Phase 2: Confirm and execute ──
     if not prompt_yes_no("Proceed with migration?", default=False):
         print_info(
-            "Migration cancelled. You can run it later with: hermes claw migrate"
+            "Migration cancelled. You can run it later with: stoa claw migrate"
         )
         print_info(
             "Use --dry-run to preview again, or --preset minimal for a lighter import."
         )
         return False
 
-    # Execute the migration — overwrite=False so existing Hermes configs are
+    # Execute the migration — overwrite=False so existing STOA configs are
     # preserved. The user saw the preview; conflicts are skipped by default.
     try:
         migrator = mod.Migrator(
@@ -3009,7 +3009,7 @@ def _offer_openclaw_migration(stoa_home: Path) -> bool:
             target_root=stoa_home.resolve(),
             execute=True,
             workspace_target=None,
-            overwrite=False,  # preserve existing Hermes config
+            overwrite=False,  # preserve existing STOA config
             migrate_secrets=True,
             output_dir=None,
             selected_options=selected,
@@ -3032,7 +3032,7 @@ def _offer_openclaw_migration(stoa_home: Path) -> bool:
     if migrated:
         print_success(f"Imported {migrated} item(s) from OpenClaw.")
     if conflicts:
-        print_info(f"Skipped {conflicts} item(s) that already exist in Hermes (use hermes claw migrate --overwrite to force).")
+        print_info(f"Skipped {conflicts} item(s) that already exist in STOA (use stoa claw migrate --overwrite to force).")
     if skipped:
         print_info(f"Skipped {skipped} item(s) (not found or unchanged).")
     if errors:
@@ -3063,10 +3063,10 @@ SETUP_SECTIONS = [
 def _run_portal_one_shot(config: dict) -> None:
     """One-shot Nous Portal setup — OAuth + provider switch + Tool Gateway.
 
-    Wired into ``hermes setup --portal``. Does NOT prompt for anything
+    Wired into ``stoa setup --portal``. Does NOT prompt for anything
     besides what the underlying OAuth + Tool Gateway prompts already need.
-    Designed to be shareable as a single command (``hermes setup --portal``)
-    that gets a brand-new user from zero to a fully working Hermes session
+    Designed to be shareable as a single command (``stoa setup --portal``)
+    that gets a brand-new user from zero to a fully working STOA session
     with web/image/tts/browser tools all routed via their Portal sub.
     """
     from types import SimpleNamespace
@@ -3083,7 +3083,7 @@ def _run_portal_one_shot(config: dict) -> None:
             Colors.MAGENTA,
         )
     )
-    print(color("│     ⚕ Hermes Setup — Nous Portal (one-shot)             │", Colors.MAGENTA))
+    print(color("│     ⚕ STOA Setup — Nous Portal (one-shot)             │", Colors.MAGENTA))
     print(
         color(
             "└─────────────────────────────────────────────────────────┘",
@@ -3099,7 +3099,7 @@ def _run_portal_one_shot(config: dict) -> None:
     print()
 
     # Skip OAuth if already logged in (don't re-prompt every time the user
-    # runs `hermes setup --portal` after a successful first run).
+    # runs `stoa setup --portal` after a successful first run).
     already_logged_in = False
     try:
         already_logged_in = bool((get_nous_auth_status() or {}).get("logged_in"))
@@ -3110,7 +3110,7 @@ def _run_portal_one_shot(config: dict) -> None:
         print_success("  Already logged into Nous Portal.")
     else:
         # Hand off to the shared auth wiring so the device-code flow is
-        # identical to `hermes auth add nous --type oauth`. SimpleNamespace
+        # identical to `stoa auth add nous --type oauth`. SimpleNamespace
         # mirrors the argparse Namespace contract that auth_add_command expects.
         ns = SimpleNamespace(
             provider="nous",
@@ -3132,7 +3132,7 @@ def _run_portal_one_shot(config: dict) -> None:
         except SystemExit as e:
             print()
             print_error(f"  Nous Portal login failed (exit {e.code}).")
-            print_info("  You can retry later with `hermes auth add nous --type oauth`.")
+            print_info("  You can retry later with `stoa auth add nous --type oauth`.")
             return
         except (KeyboardInterrupt, EOFError):
             print()
@@ -3141,13 +3141,13 @@ def _run_portal_one_shot(config: dict) -> None:
         except Exception as exc:
             print()
             print_error(f"  Nous Portal login failed: {exc}")
-            print_info("  You can retry later with `hermes auth add nous --type oauth`.")
+            print_info("  You can retry later with `stoa auth add nous --type oauth`.")
             return
 
     # Set provider → nous so the model picker, status surfaces, and
     # managed-tool gating all light up. Leave model.model empty so the
     # runtime picks Nous's default model; the user can change it later
-    # with `hermes model`.
+    # with `stoa model`.
     model_cfg = config.get("model")
     if not isinstance(model_cfg, dict):
         model_cfg = {}
@@ -3158,7 +3158,7 @@ def _run_portal_one_shot(config: dict) -> None:
     print_success("  Nous set as your inference provider.")
 
     # Offer the Tool Gateway opt-in (single Y/n) — same flow that fires
-    # from `hermes model` after picking Nous.
+    # from `stoa model` after picking Nous.
     print()
     try:
         prompt_enable_tool_gateway(config)
@@ -3169,21 +3169,21 @@ def _run_portal_one_shot(config: dict) -> None:
 
     print()
     print_success("Portal setup complete.")
-    print_info("  Run `hermes portal status` to inspect routing.")
-    print_info("  Run `hermes` to start chatting.")
+    print_info("  Run `stoa portal status` to inspect routing.")
+    print_info("  Run `stoa` to start chatting.")
 
 
 def run_setup_wizard(args):
     """Run the interactive setup wizard.
 
     Supports full, quick, and section-specific setup:
-      hermes setup           — full or quick (auto-detected)
-      hermes setup model     — just model/provider
-      hermes setup tts       — just text-to-speech
-      hermes setup terminal  — just terminal backend
-      hermes setup gateway   — just messaging platforms
-      hermes setup tools     — just tool configuration
-      hermes setup agent     — just agent settings
+      stoa setup           — full or quick (auto-detected)
+      stoa setup model     — just model/provider
+      stoa setup tts       — just text-to-speech
+      stoa setup terminal  — just terminal backend
+      stoa setup gateway   — just messaging platforms
+      stoa setup tools     — just tool configuration
+      stoa setup agent     — just agent settings
     """
     from stoa_cli.config import is_managed, managed_error
     if is_managed():
@@ -3245,7 +3245,7 @@ def run_setup_wizard(args):
                         Colors.MAGENTA,
                     )
                 )
-                print(color(f"│     ⚕ Hermes Setup — {label:<34s} │", Colors.MAGENTA))
+                print(color(f"│     ⚕ STOA Setup — {label:<34s} │", Colors.MAGENTA))
                 print(
                     color(
                         "└─────────────────────────────────────────────────────────┘",
@@ -3321,11 +3321,11 @@ def run_setup_wizard(args):
 
         print()
         print_header("Reconfigure")
-        print_success("You already have Hermes configured.")
+        print_success("You already have STOA configured.")
         print_info("Running the full wizard — each prompt shows your current value.")
         print_info("Press Enter to keep it, or type a new value to change it.")
         print_info("")
-        print_info("Tip: jump straight to a section with 'hermes setup model|terminal|")
+        print_info("Tip: jump straight to a section with 'stoa setup model|terminal|")
         print_info("     gateway|tools|agent', or fill only missing items with --quick.")
         # Fall through to the "Full Setup — run all sections" block below.
         # --reconfigure is now the default on existing installs; the flag
@@ -3345,7 +3345,7 @@ def run_setup_wizard(args):
         if migration_ran:
             config = load_config()
 
-        setup_mode = prompt_choice("How would you like to set up Hermes?", [
+        setup_mode = prompt_choice("How would you like to set up STOA?", [
             "Quick setup — provider, model & messaging (recommended)",
             "Full setup — configure everything",
         ], 0)
@@ -3361,7 +3361,7 @@ def run_setup_wizard(args):
     print_info(f"Data folder:  {stoa_home}")
     print_info(f"Install dir:  {PROJECT_ROOT}")
     print()
-    print_info("You can edit these files directly or use 'hermes config edit'")
+    print_info("You can edit these files directly or use 'stoa config edit'")
 
     if migration_ran:
         print()
@@ -3402,7 +3402,7 @@ def _run_first_time_quick_setup(config: dict, stoa_home, is_existing: bool):
     """Streamlined first-time setup: provider, model, terminal & messaging.
 
     Applies sensible defaults for TTS (Edge), agent settings, and tools —
-    the user can customize later via ``hermes setup <section>``.
+    the user can customize later via ``stoa setup <section>``.
     """
     # Step 1: Model & Provider (essential — skips rotation/vision/TTS)
     setup_model_provider(config, quick=True)
@@ -3421,7 +3421,7 @@ def _run_first_time_quick_setup(config: dict, stoa_home, is_existing: bool):
         "Connect a messaging platform? (Telegram, Discord, etc.)",
         [
             "Set up messaging now (recommended)",
-            "Skip — set up later with 'hermes setup gateway'",
+            "Skip — set up later with 'stoa setup gateway'",
         ],
         0,
     )
@@ -3433,9 +3433,9 @@ def _run_first_time_quick_setup(config: dict, stoa_home, is_existing: bool):
     print()
     print_success("Setup complete! You're ready to go.")
     print()
-    print_info("  Configure all settings:    hermes setup")
+    print_info("  Configure all settings:    stoa setup")
     if gateway_choice != 0:
-        print_info("  Connect Telegram/Discord:  hermes setup gateway")
+        print_info("  Connect Telegram/Discord:  stoa setup gateway")
     print()
 
     _print_setup_summary(config, stoa_home)
@@ -3472,7 +3472,7 @@ def _run_quick_setup(config: dict, stoa_home):
     if not has_anything_missing:
         print_success("Everything is configured! Nothing to do.")
         print()
-        print_info("Run 'hermes setup' and choose 'Full Setup' to reconfigure,")
+        print_info("Run 'stoa setup' and choose 'Full Setup' to reconfigure,")
         print_info("or pick a specific section from the menu.")
         return
 
@@ -3534,8 +3534,8 @@ def _run_quick_setup(config: dict, stoa_home):
     if missing_messaging:
         print()
         print_header("Messaging Platforms")
-        print_info("Connect Hermes to messaging apps to chat from anywhere.")
-        print_info("You can configure these later with 'hermes setup gateway'.")
+        print_info("Connect STOA to messaging apps to chat from anywhere.")
+        print_info("You can configure these later with 'stoa setup gateway'.")
 
         # Group by platform (preserving order)
         platform_order = []

@@ -56,7 +56,7 @@ def _is_stoa_provider_credential(name: str) -> bool:
     the credential in the ``execute_code`` child process, defeating the
     sandbox's scrubbing guarantee.
 
-    Non-Hermes API keys (TENOR_API_KEY, NOTION_TOKEN, etc.) are NOT
+    Non-STOA API keys (TENOR_API_KEY, NOTION_TOKEN, etc.) are NOT
     in the blocklist and remain legitimately registerable — skills that
     wrap third-party APIs still work.
     """
@@ -80,7 +80,7 @@ def register_env_passthrough(var_names: Iterable[str]) -> None:
     web_extract, etc.) where the credential remains safely in the main
     process.
 
-    Non-Hermes third-party API keys (TENOR_API_KEY, NOTION_TOKEN, etc.)
+    Non-STOA third-party API keys (TENOR_API_KEY, NOTION_TOKEN, etc.)
     pass through normally — they were never in the sandbox scrub list.
     """
     for name in var_names:
@@ -89,7 +89,7 @@ def register_env_passthrough(var_names: Iterable[str]) -> None:
             continue
         if _is_stoa_provider_credential(name):
             logger.warning(
-                "env passthrough: refusing to register Hermes provider "
+                "env passthrough: refusing to register STOA provider "
                 "credential %r (blocked by _STOA_PROVIDER_ENV_BLOCKLIST). "
                 "Skills must not override the execute_code sandbox's "
                 "credential scrubbing; see GHSA-rhgp-j443-p4rf.",

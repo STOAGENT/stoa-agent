@@ -44,16 +44,16 @@ cloudflared tunnel --url http://localhost:8646
 ngrok http 8646
 
 # devtunnel
-devtunnel create hermes-line --allow-anonymous
-devtunnel port create hermes-line -p 8646 --protocol https
-devtunnel host hermes-line
+devtunnel create stoa-line --allow-anonymous
+devtunnel port create stoa-line -p 8646 --protocol https
+devtunnel host stoa-line
 ```
 
 Copy the `https://...` URL — you'll set it as the webhook URL below. **Leave the tunnel running** while testing. For production, set up a fixed Cloudflare named tunnel so the webhook URL doesn't change on restart.
 
 ---
 
-## Step 3: Configure Hermes
+## Step 3: Configure STOA
 
 Add to `~/.stoa/.env`:
 
@@ -98,7 +98,7 @@ Back in the LINE console:
 ## Step 5: Run the gateway
 
 ```bash
-hermes gateway
+stoa gateway
 ```
 
 The agent log shows:
@@ -186,7 +186,7 @@ Cron jobs with `deliver: line` route to `LINE_HOME_CHANNEL`. The adapter ships a
 
 **Postback button never appears.** Either the LLM responded faster than `LINE_SLOW_RESPONSE_THRESHOLD`, or another bubble (tool-progress, streaming) consumed the reply token first. See the suppression block under "Slow LLM responses".
 
-**"already in use by another profile".** The same channel access token is bound to another running Hermes profile. Stop the other gateway or use a separate channel.
+**"already in use by another profile".** The same channel access token is bound to another running STOA profile. Stop the other gateway or use a separate channel.
 
 ---
 

@@ -13,7 +13,7 @@ Design goals:
 - **Loud when it matters, silent otherwise.** If no compromised package is
   installed, the user sees nothing.
 - **Acknowledgeable.** Once the user has read and acted on an advisory they
-  can dismiss it via ``hermes doctor --ack <id>``; the ack is persisted to
+  can dismiss it via ``stoa doctor --ack <id>``; the ack is persisted to
   ``config.security.acked_advisories`` and survives restart.
 - **Extensible.** Adding a new advisory is one entry in ``ADVISORIES``;
   adding a new compromised version is a one-line edit. No code changes
@@ -21,14 +21,14 @@ Design goals:
 
 The check is invoked from three places:
 
-1. ``stoa doctor`` (and ``hermes doctor --ack <id>``)
+1. ``stoa doctor`` (and ``stoa doctor --ack <id>``)
 2. CLI startup banner (one short line, then full guidance via
    ``stoa doctor``)
 3. Gateway startup (logged to gateway.log; first interactive message gets
    a one-line operator banner)
 
 This module is intentionally dependency-free beyond the stdlib so it can
-run in environments where the rest of Hermes failed to import.
+run in environments where the rest of STOA failed to import.
 """
 
 from __future__ import annotations
@@ -102,7 +102,7 @@ ADVISORIES: tuple[Advisory, ...] = (
             "environment variables and credential files (~/.npmrc, ~/.pypirc, "
             "~/.aws/credentials, GitHub PATs, cloud SDK tokens) and exfils "
             "them to a hardcoded webhook. If you ran any Python process that "
-            "imported mistralai 2.4.6 — including hermes when configured "
+            "imported mistralai 2.4.6 — including stoa when configured "
             "with provider=mistral for TTS or STT — assume those credentials "
             "are exposed."
         ),
@@ -118,7 +118,7 @@ ADVISORIES: tuple[Advisory, ...] = (
             "and any other credential files for tokens that may have been read.",
             "Check GitHub for unexpected new SSH keys, deploy keys, or webhook "
             "additions on repos you have admin on.",
-            "After cleanup: hermes doctor --ack shai-hulud-2026-05  to dismiss "
+            "After cleanup: stoa doctor --ack shai-hulud-2026-05  to dismiss "
             "this warning.",
         ),
         published="2026-05-12",
@@ -149,7 +149,7 @@ def _installed_version(pkg_name: str) -> Optional[str]:
     """
     try:
         from importlib.metadata import PackageNotFoundError, version
-    except ImportError:  # py<3.8 — Hermes requires 3.10+ but defensive.
+    except ImportError:  # py<3.8 — STOA requires 3.10+ but defensive.
         return None
     try:
         return version(pkg_name)
@@ -279,7 +279,7 @@ def short_banner_lines(hits: list[AdvisoryHit]) -> list[str]:
     lines = [
         f"SECURITY ADVISORY [{primary.advisory.id}]: {primary.advisory.title}",
         f"  Detected: {primary.package}=={primary.installed_version}",
-        "  Run 'hermes doctor' for remediation steps.",
+        "  Run 'stoa doctor' for remediation steps.",
     ]
     if len(hits) > 1:
         lines.insert(1, f"  ({len(hits) - 1} additional advisor"

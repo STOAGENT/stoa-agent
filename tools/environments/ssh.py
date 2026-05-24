@@ -50,7 +50,7 @@ class SSHEnvironment(BaseEnvironment):
         self.port = port
         self.key_path = key_path
 
-        self.control_dir = Path(tempfile.gettempdir()) / "hermes-ssh"
+        self.control_dir = Path(tempfile.gettempdir()) / "stoa-ssh"
         self.control_dir.mkdir(parents=True, exist_ok=True)
         # Keep the socket filename short and deterministic so the full path
         # stays under the 104-byte sun_path limit that macOS enforces on
@@ -179,7 +179,7 @@ class SSHEnvironment(BaseEnvironment):
                 raise RuntimeError(f"remote mkdir failed: {result.stderr.strip()}")
 
         # Symlink staging avoids fragile GNU tar --transform rules.
-        with tempfile.TemporaryDirectory(prefix="hermes-ssh-bulk-") as staging:
+        with tempfile.TemporaryDirectory(prefix="stoa-ssh-bulk-") as staging:
             for host_path, remote_path in files:
                 try:
                     rel_remote = os.path.relpath(remote_path, base)

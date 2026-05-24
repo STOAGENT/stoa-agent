@@ -1,46 +1,46 @@
 #!/usr/bin/env python3
 """
-Hermes CLI - Main entry point.
+STOA CLI - Main entry point.
 
 Usage:
-    hermes                     # Interactive chat (default)
-    hermes chat                # Interactive chat
-    hermes gateway             # Run gateway in foreground
-    hermes gateway start       # Start gateway as service
-    hermes gateway stop        # Stop gateway service
-    hermes gateway status      # Show gateway status
-    hermes gateway install     # Install gateway service
-    hermes gateway uninstall   # Uninstall gateway service
-    hermes setup               # Interactive setup wizard
-    hermes logout              # Clear stored authentication
-    hermes status              # Show status of all components
-    hermes cron                # Manage cron jobs
-    hermes cron list           # List cron jobs
-    hermes cron status         # Check if cron scheduler is running
-    hermes doctor              # Check configuration and dependencies
-    hermes honcho setup                    # Configure Honcho AI memory integration
-    hermes honcho status                   # Show Honcho config and connection status
-    hermes honcho sessions                 # List directory → session name mappings
-    hermes honcho map <name>               # Map current directory to a session name
-    hermes honcho peer                     # Show peer names and dialectic settings
-    hermes honcho peer --user NAME         # Set user peer name
-    hermes honcho peer --ai NAME           # Set AI peer name
-    hermes honcho peer --reasoning LEVEL   # Set dialectic reasoning level
-    hermes honcho mode                     # Show current memory mode
-    hermes honcho mode [hybrid|honcho|local]  # Set memory mode
-    hermes honcho tokens                   # Show token budget settings
-    hermes honcho tokens --context N       # Set session.context() token cap
-    hermes honcho tokens --dialectic N     # Set dialectic result char cap
-    hermes honcho identity                 # Show AI peer identity representation
-    hermes honcho identity <file>          # Seed AI peer identity from a file (SOUL.md etc.)
-    hermes honcho migrate                  # Step-by-step migration guide: OpenClaw native → Hermes + Honcho
-    hermes version             Show version
-    hermes update              Update to latest version
-    hermes uninstall           Uninstall STOA Agent
-    hermes acp                 Run as an ACP server for editor integration
-    hermes sessions browse     Interactive session picker with search
+    stoa                     # Interactive chat (default)
+    stoa chat                # Interactive chat
+    stoa gateway             # Run gateway in foreground
+    stoa gateway start       # Start gateway as service
+    stoa gateway stop        # Stop gateway service
+    stoa gateway status      # Show gateway status
+    stoa gateway install     # Install gateway service
+    stoa gateway uninstall   # Uninstall gateway service
+    stoa setup               # Interactive setup wizard
+    stoa logout              # Clear stored authentication
+    stoa status              # Show status of all components
+    stoa cron                # Manage cron jobs
+    stoa cron list           # List cron jobs
+    stoa cron status         # Check if cron scheduler is running
+    stoa doctor              # Check configuration and dependencies
+    stoa honcho setup                    # Configure Honcho AI memory integration
+    stoa honcho status                   # Show Honcho config and connection status
+    stoa honcho sessions                 # List directory → session name mappings
+    stoa honcho map <name>               # Map current directory to a session name
+    stoa honcho peer                     # Show peer names and dialectic settings
+    stoa honcho peer --user NAME         # Set user peer name
+    stoa honcho peer --ai NAME           # Set AI peer name
+    stoa honcho peer --reasoning LEVEL   # Set dialectic reasoning level
+    stoa honcho mode                     # Show current memory mode
+    stoa honcho mode [hybrid|honcho|local]  # Set memory mode
+    stoa honcho tokens                   # Show token budget settings
+    stoa honcho tokens --context N       # Set session.context() token cap
+    stoa honcho tokens --dialectic N     # Set dialectic result char cap
+    stoa honcho identity                 # Show AI peer identity representation
+    stoa honcho identity <file>          # Seed AI peer identity from a file (SOUL.md etc.)
+    stoa honcho migrate                  # Step-by-step migration guide: OpenClaw native → STOA + Honcho
+    stoa version             Show version
+    stoa update              Update to latest version
+    stoa uninstall           Uninstall STOA Agent
+    stoa acp                 Run as an ACP server for editor integration
+    stoa sessions browse     Interactive session picker with search
 
-    hermes claw migrate --dry-run  # Preview migration without changes
+    stoa claw migrate --dry-run  # Preview migration without changes
 """
 
 # IMPORTANT: stoa_bootstrap must be the very first import — it sets up
@@ -49,12 +49,12 @@ Usage:
 #
 # Guarded against ModuleNotFoundError because ``stoa_bootstrap`` is a
 # top-level module registered via pyproject.toml's ``py-modules`` list.
-# When the user upgrades code via ``git pull`` (or ``hermes update``
+# When the user upgrades code via ``git pull`` (or ``stoa update``
 # crashes between ``git reset --hard`` and ``uv pip install -e .``), the
 # new code references ``stoa_bootstrap`` but the editable install's
 # ``.pth`` file still points at the old set of top-level modules.  Without
-# this guard, hermes crashes on import and the user can't run
-# ``hermes update`` to recover.  Missing the bootstrap means UTF-8 stdio
+# this guard, stoa crashes on import and the user can't run
+# ``stoa update`` to recover.  Missing the bootstrap means UTF-8 stdio
 # setup is skipped on Windows — degraded, not broken.  POSIX is unaffected.
 try:
     import stoa_bootstrap  # noqa: F401
@@ -112,7 +112,7 @@ def _print_fast_version_info() -> None:
 
 
 def _try_termux_ultrafast_version() -> bool:
-    """Handle ``hermes --version`` before config/logging imports on Termux."""
+    """Handle ``stoa --version`` before config/logging imports on Termux."""
     if os.environ.get("STOA_TERMUX_DISABLE_FAST_CLI") == "1":
         return False
     if not _is_termux_startup_environment_fast():
@@ -152,13 +152,13 @@ def _add_accept_hooks_flag(parser) -> None:
 def _require_tty(command_name: str) -> None:
     """Exit with a clear error if stdin is not a terminal.
 
-    Interactive TUI commands (hermes tools, hermes setup, hermes model) use
+    Interactive TUI commands (stoa tools, stoa setup, stoa model) use
     curses or input() prompts that spin at 100% CPU when stdin is a pipe.
     This guard prevents accidental non-interactive invocation.
     """
     if not sys.stdin.isatty():
         print(
-            f"Error: 'hermes {command_name}' requires an interactive terminal.\n"
+            f"Error: 'stoa {command_name}' requires an interactive terminal.\n"
             f"It cannot be run through a pipe or non-interactive subprocess.\n"
             f"Run it directly in your terminal instead.",
             file=sys.stderr,
@@ -172,7 +172,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 
 # ---------------------------------------------------------------------------
-# Profile override — MUST happen before any hermes module import.
+# Profile override — MUST happen before any stoa module import.
 #
 # Many modules cache STOA_HOME at import time (module-level constants).
 # We intercept --profile/-p from sys.argv here and set the env var so that
@@ -212,17 +212,17 @@ def _apply_profile_override() -> None:
     # only when it already points to a specific profile directory.  The
     # distinguishing heuristic: a profile path has "profiles" as its immediate
     # parent directory name (e.g. ~/.stoa/profiles/coder or
-    # /opt/data/profiles/coder).  If STOA_HOME points to the hermes root
+    # /opt/data/profiles/coder).  If STOA_HOME points to the stoa root
     # instead (e.g. systemd hardcodes STOA_HOME=/root/.stoa), we must
     # still read active_profile — the user may have switched profiles via
-    # `hermes profile use` and the gateway should honour that choice.
+    # `stoa profile use` and the gateway should honour that choice.
     # See issue #22502.
     stoa_home_env = os.environ.get("STOA_HOME", "")
     if profile_name is None and stoa_home_env:
         if Path(stoa_home_env).parent.name == "profiles":
             return
 
-    # 2. If no flag, check active_profile in the hermes root
+    # 2. If no flag, check active_profile in the stoa root
     if profile_name is None:
         try:
             from stoa_constants import get_default_stoa_root
@@ -246,7 +246,7 @@ def _apply_profile_override() -> None:
             print(f"Error: {exc}", file=sys.stderr)
             sys.exit(1)
         except Exception as exc:
-            # A bug in profiles.py must NEVER prevent hermes from starting
+            # A bug in profiles.py must NEVER prevent stoa from starting
             print(
                 f"Warning: profile override failed ({exc}), using default",
                 file=sys.stderr,
@@ -297,7 +297,7 @@ try:
 except Exception:
     pass  # best-effort — redaction stays at default (enabled) on config errors
 
-# Initialize centralized file logging early — all `hermes` subcommands
+# Initialize centralized file logging early — all `stoa` subcommands
 # (chat, setup, gateway, config, etc.) write to agent.log + errors.log.
 try:
     from stoa_logging import setup_logging as _setup_logging
@@ -396,7 +396,7 @@ def _read_git_revision_fingerprint(repo_root: Path) -> str | None:
                 return f"git:{ref}:{packed_sha}"
             # Ref name is known but unresolved — still stable across launches,
             # and the version/release fallback in the caller will invalidate
-            # after `hermes update`.
+            # after `stoa update`.
             return f"git:{ref}:unresolved"
         return f"git:HEAD:{head}"
     except OSError:
@@ -489,7 +489,7 @@ def _has_any_provider_configured() -> bool:
     from stoa_cli.config import get_env_path, get_stoa_home, load_config
     from stoa_cli.auth import get_auth_status
 
-    # Determine whether Hermes itself has been explicitly configured (model
+    # Determine whether STOA itself has been explicitly configured (model
     # in config that isn't the hardcoded default). Used below to gate external
     # tool credentials (Claude Code, Codex CLI) that shouldn't silently skip
     # the setup wizard on a fresh install.
@@ -578,8 +578,8 @@ def _has_any_provider_configured() -> bool:
             return True
 
     # Check for Claude Code OAuth credentials (~/.claude/.credentials.json)
-    # Only count these if Hermes has been explicitly configured — Claude Code
-    # being installed doesn't mean the user wants Hermes to use their tokens.
+    # Only count these if STOA has been explicitly configured — Claude Code
+    # being installed doesn't mean the user wants STOA to use their tokens.
     if _has_stoa_config:
         try:
             from agent.anthropic_adapter import (
@@ -887,7 +887,7 @@ def _exec_in_container(container_info: dict, cli_args: list):
 
     Args:
         container_info: dict with backend, container_name, exec_user, stoa_bin
-        cli_args: the original CLI arguments (everything after 'hermes')
+        cli_args: the original CLI arguments (everything after 'stoa')
     """
 
     backend = container_info["backend"]
@@ -935,14 +935,14 @@ def _exec_in_container(container_info: dict, cli_args: list):
                     f'    commands = [{{ command = "{runtime}"; options = [ "NOPASSWD" ]; }}];\n'
                     f"  }}];\n"
                     f"\n"
-                    f"Or run: sudo hermes {' '.join(cli_args)}",
+                    f"Or run: sudo stoa {' '.join(cli_args)}",
                     file=sys.stderr,
                 )
                 sys.exit(1)
         else:
             print(
                 f"Error: container '{container_name}' not found via {backend}.\n"
-                f"The container may be running under root. Try: sudo hermes {' '.join(cli_args)}",
+                f"The container may be running under root. Try: sudo stoa {' '.join(cli_args)}",
                 file=sys.stderr,
             )
             sys.exit(1)
@@ -1066,9 +1066,9 @@ def _print_tui_exit_summary(
 
     print()
     print("Resume this session with:")
-    print(f"  hermes --tui --resume {target}")
+    print(f"  stoa --tui --resume {target}")
     if title:
-        print(f'  hermes --tui -c "{title}"')
+        print(f'  stoa --tui -c "{title}"')
     print()
     print(f"Session:        {target}")
     if title:
@@ -1126,7 +1126,7 @@ def _tui_need_npm_install(root: Path) -> bool:
     if entry.is_file() and not lock.is_file():
         return False
 
-    ink = root / "node_modules" / "@hermes" / "ink" / "package.json"
+    ink = root / "node_modules" / "@stoa" / "ink" / "package.json"
     if not ink.is_file():
         return True
     if not lock.is_file():
@@ -1471,7 +1471,7 @@ def _launch_tui(
 
     env = os.environ.copy()
     active_session_fd, active_session_file = tempfile.mkstemp(
-        prefix="hermes-tui-active-session-", suffix=".json"
+        prefix="stoa-tui-active-session-", suffix=".json"
     )
     os.close(active_session_fd)
     env["STOA_TUI_ACTIVE_SESSION_FILE"] = active_session_file
@@ -1555,7 +1555,7 @@ def _launch_tui(
     env["NODE_OPTIONS"] = " ".join(_tokens)
     # STOA_TUI_RESUME is an internal hand-off from the Python wrapper to the
     # Ink app.  Because we start from os.environ.copy(), an exported/stale value
-    # in the user's shell would otherwise make a plain `hermes --tui` try to
+    # in the user's shell would otherwise make a plain `stoa --tui` try to
     # resume a non-existent session and leave the UI at "error: session not
     # found" with no live session.  Only forward a resume id that argparse
     # resolved for this invocation; direct `node ui-tui/dist/entry.js` users can
@@ -1585,7 +1585,7 @@ def _launch_tui(
             except Exception:
                 pass
 
-    # Exit code 42 = TUI requested an update. Relaunch as `hermes update` so
+    # Exit code 42 = TUI requested an update. Relaunch as `stoa update` so
     # the user sees update output directly and gets the new version.
     # preserve_inherited=False ensures --tui and other flags are NOT carried
     # into the update subcommand.
@@ -1604,9 +1604,9 @@ def _pin_kanban_board_env() -> None:
     """Pin the active kanban board into ``STOA_KANBAN_BOARD`` for the chat session.
 
     Without this, in-process tools (``kanban_*``) and shelled-out CLI calls
-    (``hermes kanban …``) resolve the board on different paths: the env-pin if
+    (``stoa kanban …``) resolve the board on different paths: the env-pin if
     set, otherwise the global ``<root>/kanban/current`` file. A concurrent
-    ``hermes kanban boards switch`` from another session can flip the file
+    ``stoa kanban boards switch`` from another session can flip the file
     mid-turn, so the same chat sees its tool calls hit board A while its shell
     calls hit board B (#20074). Pinning at chat boot mirrors what the
     dispatcher already does for spawned workers.
@@ -1635,7 +1635,7 @@ def cmd_chat(args):
                 args.resume = resolved
             else:
                 print(f"No session found matching '{continue_val}'.")
-                print("Use 'hermes sessions list' to see available sessions.")
+                print("Use 'stoa sessions list' to see available sessions.")
                 sys.exit(1)
         else:
             # -c with no argument — continue the most recent session
@@ -1678,7 +1678,7 @@ def cmd_chat(args):
             for _ref in _retired_xai_refs:
                 sys.stderr.write(f"  \033[33m⚠\033[0m {format_issue(_ref)}\n")
             sys.stderr.write(f"  \033[2mMigration guide: {MIGRATION_GUIDE_URL}\033[0m\n")
-            sys.stderr.write("  \033[2mRun 'hermes doctor' for details.\033[0m\n\n")
+            sys.stderr.write("  \033[2mRun 'stoa doctor' for details.\033[0m\n\n")
     except Exception:
         pass
 
@@ -1686,10 +1686,10 @@ def cmd_chat(args):
     if not _has_any_provider_configured():
         print()
         print(
-            "It looks like Hermes isn't configured yet -- no API keys or providers found."
+            "It looks like STOA isn't configured yet -- no API keys or providers found."
         )
         print()
-        print("  Run:  hermes setup")
+        print("  Run:  stoa setup")
         print()
 
         from stoa_cli.setup import (
@@ -1711,7 +1711,7 @@ def cmd_chat(args):
             cmd_setup(args)
             return
         print()
-        print("You can run 'hermes setup' at any time to configure.")
+        print("You can run 'stoa setup' at any time to configure.")
         sys.exit(1)
 
     # Start update check in background (runs while other init happens).
@@ -1837,7 +1837,7 @@ def cmd_whatsapp(args):
     current_mode = get_env_value("WHATSAPP_MODE") or ""
     if not current_mode:
         print()
-        print("How will you use WhatsApp with Hermes?")
+        print("How will you use WhatsApp with STOA?")
         print()
         print("  1. Separate bot number (recommended)")
         print("     People message the bot's number directly — cleanest experience.")
@@ -1887,7 +1887,7 @@ def cmd_whatsapp(args):
     # We intentionally don't write WHATSAPP_ENABLED=true here.  If the user
     # aborts the wizard later (Ctrl+C, failed npm install, missed QR scan),
     # we'd otherwise leave .env claiming WhatsApp is ready when the bridge
-    # has no creds.json.  Every subsequent `hermes gateway` then paid a 30s
+    # has no creds.json.  Every subsequent `stoa gateway` then paid a 30s
     # bridge-bootstrap timeout and queued WhatsApp for indefinite retries.
     # Now: aborted setup leaves WHATSAPP_ENABLED unset → gateway skips it.
     # Re-runs that already have WHATSAPP_ENABLED=true (from a prior
@@ -1991,7 +1991,7 @@ def cmd_whatsapp(args):
             if (get_env_value("WHATSAPP_ENABLED") or "").lower() != "true":
                 save_env_value("WHATSAPP_ENABLED", "true")
             print("\n✓ WhatsApp is configured and paired!")
-            print("  Start the gateway with: hermes gateway")
+            print("  Start the gateway with: stoa gateway")
             return
 
     # ── Step 6: QR code pairing ──────────────────────────────────────────
@@ -2020,30 +2020,30 @@ def cmd_whatsapp(args):
     if (session_dir / "creds.json").exists():
         # Only enable WhatsApp now that pairing actually succeeded.  If the
         # user Ctrl+C'd at any earlier step, WHATSAPP_ENABLED stays unset
-        # and `hermes gateway` skips it cleanly instead of paying a 30s
+        # and `stoa gateway` skips it cleanly instead of paying a 30s
         # bridge timeout + queueing the platform for indefinite retries.
         save_env_value("WHATSAPP_ENABLED", "true")
         print("✓ WhatsApp paired successfully!")
         print()
         if wa_mode == "bot":
             print("  Next steps:")
-            print("    1. Start the gateway:  hermes gateway")
+            print("    1. Start the gateway:  stoa gateway")
             print("    2. Send a message to the bot's WhatsApp number")
             print("    3. The agent will reply automatically")
             print()
             print("  Tip: Agent responses are prefixed with '⚕ STOA Agent'")
         else:
             print("  Next steps:")
-            print("    1. Start the gateway:  hermes gateway")
+            print("    1. Start the gateway:  stoa gateway")
             print("    2. Open WhatsApp → Message Yourself")
             print("    3. Type a message — the agent will reply")
             print()
             print("  Tip: Agent responses are prefixed with '⚕ STOA Agent'")
             print("  so you can tell them apart from your own messages.")
         print()
-        print("  Or install as a service: hermes gateway install")
+        print("  Or install as a service: stoa gateway install")
     else:
-        print("⚠ Pairing may not have completed. Run 'hermes whatsapp' to try again.")
+        print("⚠ Pairing may not have completed. Run 'stoa whatsapp' to try again.")
 
 
 def cmd_setup(args):
@@ -2060,7 +2060,7 @@ def cmd_postinstall(args):
 
     stamp_install_method("pip")
 
-    print("⚕ Hermes post-install bootstrap")
+    print("⚕ STOA post-install bootstrap")
     print()
 
     for dep in ("node", "browser", "ripgrep", "ffmpeg"):
@@ -2098,7 +2098,7 @@ def _is_profile_api_key_provider(provider_id: str) -> bool:
 def select_provider_and_model(args=None):
     """Core provider selection + model picking logic.
 
-    Shared by ``cmd_model`` (``hermes model``) and the setup wizard
+    Shared by ``cmd_model`` (``stoa model``) and the setup wizard
     (``setup_model_provider`` in setup.py).  Handles the full flow:
     provider picker, credential prompting, model selection, and config
     persistence.
@@ -2289,8 +2289,8 @@ def select_provider_and_model(args=None):
             active = active_def.id
         else:
             warning = (
-                f"Unknown provider '{effective_provider}'. Check 'hermes model' for "
-                "available providers, or run 'hermes doctor' to diagnose config "
+                f"Unknown provider '{effective_provider}'. Check 'stoa model' for "
+                "available providers, or run 'stoa doctor' to diagnose config "
                 "issues."
             )
             print(f"Warning: {warning} Falling back to auto provider detection.")
@@ -2479,14 +2479,14 @@ def _clear_stale_openai_base_url():
 # ─────────────────────────────────────────────────────────────────────────────
 # Auxiliary model configuration
 #
-# Hermes uses lightweight "auxiliary" models for side tasks (vision analysis,
+# STOA uses lightweight "auxiliary" models for side tasks (vision analysis,
 # context compression, web extraction, session search, etc.). Each task has
 # its own provider+model pair in config.yaml under `auxiliary.<task>`.
 #
 # The UI lives behind "Configure auxiliary models..." at the bottom of the
-# `hermes model` provider picker. It does NOT re-run credential setup — it
+# `stoa model` provider picker. It does NOT re-run credential setup — it
 # only routes already-authenticated providers to specific aux tasks. Users
-# configure new providers through the normal `hermes model` flow first.
+# configure new providers through the normal `stoa model` flow first.
 # ─────────────────────────────────────────────────────────────────────────────
 
 # (task_key, display_name, short_description)
@@ -2626,7 +2626,7 @@ def _aux_config_menu() -> None:
         print()
         print("  Side tasks (vision, compression, web extraction, etc.) default")
         print('  to your main chat model.  "auto" means "use my main model" —')
-        print("  Hermes only falls back to a lightweight backend (OpenRouter,")
+        print("  STOA only falls back to a lightweight backend (OpenRouter,")
         print("  Nous Portal) if the main model is unavailable.  Override a")
         print("  task below if you want it pinned to a specific provider/model.")
         print()
@@ -2675,7 +2675,7 @@ def _aux_select_for_task(task: str) -> None:
     Uses ``list_authenticated_providers()`` to only show providers the user
     has already configured. This avoids re-running OAuth/credential flows
     inside the aux picker — users set up new providers through the normal
-    ``hermes model`` flow, then route aux tasks to them here.
+    ``stoa model`` flow, then route aux tasks to them here.
     """
     from stoa_cli.config import load_config
     from stoa_cli.model_switch import list_authenticated_providers
@@ -2907,7 +2907,7 @@ def _model_flow_openrouter(config, current_model=""):
     # Route through _prompt_api_key so users can replace a stale/broken key
     # in-flow (K/R/C) instead of having to edit ~/.stoa/.env by hand. The
     # previous bypass-when-key-exists branch left no way to recover from a
-    # bad paste short of re-running `hermes setup` from scratch. OpenRouter
+    # bad paste short of re-running `stoa setup` from scratch. OpenRouter
     # isn't in PROVIDER_REGISTRY so we synthesize a minimal pconfig.
     pconfig = ProviderConfig(
         id="openrouter",
@@ -3258,7 +3258,7 @@ def _model_flow_openai_codex(config, current_model=""):
             return
 
     _codex_token = None
-    # Prefer credential pool (where `hermes auth` stores device_code tokens),
+    # Prefer credential pool (where `stoa auth` stores device_code tokens),
     # fall back to legacy provider state.
     try:
         _codex_status = get_codex_auth_status()
@@ -3317,10 +3317,10 @@ def _model_flow_xai_oauth(_config, current_model="", *, args=None):
             print("Starting a fresh xAI OAuth login...")
             print()
             try:
-                # Forward CLI flags from ``hermes model --manual-paste``
+                # Forward CLI flags from ``stoa model --manual-paste``
                 # / ``--no-browser`` / ``--timeout`` into the loopback
                 # login. Without this, browser-only remotes (#26923)
-                # can't reach the manual-paste path via ``hermes model``.
+                # can't reach the manual-paste path via ``stoa model``.
                 mock_args = argparse.Namespace(
                     manual_paste=bool(getattr(args, "manual_paste", False)),
                     no_browser=bool(getattr(args, "no_browser", False)),
@@ -3358,7 +3358,7 @@ def _model_flow_xai_oauth(_config, current_model="", *, args=None):
 
     # Resolve a usable base URL.  ``resolve_xai_oauth_runtime_credentials``
     # only reads from the auth.json singleton — but credentials may legitimately
-    # live only in the pool (e.g. after ``hermes auth add xai-oauth``).  Fall
+    # live only in the pool (e.g. after ``stoa auth add xai-oauth``).  Fall
     # back to the default base URL in that case so the model picker still
     # completes successfully instead of bailing out with
     # ``Could not resolve xAI OAuth credentials``.
@@ -3639,7 +3639,7 @@ def _model_flow_custom(config):
     else:
         print(
             f"Warning: could not verify this endpoint via {probe.get('probed_url')}. "
-            f"Hermes will still save it."
+            f"STOA will still save it."
         )
         if probe.get("suggested_base_url"):
             suggested = probe["suggested_base_url"]
@@ -3759,7 +3759,7 @@ def _model_flow_custom(config):
         else:
             _caller_model.pop("api_mode", None)
         config["model"] = _caller_model
-        print("Endpoint saved. Use `/model` in chat or `hermes model` to set a model.")
+        print("Endpoint saved. Use `/model` in chat or `stoa model` to set a model.")
 
     # Auto-save to custom_providers so it appears in the menu next time
     _save_custom_provider(
@@ -3787,7 +3787,7 @@ def _prompt_custom_api_mode_selection(base_url: str, current_api_mode: str = "")
         (
             "",
             "Auto-detect",
-            "Use Hermes URL heuristics; best for standard OpenAI-compatible endpoints.",
+            "Use STOA URL heuristics; best for standard OpenAI-compatible endpoints.",
         ),
         (
             "chat_completions",
@@ -4012,7 +4012,7 @@ def _model_flow_azure_foundry(config, current_model=""):
     print("=" * 50)
     print()
     print("Azure Foundry can host models with either OpenAI-style or")
-    print("Anthropic-style API endpoints.  Hermes will probe your")
+    print("Anthropic-style API endpoints.  STOA will probe your")
     print("endpoint to auto-detect the transport and the deployed")
     print("models when possible.")
     print()
@@ -4100,7 +4100,7 @@ def _model_flow_azure_foundry(config, current_model=""):
         if not has_azure_identity_installed():
             print("◐ The 'azure-identity' package is not installed yet.")
             print(
-                "  Hermes will install it now (the preflight below "
+                "  STOA will install it now (the preflight below "
                 "triggers the lazy-install). To skip lazy installs, "
                 "run:  pip install azure-identity"
             )
@@ -4551,7 +4551,7 @@ def _model_flow_named_custom(config, provider_info):
 
 
 # Keep the historical eager model catalog import on desktop/CI. Termux defers
-# it to the model-selection handlers so plain `hermes --tui` does not pay for
+# it to the model-selection handlers so plain `stoa --tui` does not pay for
 # requests/models.dev catalog imports before the Node TUI starts.
 if not _is_termux_startup_environment():
     from stoa_cli.models import _PROVIDER_MODELS
@@ -4883,9 +4883,9 @@ def _model_flow_copilot_acp(config, current_model=""):
     )
     effective_base = status.get("base_url") or pconfig.inference_base_url
 
-    print("  GitHub Copilot ACP delegates Hermes turns to `copilot --acp`.")
-    print("  Hermes currently starts its own ACP subprocess for each request.")
-    print("  Hermes uses your selected model as a hint for the Copilot ACP session.")
+    print("  GitHub Copilot ACP delegates STOA turns to `copilot --acp`.")
+    print("  STOA currently starts its own ACP subprocess for each request.")
+    print("  STOA uses your selected model as a hint for the Copilot ACP session.")
     print(f"  Command: {resolved_command}")
     print(f"  Backend marker: {effective_base}")
     print()
@@ -4969,7 +4969,7 @@ def _model_flow_copilot_acp(config, current_model=""):
 
 
 def _prompt_api_key(pconfig, existing_key: str, provider_id: str = "") -> tuple:
-    """Shared API-key entry point for ``hermes setup`` / ``hermes model``.
+    """Shared API-key entry point for ``stoa setup`` / ``stoa model``.
 
     Handles both first-time entry and the already-configured case.  When a key
     is already present, offers [K]eep / [R]eplace / [C]lear so the user can
@@ -5043,7 +5043,7 @@ def _prompt_api_key(pconfig, existing_key: str, provider_id: str = "") -> tuple:
     if choice.startswith("c"):
         save_env_value(key_env, "")
         print(
-            f"  API key cleared.  Re-run `hermes setup` to configure {pconfig.name} again."
+            f"  API key cleared.  Re-run `stoa setup` to configure {pconfig.name} again."
         )
         return "", True
 
@@ -5354,7 +5354,7 @@ def _model_flow_bedrock_api_key(config, region, current_model=""):
         bedrock_cfg["region"] = region
         cfg["bedrock"] = bedrock_cfg
 
-        # Save the API key env var name so hermes knows where to find it
+        # Save the API key env var name so stoa knows where to find it
         save_env_value("OPENAI_API_KEY", existing_key)
         save_env_value("OPENAI_BASE_URL", mantle_base_url)
 
@@ -5613,7 +5613,7 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
                     "(<= 250 requests/day for gemini-2.5-flash)."
                 )
                 print(
-                    "   Hermes typically makes 3-10 API calls per user turn "
+                    "   STOA typically makes 3-10 API calls per user turn "
                     "(tool iterations + auxiliary tasks),"
                 )
                 print(
@@ -5623,7 +5623,7 @@ def _model_flow_api_key_provider(config, provider_id, current_model=""):
                 print("   an agent session.")
                 print()
                 print(
-                    "   To use Gemini with Hermes, enable billing on your "
+                    "   To use Gemini with STOA, enable billing on your "
                     "Google Cloud project and regenerate"
                 )
                 print(
@@ -5860,7 +5860,7 @@ def _run_anthropic_oauth_flow(save_env_value):
             from stoa_constants import display_stoa_home as _dhh_fn
 
             print(
-                f"    Hermes will use Claude's credential store directly instead of copying a setup-token into {_dhh_fn()}/.env."
+                f"    STOA will use Claude's credential store directly instead of copying a setup-token into {_dhh_fn()}/.env."
             )
             return True
         return False
@@ -5909,7 +5909,7 @@ def _run_anthropic_oauth_flow(save_env_value):
         print("    1. Install Claude Code:  npm install -g @anthropic-ai/claude-code")
         print("    2. Run:                  claude setup-token")
         print("    3. Follow the browser prompts to authorize")
-        print("    4. Re-run:               hermes model")
+        print("    4. Re-run:               stoa model")
         print()
         print("  Or paste an existing setup-token now (sk-ant-oat-...):")
         print()
@@ -6065,7 +6065,7 @@ def _model_flow_anthropic(config, current_model=""):
         # Update config with provider — clear base_url since
         # resolve_runtime_provider() always hardcodes Anthropic's URL.
         # Leaving a stale base_url in config can contaminate other
-        # providers if the user switches without running 'hermes model'.
+        # providers if the user switches without running 'stoa model'.
         cfg = load_config()
         model = cfg.get("model")
         if not isinstance(model, dict):
@@ -6082,7 +6082,7 @@ def _model_flow_anthropic(config, current_model=""):
 
 
 def cmd_login(args):
-    """Authenticate Hermes CLI with a provider."""
+    """Authenticate STOA CLI with a provider."""
     from stoa_cli.auth import login_command
 
     login_command(args)
@@ -6133,7 +6133,7 @@ def cmd_portal(args):
 def cmd_slack(args):
     """Slack integration helpers.
 
-    Dispatches ``hermes slack <subcommand>``. Currently supports:
+    Dispatches ``stoa slack <subcommand>``. Currently supports:
       manifest — print or write a Slack app manifest with every gateway
                  command registered as a first-class slash.
     """
@@ -6141,13 +6141,13 @@ def cmd_slack(args):
     if sub in {None, ""}:
         # No subcommand — print usage hint.
         print(
-            "usage: hermes slack <subcommand>\n"
+            "usage: stoa slack <subcommand>\n"
             "\n"
             "subcommands:\n"
             "  manifest   Generate a Slack app manifest with every gateway\n"
             "             command registered as a native slash\n"
             "\n"
-            "Run `hermes slack manifest -h` for details.",
+            "Run `stoa slack manifest -h` for details.",
             file=sys.stderr,
         )
         return 1
@@ -6204,7 +6204,7 @@ def cmd_config(args):
 
 
 def cmd_backup(args):
-    """Back up Hermes home directory to a zip file."""
+    """Back up STOA home directory to a zip file."""
     if getattr(args, "quick", False):
         from stoa_cli.backup import run_quick_backup
 
@@ -6216,7 +6216,7 @@ def cmd_backup(args):
 
 
 def cmd_import(args):
-    """Restore a Hermes backup from a zip file."""
+    """Restore a STOA backup from a zip file."""
     from stoa_cli.backup import run_import
 
     run_import(args)
@@ -6304,9 +6304,9 @@ def _clear_bytecode_cache(root: Path) -> int:
     return removed
 
 
-# Critical files that every ``hermes`` invocation imports at startup. If any
+# Critical files that every ``stoa`` invocation imports at startup. If any
 # of these fail to parse after a pull, the CLI is bricked — the user can't
-# even run ``hermes update`` again to roll forward. The post-pull syntax
+# even run ``stoa update`` again to roll forward. The post-pull syntax
 # guard validates these and auto-rolls-back on failure.
 _UPDATE_CRITICAL_FILES = (
     "stoa_cli/main.py",
@@ -6338,7 +6338,7 @@ def _capture_head_sha(git_cmd, cwd) -> str | None:
 def _validate_critical_files_syntax(root) -> tuple[bool, str | None, str | None]:
     """Compile each file in ``_UPDATE_CRITICAL_FILES`` to catch SyntaxErrors.
 
-    These are the files imported on every ``hermes`` startup; if any of them
+    These are the files imported on every ``stoa`` startup; if any of them
     has a syntax error (orphan merge-conflict markers, bad ref to a name
     that no longer exists, etc.) the CLI can't bootstrap at all. We validate
     them after a successful ``git pull`` so we can auto-roll-back instead of
@@ -6358,7 +6358,7 @@ def _validate_critical_files_syntax(root) -> tuple[bool, str | None, str | None]
     import tempfile
 
     root = Path(root)
-    with tempfile.TemporaryDirectory(prefix="hermes-syntax-check-") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="stoa-syntax-check-") as tmpdir:
         for relpath in _UPDATE_CRITICAL_FILES:
             path = root / relpath
             if not path.exists():
@@ -6383,7 +6383,7 @@ def _gateway_prompt(prompt_text: str, default: str = "", timeout: float = 300.0)
     Writes a prompt marker file so the gateway can forward the question to the
     user, then polls for a response file.  Falls back to *default* on timeout.
 
-    Used by ``hermes update --gateway`` so interactive prompts (stash restore,
+    Used by ``stoa update --gateway`` so interactive prompts (stash restore,
     config migration) are forwarded to the messenger instead of being silently
     skipped.
     """
@@ -6476,7 +6476,7 @@ def _run_npm_install_deterministic(
     falls back to ``npm install`` only if ``npm ci`` fails (e.g. lockfile out of
     sync on a WIP checkout).  Without this, ``npm install`` on npm ≥ 10 silently
     rewrites committed lockfiles (stripping ``"peer": true`` etc.), which leaves
-    the working tree dirty and causes the next ``hermes update`` to stash the
+    the working tree dirty and causes the next ``stoa update`` to stash the
     lockfile — repeatedly.
     """
     lockfile = cwd / "package-lock.json"
@@ -6513,7 +6513,7 @@ def _build_web_ui(web_dir: Path, *, fatal: bool = False) -> bool:
     Args:
         web_dir: Path to the ``web/`` source directory.
         fatal: If True, print error guidance and return False on failure
-               instead of a soft warning (used by ``hermes web``).
+               instead of a soft warning (used by ``stoa web``).
 
     Returns True if the build succeeded or was skipped (no package.json).
     """
@@ -6562,7 +6562,7 @@ def _build_web_ui(web_dir: Path, *, fatal: bool = False) -> bool:
     if r1.returncode != 0:
         _say(
             f"  {'✗' if fatal else '⚠'} Web UI npm install failed"
-            + ("" if fatal else " (hermes web will not be available)")
+            + ("" if fatal else " (stoa web will not be available)")
         )
         _relay(r1)
         if fatal:
@@ -6608,7 +6608,7 @@ def _build_web_ui(web_dir: Path, *, fatal: bool = False) -> bool:
 
         _say(
             f"  {'✗' if fatal else '⚠'} Web UI build failed"
-            + ("" if fatal else " (hermes web will not be available)")
+            + ("" if fatal else " (stoa web will not be available)")
         )
         _relay(r2)
         if fatal:
@@ -6619,10 +6619,10 @@ def _build_web_ui(web_dir: Path, *, fatal: bool = False) -> bool:
 
 
 def _find_stale_dashboard_pids() -> list[int]:
-    """Return PIDs of ``hermes dashboard`` processes other than ourselves.
+    """Return PIDs of ``stoa dashboard`` processes other than ourselves.
 
-    ``hermes dashboard`` is a long-lived server process commonly started and
-    forgotten.  When ``hermes update`` replaces files on disk, the running
+    ``stoa dashboard`` is a long-lived server process commonly started and
+    forgotten.  When ``stoa update`` replaces files on disk, the running
     process keeps the old Python backend in memory while the JS bundle on
     disk is updated, causing a silent frontend/backend mismatch (e.g. new
     auth headers the old backend doesn't recognise → every API call 401s).
@@ -6636,7 +6636,7 @@ def _find_stale_dashboard_pids() -> list[int]:
     Returns an empty list on any scan error (missing ps/wmic, timeout, etc.).
     """
     patterns = [
-        "hermes dashboard",
+        "stoa dashboard",
         "stoa_cli.main dashboard",
         "stoa_cli/main.py dashboard",
     ]
@@ -6680,7 +6680,7 @@ def _find_stale_dashboard_pids() -> list[int]:
         else:
             # Linux / macOS: scan the process table via ps and match against
             # the same explicit patterns list used on Windows.  Using ps
-            # (rather than `pgrep -f "hermes.*dashboard"`) keeps us consistent
+            # (rather than `pgrep -f "stoa.*dashboard"`) keeps us consistent
             # with `stoa_cli.gateway._scan_gateway_pids` and avoids the
             # greedy regex matching unrelated cmdlines that merely contain
             # both words (e.g. a chat session discussing "dashboard").
@@ -6712,7 +6712,7 @@ def _find_stale_dashboard_pids() -> list[int]:
 
 
 def _print_curator_first_run_notice() -> None:
-    """Print a short heads-up about the skill curator after `hermes update`.
+    """Print a short heads-up about the skill curator after `stoa update`.
 
     Only fires when the curator is enabled AND has no recorded run yet, which
     is exactly the window where the gateway ticker used to fire Curator
@@ -6745,8 +6745,8 @@ def _print_curator_first_run_notice() -> None:
         f"~{days}d after installation; only agent-created skills are in "
         f"scope and nothing is ever auto-deleted (archive is recoverable)."
     )
-    print("  Preview now:  hermes curator run --dry-run")
-    print("  Pause it:     hermes curator pause")
+    print("  Preview now:  stoa curator run --dry-run")
+    print("  Pause it:     stoa curator pause")
     print(
         "  Docs:         https://stoa-agent.nousresearch.com/docs/user-guide/features/curator"
     )
@@ -6757,11 +6757,11 @@ def _print_curator_recent_run_notice() -> None:
 
     The curator runs in the background (gateway tick + CLI session start),
     so users learn about skill consolidations only by stumbling into a
-    rename. ``hermes update`` is a high-attention surface — surface the
+    rename. ``stoa update`` is a high-attention surface — surface the
     most recent run's rename map here, once.
 
     Show-once: state stamps ``last_run_summary_shown_at`` after printing.
-    Subsequent ``hermes update`` invocations skip the block until a newer
+    Subsequent ``stoa update`` invocations skip the block until a newer
     curator run lands. Silent when the curator has never run, when the
     most recent summary has already been shown, or when the summary has
     no rename information to display (no archives).
@@ -6807,7 +6807,7 @@ def _print_curator_recent_run_notice() -> None:
         print(f"  {line}")
     print(
         "  (This message shows once per curator run. "
-        "View anytime: hermes curator status)"
+        "View anytime: stoa curator status)"
     )
 
     # Stamp shown so we don't repeat on the next update.
@@ -6841,10 +6841,10 @@ def _format_time_ago(iso_ts: str) -> str:
 def _kill_stale_dashboard_processes(
     reason: str = "the running backend no longer matches the updated frontend",
 ) -> None:
-    """Kill running ``hermes dashboard`` processes.
+    """Kill running ``stoa dashboard`` processes.
 
-    Called at the end of ``hermes update`` (default ``reason``) and also
-    from ``hermes dashboard --stop`` (which overrides ``reason``).  The
+    Called at the end of ``stoa update`` (default ``reason``) and also
+    from ``stoa dashboard --stop`` (which overrides ``reason``).  The
     dashboard has no service manager, so after a code update the running
     process is guaranteed to be serving stale Python against a
     freshly-updated JS bundle.  Leaving it alive produces silent
@@ -6934,7 +6934,7 @@ def _kill_stale_dashboard_processes(
 
     if killed:
         print("  Restart the dashboard when you're ready:")
-        print("    hermes dashboard --port <port>")
+        print("    stoa dashboard --port <port>")
 
 
 # Back-compat alias: some tests and any external callers may import the old
@@ -6958,7 +6958,7 @@ def _update_via_zip(args):
     )
 
     print("→ Downloading latest version...")
-    tmp_dir = tempfile.mkdtemp(prefix="hermes-update-")
+    tmp_dir = tempfile.mkdtemp(prefix="stoa-update-")
     try:
         zip_path = os.path.join(tmp_dir, f"stoa-agent-{branch}.zip")
         urlretrieve(zip_url, zip_path)
@@ -7117,7 +7117,7 @@ def _stash_local_changes_if_needed(git_cmd: list[str], cwd: Path) -> Optional[st
     from datetime import datetime, timezone
 
     stash_name = datetime.now(timezone.utc).strftime(
-        "hermes-update-autostash-%Y%m%d-%H%M%S"
+        "stoa-update-autostash-%Y%m%d-%H%M%S"
     )
     print("→ Local changes detected — stashing before update...")
     subprocess.run(
@@ -7180,7 +7180,7 @@ def _restore_stashed_changes(
         print(
             "  Restoring them may reapply local customizations onto the updated codebase."
         )
-        print("  Review the result afterward if Hermes behaves unexpectedly.")
+        print("  Review the result afterward if STOA behaves unexpectedly.")
         print("Restore local changes now? [Y/n]")
         if input_fn is not None:
             response = input_fn("Restore local changes now? [Y/n]", "y")
@@ -7227,7 +7227,7 @@ def _restore_stashed_changes(
         print(f"  Stash ref: {stash_ref}")
 
         # Always reset to clean state — leaving conflict markers in source
-        # files makes hermes completely unrunnable (SyntaxError on import).
+        # files makes stoa completely unrunnable (SyntaxError on import).
         # The user's changes are safe in the stash for manual recovery.
         subprocess.run(
             git_cmd + ["reset", "--hard", "HEAD"],
@@ -7244,7 +7244,7 @@ def _restore_stashed_changes(
     stash_selector = _resolve_stash_selector(git_cmd, cwd, stash_ref)
     if stash_selector is None:
         print(
-            "⚠ Local changes were restored, but Hermes couldn't find the stash entry to drop."
+            "⚠ Local changes were restored, but STOA couldn't find the stash entry to drop."
         )
         print(
             "  The stash was left in place. You can remove it manually after checking the result."
@@ -7259,7 +7259,7 @@ def _restore_stashed_changes(
         )
         if drop.returncode != 0:
             print(
-                "⚠ Local changes were restored, but Hermes couldn't drop the saved stash entry."
+                "⚠ Local changes were restored, but STOA couldn't drop the saved stash entry."
             )
             if drop.stdout.strip():
                 print(drop.stdout.strip())
@@ -7271,12 +7271,12 @@ def _restore_stashed_changes(
             _print_stash_cleanup_guidance(stash_ref, stash_selector)
 
     print("⚠ Local changes were restored on top of the updated codebase.")
-    print("  Review `git diff` / `git status` if Hermes behaves unexpectedly.")
+    print("  Review `git diff` / `git status` if STOA behaves unexpectedly.")
     return True
 
 
 # =========================================================================
-# Fork detection and upstream management for `hermes update`
+# Fork detection and upstream management for `stoa update`
 # =========================================================================
 
 OFFICIAL_REPO_URLS = {
@@ -7418,7 +7418,7 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
 
         # Ask user if they want to add upstream
         print()
-        print("ℹ Your fork is not tracking the official Hermes repository.")
+        print("ℹ Your fork is not tracking the official STOA repository.")
         print("  This means you may miss updates from STOAGENT/stoa-agent.")
         print()
         try:
@@ -7519,7 +7519,7 @@ def _invalidate_update_cache():
     reports a stale "commits behind" count after a successful update.
 
     The git repo is shared across profiles — when one profile runs
-    ``hermes update``, every profile is now current.
+    ``stoa update``, every profile is now current.
     """
     homes = []
     # Default profile home (Docker-aware — uses /opt/data in Docker)
@@ -7581,7 +7581,7 @@ def _run_install_with_heartbeat(
 
     Some resolvers/build backends (especially when compiling Rust/C extensions)
     can stay quiet for minutes. Emit a simple elapsed-time heartbeat so users
-    know ``hermes update`` is still progressing even if pip/uv itself is silent.
+    know ``stoa update`` is still progressing even if pip/uv itself is silent.
     """
     done = threading.Event()
     start = _time.time()
@@ -7633,7 +7633,7 @@ def _stoa_exe_shims(scripts_dir: Path) -> list[Path]:
     if not _is_windows():
         return []
     return [
-        scripts_dir / "hermes.exe",
+        scripts_dir / "stoa.exe",
         scripts_dir / "stoa-gateway.exe",
     ]
 
@@ -7645,15 +7645,15 @@ def _detect_concurrent_stoa_instances(
 
     Windows blocks DELETE/REPLACE on a running .exe — and even RENAME on the
     same .exe when another process opened it without ``FILE_SHARE_DELETE``.
-    The Hermes Desktop Electron app spawns ``hermes.EXE`` as a backend child,
-    so during ``hermes update`` the user-invoked process and the desktop's
+    The STOA Desktop Electron app spawns ``stoa.EXE`` as a backend child,
+    so during ``stoa update`` the user-invoked process and the desktop's
     child both hold the same file. The quarantine rename then fails with
     ``[WinError 32]`` and uv inherits the lock.
 
     This helper enumerates processes whose ``exe`` matches one of the venv's
-    shims (``hermes.exe`` / ``stoa-gateway.exe``) and returns ``(pid,
+    shims (``stoa.exe`` / ``stoa-gateway.exe``) and returns ``(pid,
     process_name)`` pairs. The caller's own PID is excluded so the running
-    ``hermes update`` invocation never reports itself.
+    ``stoa update`` invocation never reports itself.
 
     Returns an empty list off-Windows, on missing psutil, or when no other
     instances exist. Never raises — process enumeration is best-effort.
@@ -7709,17 +7709,17 @@ def _format_concurrent_instances_message(
     matches: list[tuple[int, str]], scripts_dir: Path
 ) -> str:
     """Build a human-readable explanation + remediation hint for the user."""
-    shim = scripts_dir / "hermes.exe"
-    lines = ["✗ Another hermes.exe is running:"]
+    shim = scripts_dir / "stoa.exe"
+    lines = ["✗ Another stoa.exe is running:"]
     for pid, name in matches:
         lines.append(f"    PID {pid}  {name}")
     lines.append("")
     lines.append(f"  Updating now would fail to overwrite {shim} because")
     lines.append("  Windows blocks REPLACE on a running executable.")
     lines.append("")
-    lines.append("  Close Hermes Desktop, exit any open `hermes` REPLs, and")
-    lines.append("  stop the gateway (`hermes gateway stop`) before retrying.")
-    lines.append("  Override with `hermes update --force` if you've already")
+    lines.append("  Close STOA Desktop, exit any open `stoa` REPLs, and")
+    lines.append("  stop the gateway (`stoa gateway stop`) before retrying.")
+    lines.append("  Override with `stoa update --force` if you've already")
     lines.append("  confirmed those processes will not write to the venv.")
     return "\n".join(lines)
 
@@ -7727,21 +7727,21 @@ def _format_concurrent_instances_message(
 def _quarantine_running_stoa_exe(
     scripts_dir: Path, *, max_attempts: int = 4
 ) -> list[tuple[Path, Path]]:
-    """Pre-empt Windows file lock on the running ``hermes.exe``.
+    """Pre-empt Windows file lock on the running ``stoa.exe``.
 
     Windows allows RENAMING a mapped/running executable (the kernel tracks the
     file by handle, not path), but blocks DELETE/REPLACE while it's loaded. uv
     needs to overwrite the entry-point shims during ``pip install -e .``;
-    when ``hermes update`` runs, ``hermes.exe`` IS the live process, and uv
+    when ``stoa update`` runs, ``stoa.exe`` IS the live process, and uv
     fails with ``Access is denied. (os error 5)``.
 
-    We rename live shims to ``hermes.exe.old.<unix-ms>`` first. uv then writes
+    We rename live shims to ``stoa.exe.old.<unix-ms>`` first. uv then writes
     fresh shims at the original paths. The ``.old`` files are cleaned up on
-    the next hermes invocation by ``_cleanup_quarantined_exes``.
+    the next stoa invocation by ``_cleanup_quarantined_exes``.
 
     Rename can still fail when *another* process has opened the .exe without
     ``FILE_SHARE_DELETE`` — typically AV real-time scanners with transient
-    handles (recovers in <1s), or the Hermes Desktop backend child process
+    handles (recovers in <1s), or the STOA Desktop backend child process
     (won't recover until the user closes it). We mitigate:
 
     1. Retry up to ``max_attempts`` times with exponential backoff
@@ -7753,7 +7753,7 @@ def _quarantine_running_stoa_exe(
        update can complete; the user just needs to reboot to fully unload
        the stale image.
     3. Print a clear warning naming the most likely culprit (running
-       Hermes Desktop / gateway / REPL) and pointing to ``--force``.
+       STOA Desktop / gateway / REPL) and pointing to ``--force``.
 
     Returns the list of (original, quarantined) pairs so the caller can roll
     back if the install itself fails before uv writes a replacement. Pairs
@@ -7820,8 +7820,8 @@ def _quarantine_running_stoa_exe(
             f"another process is holding it open)."
         )
         print(
-            "    Close Hermes Desktop, exit other `hermes` REPLs, stop the "
-            "gateway, or pause AV scanning, then re-run `hermes update`."
+            "    Close STOA Desktop, exit other `stoa` REPLs, stop the "
+            "gateway, or pause AV scanning, then re-run `stoa update`."
         )
 
     return moved
@@ -7873,9 +7873,9 @@ def _restore_quarantined_exes(moved: list[tuple[Path, Path]]) -> None:
 
 
 def _cleanup_quarantined_exes(scripts_dir: Path | None = None) -> None:
-    """Sweep ``hermes.exe.old.*`` left by prior updates.
+    """Sweep ``stoa.exe.old.*`` left by prior updates.
 
-    Called early on every hermes invocation. The .old files are unlocked once
+    Called early on every stoa invocation. The .old files are unlocked once
     their owning process exited, so deletion succeeds the next run. Silent
     no-op when nothing's there or on file-locked / permission errors.
     """
@@ -7900,7 +7900,7 @@ def _refresh_active_lazy_features() -> None:
 
     When pyproject.toml's ``[all]`` extra was slimmed down (May 2026), most
     optional backends moved to ``tools/lazy_deps.py`` and only install on
-    first use. ``hermes update`` runs ``uv pip install -e .[all]`` which
+    first use. ``stoa update`` runs ``uv pip install -e .[all]`` which
     leaves those packages untouched — so if we bump a pin in
     :data:`LAZY_DEPS` (CVE response, transitive bug fix), users who already
     activated the backend keep the stale version forever.
@@ -7960,7 +7960,7 @@ def _refresh_active_lazy_features() -> None:
                 reason = reason[:200] + "..."
             print(f"  ⚠ {feature} failed to refresh: {reason}")
         print("  Backends keep their previously-installed version; rerun")
-        print("  `hermes update` once the upstream issue is resolved.")
+        print("  `stoa update` once the upstream issue is resolved.")
 
 
 def _install_python_dependencies_with_optional_fallback(
@@ -7974,7 +7974,7 @@ def _install_python_dependencies_with_optional_fallback(
     By default this targets ``.[all]``; Termux callers can pass
     ``group='termux-all'`` to use the curated Android-compatible profile.
 
-    On Windows, pre-renames live ``hermes.exe`` / ``stoa-gateway.exe`` shims
+    On Windows, pre-renames live ``stoa.exe`` / ``stoa-gateway.exe`` shims
     in the venv Scripts dir before each install attempt so uv can write fresh
     copies (Windows blocks REPLACE on a running .exe but allows RENAME). See
     ``_quarantine_running_stoa_exe`` for the rationale.
@@ -8139,7 +8139,7 @@ def _update_node_dependencies() -> None:
 
 
 class _UpdateOutputStream:
-    """Stream wrapper used during ``hermes update`` to survive terminal loss.
+    """Stream wrapper used during ``stoa update`` to survive terminal loss.
 
     Wraps the process's original stdout/stderr so that:
 
@@ -8152,7 +8152,7 @@ class _UpdateOutputStream:
       stops.
 
     Combined with ``SIGHUP -> SIG_IGN`` installed by
-    ``_install_hangup_protection``, this makes ``hermes update`` safe to
+    ``_install_hangup_protection``, this makes ``stoa update`` safe to
     run in a plain SSH session that might disconnect mid-install.
     """
 
@@ -8214,7 +8214,7 @@ class _UpdateOutputStream:
 def _install_hangup_protection(gateway_mode: bool = False):
     """Protect ``cmd_update`` from SIGHUP and broken terminal pipes.
 
-    Users commonly run ``hermes update`` in an SSH session or a terminal
+    Users commonly run ``stoa update`` in an SSH session or a terminal
     that may close mid-install.  Without protection, ``SIGHUP`` from the
     terminal kills the Python process during ``pip install`` and leaves
     the venv half-installed; the documented workaround ("use screen /
@@ -8233,7 +8233,7 @@ def _install_hangup_protection(gateway_mode: bool = False):
     **intentionally left alone** — those are legitimate cancellation
     signals the user or OS sent on purpose.
 
-    In gateway mode (``hermes update --gateway``) the update is already
+    In gateway mode (``stoa update --gateway``) the update is already
     spawned detached from a terminal, so this function is a no-op.
 
     Returns a dict that ``cmd_update`` can pass to
@@ -8276,7 +8276,7 @@ def _install_hangup_protection(gateway_mode: bool = False):
         import datetime as _dt
 
         log_file.write(
-            f"\n=== hermes update started "
+            f"\n=== stoa update started "
             f"{_dt.datetime.now().isoformat(timespec='seconds')} ===\n"
         )
 
@@ -8315,7 +8315,7 @@ def _finalize_update_output(state):
 
 
 def _cmd_update_check():
-    """Implement ``hermes update --check``: fetch and report without installing."""
+    """Implement ``stoa update --check``: fetch and report without installing."""
     from stoa_cli.config import detect_install_method
     method = detect_install_method(PROJECT_ROOT)
     if method == "pip":
@@ -8400,16 +8400,16 @@ def _ensure_fhs_path_guard() -> None:
 
     Mirrors the post-symlink probe added to ``scripts/install.sh`` so that
     existing FHS-layout root installs on RHEL/CentOS/Rocky/Alma 8+ get
-    repaired on ``hermes update`` without requiring a reinstall.  The
+    repaired on ``stoa update`` without requiring a reinstall.  The
     installer's assumption that ``/usr/local/bin`` is on PATH for every
     standard shell breaks on those distros in non-login interactive shells
     (su, sudo -s, tmux panes, some web terminals): /etc/bashrc doesn't
     add /usr/local/bin and /root/.bash_profile doesn't either.  Symptom:
-    ``hermes`` prints ``command not found`` even though the symlink lives
-    at /usr/local/bin/hermes.
+    ``stoa`` prints ``command not found`` even though the symlink lives
+    at /usr/local/bin/stoa.
 
     Silent no-op on: non-Linux, non-root, non-FHS installs, and any system
-    where ``bash -i -c 'command -v hermes'`` already resolves.  Idempotent.
+    where ``bash -i -c 'command -v stoa'`` already resolves.  Idempotent.
     """
     if sys.platform != "linux":
         return
@@ -8419,8 +8419,8 @@ def _ensure_fhs_path_guard() -> None:
     except AttributeError:
         return
     # Only act when this is actually an FHS-layout install (command link at
-    # /usr/local/bin/hermes, code at /usr/local/lib/stoa-agent).
-    fhs_link = Path("/usr/local/bin/hermes")
+    # /usr/local/bin/stoa, code at /usr/local/lib/stoa-agent).
+    fhs_link = Path("/usr/local/bin/stoa")
     if not fhs_link.is_symlink() and not fhs_link.exists():
         return
 
@@ -8438,7 +8438,7 @@ def _ensure_fhs_path_guard() -> None:
                 "bash",
                 "-i",
                 "-c",
-                "command -v hermes",
+                "command -v stoa",
             ],
             capture_output=True,
             text=True,
@@ -8489,7 +8489,7 @@ def _run_pre_update_backup(args) -> None:
 
     Gated on ``updates.pre_update_backup`` in config (default false).  Off
     by default because the zip can add minutes to every update on large
-    STOA_HOME directories.  The ``--backup`` flag on ``hermes update``
+    STOA_HOME directories.  The ``--backup`` flag on ``stoa update``
     opts in for a single run; ``--no-backup`` forces it off when config
     has it enabled.  Never raises — a backup failure should not block the
     update itself.
@@ -8574,7 +8574,7 @@ def _run_pre_update_backup(args) -> None:
         display_path = str(out_path)
 
     print(f"  Saved:    {display_path} ({size_str}, {elapsed:.1f}s)")
-    print(f"  Restore:  hermes import {out_path}")
+    print(f"  Restore:  stoa import {out_path}")
     print(f"  Disable:  omit --backup (backups are off by default)")
     print(f"            set updates.pre_update_backup: false in config.yaml")
     print()
@@ -8610,7 +8610,7 @@ def cmd_update(args):
 
 
 def _cmd_update_pip(args):
-    """Update Hermes via pip (for PyPI installs)."""
+    """Update STOA via pip (for PyPI installs)."""
     from stoa_cli import __version__
 
     print(f"→ Current version: {__version__}")
@@ -8628,7 +8628,7 @@ def _cmd_update_pip(args):
         print("✗ Update failed")
         sys.exit(1)
 
-    print("✓ Update complete! Restart hermes to use the new version.")
+    print("✓ Update complete! Restart stoa to use the new version.")
 
 
 def _cmd_update_impl(args, gateway_mode: bool):
@@ -8645,7 +8645,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
     print("⚕ Updating STOA Agent...")
     print()
 
-    # On Windows, abort early if another hermes.exe is holding the venv shim
+    # On Windows, abort early if another stoa.exe is holding the venv shim
     # open. Continuing would result in a string of WinError 32 warnings and
     # then either a deferred-rename leftover or a failed git-pull fast path
     # that silently falls back to the slower ZIP route. See issue #26670.
@@ -8838,7 +8838,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
         # Capture the pre-pull SHA so we can auto-roll-back if the new code
         # has a syntax error in a critical-path file (PR #28452 incident:
         # orphan merge-conflict markers in stoa_cli/config.py bricked
-        # every user who ran ``hermes update`` for the 7 minutes between
+        # every user who ran ``stoa update`` for the 7 minutes between
         # the bad commit and the fix landing).
         pre_pull_sha = _capture_head_sha(git_cmd, PROJECT_ROOT)
         try:
@@ -8874,7 +8874,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
             # parse before declaring the update successful. If a bad commit
             # made it through CI (e.g. admin-merge bypass of a failing
             # ruff check), this catches it on the user side and rolls back
-            # so the CLI stays bootable. The user can then retry ``hermes
+            # so the CLI stays bootable. The user can then retry ``stoa
             # update`` later once a fix lands upstream.
             syntax_ok, failing_path, syntax_error = _validate_critical_files_syntax(
                 PROJECT_ROOT
@@ -8899,7 +8899,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
                     )
                     if rollback_result.returncode == 0:
                         print("  ✓ Rollback complete — your install is unchanged.")
-                        print("  Try ``hermes update`` again later once a fix lands.")
+                        print("  Try ``stoa update`` again later once a fix lands.")
                     else:
                         print("  ✗ Rollback failed. Recover manually with:")
                         print(f"    cd {PROJECT_ROOT} && git reset --hard {pre_pull_sha}")
@@ -9154,10 +9154,10 @@ def _cmd_update_impl(args, gateway_mode: bool):
                     print()
                     print("✓ Configuration updated!")
                 if (gateway_mode or assume_yes or response == "auto") and missing_env:
-                    print("  ℹ API keys require manual entry: hermes config migrate")
+                    print("  ℹ API keys require manual entry: stoa config migrate")
             else:
                 print()
-                print("Skipped. Run 'hermes config migrate' later to configure.")
+                print("Skipped. Run 'stoa config migrate' later to configure.")
         else:
             print("  ✓ Configuration is up to date")
 
@@ -9176,7 +9176,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
         # Most-recent curator run notice — show-once per run. Surfaces the
         # rename map (`old-name → umbrella`) on the high-attention update
         # surface so users learn about consolidations without having to
-        # check `hermes curator status`. Self-stamps after printing so it
+        # check `stoa curator status`. Self-stamps after printing so it
         # never repeats for the same run.
         try:
             _print_curator_recent_run_notice()
@@ -9193,7 +9193,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
         # Refresh the cua-driver binary used by the Computer Use toolset.
         # The upstream installer is gated on macOS and on the binary already
         # being on PATH, so this is a no-op for users who don't have it.
-        # Tying the refresh to ``hermes update`` gives users a predictable
+        # Tying the refresh to ``stoa update`` gives users a predictable
         # cadence (matches when they pull new agent code) without adding
         # startup latency or a per-launch GitHub API call.
         try:
@@ -9207,7 +9207,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
             logger.debug("cua-driver refresh failed: %s", e)
 
         # Write exit code *before* the gateway restart attempt.
-        # When running as ``hermes update --gateway`` (spawned by the gateway's
+        # When running as ``stoa update --gateway`` (spawned by the gateway's
         # /update command), this process lives inside the gateway's systemd
         # cgroup.  A graceful SIGUSR1 restart keeps the drain loop alive long
         # enough for the exit-code marker to be written below, but the
@@ -9535,7 +9535,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
                             # the RestartSec backoff and leave the unit
                             # dead.  Clearing the failed state first makes
                             # the restart idempotent.  Mirrors the recovery
-                            # path in `hermes gateway restart`
+                            # path in `stoa gateway restart`
                             # (`systemd_restart()`) as of PR #20949.
                             subprocess.run(
                                 scope_cmd + ["reset-failed", svc_name],
@@ -9698,10 +9698,10 @@ def _cmd_update_impl(args, gateway_mode: bool):
                 unmapped_count = len(killed_pids) - len(relaunched_profiles)
                 if unmapped_count:
                     print(f"  → Stopped {unmapped_count} manual gateway process(es)")
-                    print("    Restart manually: hermes gateway run")
+                    print("    Restart manually: stoa gateway run")
                     if unmapped_count > 1:
                         print(
-                            "    (or: hermes -p <profile> gateway run  for each profile)"
+                            "    (or: stoa -p <profile> gateway run  for each profile)"
                         )
 
             if not restarted_services and not killed_pids:
@@ -9753,11 +9753,11 @@ def _cmd_update_impl(args, gateway_mode: bool):
         except Exception as e:
             logger.debug("Gateway restart during update failed: %s", e)
 
-        # Warn if legacy Hermes gateway unit files are still installed.
-        # When both hermes.service (from a pre-rename install) and the
+        # Warn if legacy STOA gateway unit files are still installed.
+        # When both stoa.service (from a pre-rename install) and the
         # current stoa-gateway.service are enabled, they SIGTERM-fight
         # for the same bot token (see PR #11909). Flagging here means
-        # every `hermes update` surfaces the issue until the user migrates.
+        # every `stoa update` surfaces the issue until the user migrates.
         try:
             from stoa_cli.gateway import (
                 has_legacy_stoa_units,
@@ -9767,16 +9767,16 @@ def _cmd_update_impl(args, gateway_mode: bool):
 
             if supports_systemd_services() and has_legacy_stoa_units():
                 print()
-                print("⚠ Legacy Hermes gateway unit(s) detected:")
+                print("⚠ Legacy STOA gateway unit(s) detected:")
                 for name, path, is_sys in _find_legacy_stoa_units():
                     scope = "system" if is_sys else "user"
                     print(f"    {path}  ({scope} scope)")
                 print()
-                print("  These pre-rename units (hermes.service) fight the current")
+                print("  These pre-rename units (stoa.service) fight the current")
                 print("  stoa-gateway.service for the bot token and cause SIGTERM")
                 print("  flap loops. Remove them with:")
                 print()
-                print("    hermes gateway migrate-legacy")
+                print("    stoa gateway migrate-legacy")
                 print()
                 print("  (add `sudo` if any are in system scope)")
         except Exception as e:
@@ -9791,7 +9791,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
 
         print()
         print("Tip: You can now select a provider and model:")
-        print("  hermes model              # Select provider and model")
+        print("  stoa model              # Select provider and model")
 
     except subprocess.CalledProcessError as e:
         if sys.platform == "win32":
@@ -9807,7 +9807,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
 def _coalesce_session_name_args(argv: list) -> list:
     """Join unquoted multi-word session names after -c/--continue and -r/--resume.
 
-    When a user types ``hermes -c Pokemon Agent Dev`` without quoting the
+    When a user types ``stoa -c Pokemon Agent Dev`` without quoting the
     session name, argparse sees three separate tokens.  This function merges
     them into a single argument so argparse receives
     ``['-c', 'Pokemon Agent Dev']`` instead.
@@ -9898,7 +9898,7 @@ def cmd_profile(args):
     action = getattr(args, "profile_action", None)
 
     if action is None:
-        # Bare `hermes profile` — show current profile status
+        # Bare `stoa profile` — show current profile status
         profile_name = get_active_profile_name()
         dhh = display_stoa_home()
         print(f"\nActive profile: {profile_name}")
@@ -9917,7 +9917,7 @@ def cmd_profile(args):
                 )
                 print(f"Skills:         {p.skill_count} installed")
                 if p.alias_path:
-                    print(f"Alias:          {p.name} → hermes -p {p.name}")
+                    print(f"Alias:          {p.name} → stoa -p {p.name}")
                 break
         print()
         return
@@ -10040,9 +10040,9 @@ def cmd_profile(args):
                 if collision:
                     print(f"\n⚠ Cannot create alias '{name}' — {collision}")
                     print(
-                        f"  Choose a custom alias:  hermes profile alias {name} --name <custom>"
+                        f"  Choose a custom alias:  stoa profile alias {name} --name <custom>"
                     )
-                    print(f"  Or access via flag:     hermes -p {name} chat")
+                    print(f"  Or access via flag:     stoa -p {name} chat")
                 else:
                     wrapper_path = create_wrapper_script(name)
                     if wrapper_path:
@@ -10227,7 +10227,7 @@ def cmd_profile(args):
             print(f"Distribution: {dist_name}@{dist_version or '?'}")
             if dist_source:
                 print(f"Installed from: {dist_source}")
-            print(f"  (run `hermes profile info {name}` for full manifest)")
+            print(f"  (run `stoa profile info {name}` for full manifest)")
         if wrapper.exists():
             print(f"Alias:   {wrapper}")
         print()
@@ -10259,7 +10259,7 @@ def cmd_profile(args):
             if wrapper_path:
                 # If custom name, write the profile name into the wrapper
                 if custom_name:
-                    wrapper_path.write_text(f'#!/bin/sh\nexec hermes -p {name} "$@"\n')
+                    wrapper_path.write_text(f'#!/bin/sh\nexec stoa -p {name} "$@"\n')
                 print(f"✓ Alias created: {wrapper_path}")
                 if not _is_wrapper_dir_in_path():
                     print(f"⚠ {_get_wrapper_dir()} is not in your PATH.")
@@ -10353,9 +10353,9 @@ def cmd_profile(args):
             if plan.has_cron:
                 print(
                     "  Cron jobs were included but are NOT scheduled automatically.\n"
-                    f"  Review them with:  hermes -p {plan.manifest.name} cron list"
+                    f"  Review them with:  stoa -p {plan.manifest.name} cron list"
                 )
-            print(f"\n  Use with:      hermes -p {plan.manifest.name} chat")
+            print(f"\n  Use with:      stoa -p {plan.manifest.name} chat")
         except (DistributionError, ValueError) as e:
             print(f"Error: {e}")
             sys.exit(1)
@@ -10375,7 +10375,7 @@ def cmd_profile(args):
             if current is None:
                 print(
                     f"Error: Profile '{canon}' is not a distribution (no distribution.yaml). "
-                    "Only profiles installed via `hermes profile install` can be updated."
+                    "Only profiles installed via `stoa profile install` can be updated."
                 )
                 sys.exit(1)
 
@@ -10401,7 +10401,7 @@ def cmd_profile(args):
             if plan.has_cron:
                 print(
                     "  Cron files were refreshed.  Review with:  "
-                    f"hermes -p {plan.manifest.name} cron list"
+                    f"stoa -p {plan.manifest.name} cron list"
                 )
         except (DistributionError, ValueError) as e:
             print(f"Error: {e}")
@@ -10430,7 +10430,7 @@ def cmd_profile(args):
         if data.get("license"):
             print(f"License:      {data['license']}")
         if data.get("stoa_requires"):
-            print(f"Requires:     Hermes {data['stoa_requires']}")
+            print(f"Requires:     STOA {data['stoa_requires']}")
         if data.get("source"):
             print(f"Source:       {data['source']}")
         if data.get("installed_at"):
@@ -10459,7 +10459,7 @@ def _render_distribution_plan(plan) -> None:
     if mf.author:
         print(f"  Author:   {mf.author}")
     if mf.stoa_requires:
-        print(f"  Requires: Hermes {mf.stoa_requires}")
+        print(f"  Requires: STOA {mf.stoa_requires}")
     print(f"  Source:   {plan.provenance}")
     print(f"  Target:   {plan.target_dir}")
     if plan.existing:
@@ -10512,19 +10512,19 @@ def _render_distribution_plan(plan) -> None:
 
 
 def _report_dashboard_status() -> int:
-    """Print ``hermes dashboard`` PIDs and return the count.
+    """Print ``stoa dashboard`` PIDs and return the count.
 
     Uses the same detection logic as ``_find_stale_dashboard_pids`` (the
-    current process is excluded, but since ``hermes dashboard --status``
+    current process is excluded, but since ``stoa dashboard --status``
     runs in a short-lived CLI process that never matches the pattern,
     the exclusion is irrelevant here).
     """
     pids = _find_stale_dashboard_pids()
     if not pids:
-        print("No hermes dashboard processes running.")
+        print("No stoa dashboard processes running.")
         return 0
 
-    print(f"{len(pids)} hermes dashboard process(es) running:")
+    print(f"{len(pids)} stoa dashboard process(es) running:")
     for pid in pids:
         # Best-effort: show the full cmdline so users can tell profiles apart.
         cmdline = ""
@@ -10559,9 +10559,9 @@ def cmd_dashboard(args):
     if getattr(args, "stop", False):
         pids = _find_stale_dashboard_pids()
         if not pids:
-            print("No hermes dashboard processes running.")
+            print("No stoa dashboard processes running.")
             sys.exit(0)
-        # Reuse the same SIGTERM-grace-SIGKILL path used after `hermes update`.
+        # Reuse the same SIGTERM-grace-SIGKILL path used after `stoa update`.
         _kill_stale_dashboard_processes(reason="requested via --stop")
         # _kill_stale_dashboard_processes prints outcomes itself.  Exit 0 if
         # we killed at least one, 1 if they were all unkillable.
@@ -10627,7 +10627,7 @@ def cmd_completion(args, parser=None):
 
 
 def cmd_logs(args):
-    """View and filter Hermes log files."""
+    """View and filter STOA log files."""
     from stoa_cli.logs import tail_log, list_logs
 
     log_name = getattr(args, "log_name", "agent") or "agent"
@@ -10692,7 +10692,7 @@ _BUILTIN_SUBCOMMANDS = frozenset(
 
 
 # Top-level flags that take a value. Needed by ``_first_positional_argv``
-# so that in ``hermes -m gpt5 chat``, ``gpt5`` is correctly skipped as a
+# so that in ``stoa -m gpt5 chat``, ``gpt5`` is correctly skipped as a
 # flag value rather than misclassified as a subcommand. Kept in sync with
 # the top-level flags declared in ``stoa_cli/_parser.py``.
 #
@@ -10721,7 +10721,7 @@ def _first_positional_argv() -> str | None:
 
     Used by ``main()`` to decide whether plugin discovery has to run at
     argparse-setup time. Handles common invocations like
-    ``hermes -m gpt5 --provider openai chat "msg"`` by skipping the
+    ``stoa -m gpt5 --provider openai chat "msg"`` by skipping the
     values attached to known top-level flags.
 
     Does NOT fully simulate argparse — unknown ``--foo=bar`` / ``--foo
@@ -10760,7 +10760,7 @@ def _plugin_cli_discovery_needed() -> bool:
     """
     first = _first_positional_argv()
     if first is None:
-        # Bare ``hermes`` or only flags → defaults to ``chat``.
+        # Bare ``stoa`` or only flags → defaults to ``chat``.
         return False
     if first in _BUILTIN_SUBCOMMANDS:
         return False
@@ -10912,7 +10912,7 @@ def _try_termux_fast_cli_launch() -> bool:
 def _try_termux_fast_tui_launch() -> bool:
     """Launch obvious Termux TUI invocations before building every subparser.
 
-    `hermes --tui` is the hot path on phones. The full parser setup imports
+    `stoa --tui` is the hot path on phones. The full parser setup imports
     command modules for model, fallback, migrate, kanban, bundles, plugins,
     etc. even though the TUI immediately execs Node. On Termux only, parse the
     lightweight top-level/chat parser and hand off to ``cmd_chat`` when the
@@ -10951,7 +10951,7 @@ def _try_termux_fast_tui_launch() -> bool:
 
 
 def main():
-    """Main entry point for hermes CLI."""
+    """Main entry point for stoa CLI."""
     # Force UTF-8 stdio on Windows before anything prints.  No-op elsewhere.
     try:
         from stoa_cli.stdio import configure_windows_stdio
@@ -10959,8 +10959,8 @@ def main():
     except Exception:
         pass
 
-    # Sweep stale ``hermes.exe.old.*`` quarantine files left by previous
-    # ``hermes update`` runs on Windows. Silent no-op on non-Windows or when
+    # Sweep stale ``stoa.exe.old.*`` quarantine files left by previous
+    # ``stoa update`` runs on Windows. Silent no-op on non-Windows or when
     # there's nothing to clean. See ``_quarantine_running_stoa_exe``.
     try:
         _cleanup_quarantined_exes()
@@ -11055,7 +11055,7 @@ def main():
     )
     fallback_subparsers.add_parser(
         "add",
-        help="Pick a provider + model (same picker as `hermes model`) and append to the chain",
+        help="Pick a provider + model (same picker as `stoa model`) and append to the chain",
     )
     fallback_subparsers.add_parser(
         "remove",
@@ -11299,10 +11299,10 @@ def main():
     # gateway migrate-legacy
     gateway_migrate_legacy = gateway_subparsers.add_parser(
         "migrate-legacy",
-        help="Remove legacy hermes.service units from pre-rename installs",
+        help="Remove legacy stoa.service units from pre-rename installs",
         description=(
-            "Stop, disable, and remove legacy Hermes gateway unit files "
-            "(e.g. hermes.service) left over from older installs. Profile "
+            "Stop, disable, and remove legacy STOA gateway unit files "
+            "(e.g. stoa.service) left over from older installs. Profile "
             "units (stoa-gateway-<profile>.service) and unrelated "
             "third-party services are never touched."
         ),
@@ -11345,7 +11345,7 @@ def main():
     proxy_start.add_argument(
         "--provider",
         default="nous",
-        help="Upstream provider: nous or xai (default: nous). See `hermes proxy providers`.",
+        help="Upstream provider: nous or xai (default: nous). See `stoa proxy providers`.",
     )
     proxy_start.add_argument(
         "--host",
@@ -11386,7 +11386,7 @@ def main():
         "setup",
         help="Interactive setup wizard",
         description="Configure STOA Agent with an interactive wizard. "
-        "Run a specific section: hermes setup model|tts|terminal|gateway|tools|agent",
+        "Run a specific section: stoa setup model|tts|terminal|gateway|tools|agent",
     )
     setup_parser.add_argument(
         "section",
@@ -11408,7 +11408,7 @@ def main():
         action="store_true",
         help="(Default on existing installs.) Re-run the full wizard, "
         "showing current values as defaults. Kept for backwards "
-        "compatibility — a bare 'hermes setup' now does this.",
+        "compatibility — a bare 'stoa setup' now does this.",
     )
     setup_parser.add_argument(
         "--quick",
@@ -11452,7 +11452,7 @@ def main():
     slack_parser = subparsers.add_parser(
         "slack",
         help="Slack integration helpers (manifest generation, etc.)",
-        description="Slack integration helpers for Hermes.",
+        description="Slack integration helpers for STOA.",
     )
     slack_sub = slack_parser.add_subparsers(dest="slack_command")
     slack_manifest = slack_sub.add_parser(
@@ -11506,7 +11506,7 @@ def main():
     login_parser = subparsers.add_parser(
         "login",
         help="Authenticate with an inference provider",
-        description="Run OAuth device authorization flow for Hermes CLI",
+        description="Run OAuth device authorization flow for STOA CLI",
     )
     login_parser.add_argument(
         "--provider",
@@ -11633,7 +11633,7 @@ def main():
     )
     auth_logout.add_argument("provider", help="Provider id")
     auth_spotify = auth_subparsers.add_parser(
-        "spotify", help="Authenticate Hermes with Spotify via PKCE"
+        "spotify", help="Authenticate STOA with Spotify via PKCE"
     )
     auth_spotify.add_argument(
         "spotify_action",
@@ -11736,7 +11736,7 @@ def main():
     )
     cron_create.add_argument(
         "--profile",
-        help="Hermes profile name to run the job under. Use 'default' for the root profile. Named profiles must already exist. Omit to preserve the scheduler's existing profile.",
+        help="STOA profile name to run the job under. Use 'default' for the root profile. Named profiles must already exist. Omit to preserve the scheduler's existing profile.",
     )
 
     # cron edit
@@ -11804,7 +11804,7 @@ def main():
     )
     cron_edit.add_argument(
         "--profile",
-        help="Hermes profile name to run the job under. Use 'default' for the root profile. Pass empty string to clear.",
+        help="STOA profile name to run the job under. Use 'default' for the root profile. Pass empty string to clear.",
     )
 
     # lifecycle actions
@@ -11996,7 +11996,7 @@ def main():
         default=None,
         help=(
             "Acknowledge a security advisory by ID and exit. After ack, the "
-            "advisory will no longer trigger startup banners. Run `hermes "
+            "advisory will no longer trigger startup banners. Run `stoa "
             "doctor` first to see active advisories and their IDs."
         ),
     )
@@ -12024,18 +12024,18 @@ def main():
     debug_parser = subparsers.add_parser(
         "debug",
         help="Debug tools — upload logs and system info for support",
-        description="Debug utilities for STOA Agent. Use 'hermes debug share' to "
+        description="Debug utilities for STOA Agent. Use 'stoa debug share' to "
         "upload a debug report (system info + recent logs) to a paste "
         "service and get a shareable URL.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 Examples:
-    hermes debug share              Upload debug report and print URL
-    hermes debug share --lines 500  Include more log lines
-    hermes debug share --expire 30  Keep paste for 30 days
-    hermes debug share --local      Print report locally (no upload)
-    hermes debug share --no-redact  Disable upload-time secret redaction
-    hermes debug delete <url>       Delete a previously uploaded paste
+    stoa debug share              Upload debug report and print URL
+    stoa debug share --lines 500  Include more log lines
+    stoa debug share --expire 30  Keep paste for 30 days
+    stoa debug share --local      Print report locally (no upload)
+    stoa debug share --no-redact  Disable upload-time secret redaction
+    stoa debug delete <url>       Delete a previously uploaded paste
 """,
     )
     debug_sub = debug_parser.add_subparsers(dest="debug_command")
@@ -12072,7 +12072,7 @@ Examples:
     )
     delete_parser = debug_sub.add_parser(
         "delete",
-        help="Delete a paste uploaded by 'hermes debug share'",
+        help="Delete a paste uploaded by 'stoa debug share'",
     )
     delete_parser.add_argument(
         "urls",
@@ -12087,15 +12087,15 @@ Examples:
     # =========================================================================
     backup_parser = subparsers.add_parser(
         "backup",
-        help="Back up Hermes home directory to a zip file",
-        description="Create a zip archive of your entire Hermes configuration, "
+        help="Back up STOA home directory to a zip file",
+        description="Create a zip archive of your entire STOA configuration, "
         "skills, sessions, and data (excludes the stoa-agent codebase). "
         "Use --quick for a fast snapshot of just critical state files.",
     )
     backup_parser.add_argument(
         "-o",
         "--output",
-        help="Output path for the zip file (default: ~/hermes-backup-<timestamp>.zip)",
+        help="Output path for the zip file (default: ~/stoa-backup-<timestamp>.zip)",
     )
     backup_parser.add_argument(
         "-q",
@@ -12115,7 +12115,7 @@ Examples:
         "checkpoints",
         help="Inspect / prune / clear ~/.stoa/checkpoints/",
         description="Manage the filesystem checkpoint store — the shadow git "
-        "repo hermes uses to snapshot working directories before "
+        "repo stoa uses to snapshot working directories before "
         "write_file/patch/terminal calls. Lets you see how much "
         "space checkpoints occupy, force a prune, or wipe the base.",
     )
@@ -12127,9 +12127,9 @@ Examples:
     # =========================================================================
     import_parser = subparsers.add_parser(
         "import",
-        help="Restore a Hermes backup from a zip file",
-        description="Extract a previously created Hermes backup into your "
-        "Hermes home directory, restoring configuration, skills, "
+        help="Restore a STOA backup from a zip file",
+        description="Extract a previously created STOA backup into your "
+        "STOA home directory, restoring configuration, skills, "
         "sessions, and data",
     )
     import_parser.add_argument("zipfile", help="Path to the backup zip file")
@@ -12343,7 +12343,7 @@ Examples:
         help="Reset a bundled skill — clears 'user-modified' tracking so updates work again",
         description=(
             "Clear a bundled skill's entry from the sync manifest (~/.stoa/skills/.bundled_manifest) "
-            "so future 'hermes update' runs stop marking it as user-modified. Pass --restore to also "
+            "so future 'stoa update' runs stop marking it as user-modified. Pass --restore to also "
             "replace the current copy with the bundled version."
         ),
     )
@@ -12448,7 +12448,7 @@ Examples:
     )
     plugins_install.add_argument(
         "identifier",
-        help="Git URL or owner/repo shorthand (e.g. anpicasso/hermes-plugin-chrome-profiles)",
+        help="Git URL or owner/repo shorthand (e.g. anpicasso/stoa-plugin-chrome-profiles)",
     )
     plugins_install.add_argument(
         "--force",
@@ -12465,7 +12465,7 @@ Examples:
     _install_enable_group.add_argument(
         "--no-enable",
         action="store_true",
-        help="Install disabled (skip confirmation prompt); enable later with `hermes plugins enable <name>`",
+        help="Install disabled (skip confirmation prompt); enable later with `stoa plugins enable <name>`",
     )
 
     plugins_update = plugins_subparsers.add_parser(
@@ -12503,7 +12503,7 @@ Examples:
     # own argparse tree.  No hardcoded plugin commands in main.py.
     #
     # Skipped when the invocation is already targeting a known built-in
-    # subcommand — ``hermes --help``, ``hermes version``, ``hermes logs``,
+    # subcommand — ``stoa --help``, ``stoa version``, ``stoa logs``,
     # etc.  This avoids eagerly importing every bundled plugin module
     # (google.cloud.pubsub_v1, aiohttp, grpc, PIL …) which costs
     # 500-650ms on typical installs.
@@ -12674,7 +12674,7 @@ Examples:
             "Enable, disable, or list tools for CLI, Telegram, Discord, etc.\n\n"
             "Built-in toolsets use plain names (e.g. web, memory).\n"
             "MCP tools use server:tool notation (e.g. github:create_issue).\n\n"
-            "Run 'hermes tools' with no subcommand for the interactive configuration UI."
+            "Run 'stoa tools' with no subcommand for the interactive configuration UI."
         ),
     )
     tools_parser.add_argument(
@@ -12684,7 +12684,7 @@ Examples:
     )
     tools_sub = tools_parser.add_subparsers(dest="tools_action")
 
-    # hermes tools list [--platform cli]
+    # stoa tools list [--platform cli]
     tools_list_p = tools_sub.add_parser(
         "list",
         help="Show all tools and their enabled/disabled status",
@@ -12695,7 +12695,7 @@ Examples:
         help="Platform to show (default: cli)",
     )
 
-    # hermes tools disable <name...> [--platform cli]
+    # stoa tools disable <name...> [--platform cli]
     tools_disable_p = tools_sub.add_parser(
         "disable",
         help="Disable toolsets or MCP tools",
@@ -12712,7 +12712,7 @@ Examples:
         help="Platform to apply to (default: cli)",
     )
 
-    # hermes tools enable <name...> [--platform cli]
+    # stoa tools enable <name...> [--platform cli]
     tools_enable_p = tools_sub.add_parser(
         "enable",
         help="Enable toolsets or MCP tools",
@@ -12752,9 +12752,9 @@ Examples:
         description=(
             "Install or check the cua-driver binary used by the\n"
             "`computer_use` toolset. macOS-only.\n\n"
-            "Use `hermes computer-use install` to fetch and run the\n"
+            "Use `stoa computer-use install` to fetch and run the\n"
             "upstream cua-driver installer. This is equivalent to the\n"
-            "post-setup hook that `hermes tools` runs when you first\n"
+            "post-setup hook that `stoa tools` runs when you first\n"
             "enable the Computer Use toolset, and is a stable target\n"
             "for re-running the install if it didn't fire (e.g. when\n"
             "toggling the toolset on a returning-user setup)."
@@ -12803,10 +12803,10 @@ Examples:
                     print(f"cua-driver: installed at {path} ({version})")
                 else:
                     print(f"cua-driver: installed at {path}")
-                print("  Refresh to latest: hermes computer-use install --upgrade")
+                print("  Refresh to latest: stoa computer-use install --upgrade")
                 return
             print("cua-driver: not installed")
-            print("  Run: hermes computer-use install")
+            print("  Run: stoa computer-use install")
             return
         # No subcommand → show help
         computer_use_parser.print_help()
@@ -12817,19 +12817,19 @@ Examples:
     # =========================================================================
     mcp_parser = subparsers.add_parser(
         "mcp",
-        help="Manage MCP servers and run Hermes as an MCP server",
+        help="Manage MCP servers and run STOA as an MCP server",
         description=(
-            "Manage MCP server connections and run Hermes as an MCP server.\n\n"
+            "Manage MCP server connections and run STOA as an MCP server.\n\n"
             "MCP servers provide additional tools via the Model Context Protocol.\n"
-            "Use 'hermes mcp add' to connect to a new server, or\n"
-            "'hermes mcp serve' to expose Hermes conversations over MCP."
+            "Use 'stoa mcp add' to connect to a new server, or\n"
+            "'stoa mcp serve' to expose STOA conversations over MCP."
         ),
     )
     mcp_sub = mcp_parser.add_subparsers(dest="mcp_action")
 
     mcp_serve_p = mcp_sub.add_parser(
         "serve",
-        help="Run Hermes as an MCP server (expose conversations to other agents)",
+        help="Run STOA as an MCP server (expose conversations to other agents)",
     )
     mcp_serve_p.add_argument(
         "-v",
@@ -12848,7 +12848,7 @@ Examples:
     # subparser's args.command attribute, which the dispatcher reads to
     # route to cmd_mcp.  Without an explicit dest, argparse derives
     # dest="command" from the flag name and sets it to None when the
-    # flag is omitted, causing `hermes mcp add ...` to fall through to
+    # flag is omitted, causing `stoa mcp add ...` to fall through to
     # interactive chat.
     mcp_add_p.add_argument(
         "--command", dest="mcp_command", help="Stdio command (e.g. npx)"
@@ -13105,7 +13105,7 @@ Examples:
                 print("Cancelled.")
                 return
 
-            # Launch hermes --resume <id> by replacing the current process
+            # Launch stoa --resume <id> by replacing the current process
             print(f"Resuming session: {selected_id}")
             from stoa_cli.relaunch import relaunch
 
@@ -13169,14 +13169,14 @@ Examples:
     claw_parser = subparsers.add_parser(
         "claw",
         help="OpenClaw migration tools",
-        description="Migrate settings, memories, skills, and API keys from OpenClaw to Hermes",
+        description="Migrate settings, memories, skills, and API keys from OpenClaw to STOA",
     )
     claw_subparsers = claw_parser.add_subparsers(dest="claw_action")
 
     # claw migrate
     claw_migrate = claw_subparsers.add_parser(
         "migrate",
-        help="Migrate from OpenClaw to Hermes",
+        help="Migrate from OpenClaw to STOA",
         description="Import settings, memories, skills, and API keys from an OpenClaw installation. "
         "Always shows a preview before making changes.",
     )
@@ -13211,7 +13211,7 @@ Examples:
         action="store_true",
         help="Skip the pre-migration zip snapshot of ~/.stoa/ (by default a "
         "single restore-point archive is written to ~/.stoa/backups/ "
-        "before apply; restorable with 'hermes import').",
+        "before apply; restorable with 'stoa import').",
     )
     claw_migrate.add_argument(
         "--workspace-target", help="Absolute path to copy workspace instructions into"
@@ -13295,13 +13295,13 @@ Examples:
         "-y",
         action="store_true",
         default=False,
-        help="Assume yes for interactive prompts (config migration, stash restore). API-key entry is skipped; run 'hermes config migrate' separately for those.",
+        help="Assume yes for interactive prompts (config migration, stash restore). API-key entry is skipped; run 'stoa config migrate' separately for those.",
     )
     update_parser.add_argument(
         "--force",
         action="store_true",
         default=False,
-        help="Windows: proceed with the update even when another hermes.exe is detected. The concurrent process will likely cause WinError 32 warnings and may leave a reboot-deferred .exe replacement.",
+        help="Windows: proceed with the update even when another stoa.exe is detected. The concurrent process will likely cause WinError 32 warnings and may leave a reboot-deferred .exe replacement.",
     )
     update_parser.set_defaults(func=cmd_update)
 
@@ -13336,7 +13336,7 @@ Examples:
         "--version",
         action="store_true",
         dest="acp_version",
-        help="Print Hermes ACP version and exit",
+        help="Print STOA ACP version and exit",
     )
     acp_parser.add_argument(
         "--check",
@@ -13346,7 +13346,7 @@ Examples:
     acp_parser.add_argument(
         "--setup",
         action="store_true",
-        help="Run interactive Hermes provider/model setup for ACP terminal auth",
+        help="Run interactive STOA provider/model setup for ACP terminal auth",
     )
     acp_parser.add_argument(
         "--setup-browser",
@@ -13392,7 +13392,7 @@ Examples:
     # =========================================================================
     profile_parser = subparsers.add_parser(
         "profile",
-        help="Manage profiles — multiple isolated Hermes instances",
+        help="Manage profiles — multiple isolated STOA instances",
     )
     profile_subparsers = profile_parser.add_subparsers(dest="profile_action")
 
@@ -13429,14 +13429,14 @@ Examples:
     profile_create.add_argument(
         "--no-skills",
         action="store_true",
-        help="Create an empty profile with no bundled skills (opts out of `hermes update` skill sync)",
+        help="Create an empty profile with no bundled skills (opts out of `stoa update` skill sync)",
     )
     profile_create.add_argument(
         "--description",
         default=None,
         help="One- or two-sentence description of what this profile is good at. "
              "Used by the kanban decomposer to route tasks based on role instead "
-             "of profile name alone. Skip and add later via `hermes profile describe`.",
+             "of profile name alone. Skip and add later via `stoa profile describe`.",
     )
 
     profile_delete = profile_subparsers.add_parser("delete", help="Delete a profile")
@@ -13524,7 +13524,7 @@ Examples:
         "install",
         help="Install a profile distribution from a git URL or local directory",
         description=(
-            "Install a Hermes profile distribution. SOURCE can be a git URL "
+            "Install a STOA profile distribution. SOURCE can be a git URL "
             "(github.com/user/repo, https://..., git@...) or a local "
             "directory containing distribution.yaml at its root."
         ),
@@ -13620,7 +13620,7 @@ Examples:
         "--tui",
         action="store_true",
         help=(
-            "Expose the in-browser Chat tab (embedded `hermes --tui` via PTY/WebSocket). "
+            "Expose the in-browser Chat tab (embedded `stoa --tui` via PTY/WebSocket). "
             "Alternatively set STOA_DASHBOARD_TUI=1."
         ),
     )
@@ -13637,17 +13637,17 @@ Examples:
     # start-a-server flags above (if both are passed, --stop / --status win
     # because they exit before the server is started).  The dashboard has
     # no service manager and no PID file, so these scan the process table
-    # for `hermes dashboard` cmdlines and SIGTERM them directly — the same
-    # path `hermes update` uses to clean up stale dashboards.
+    # for `stoa dashboard` cmdlines and SIGTERM them directly — the same
+    # path `stoa update` uses to clean up stale dashboards.
     dashboard_parser.add_argument(
         "--stop",
         action="store_true",
-        help="Stop all running hermes dashboard processes and exit",
+        help="Stop all running stoa dashboard processes and exit",
     )
     dashboard_parser.add_argument(
         "--status",
         action="store_true",
-        help="List running hermes dashboard processes and exit",
+        help="List running stoa dashboard processes and exit",
     )
     dashboard_parser.set_defaults(func=cmd_dashboard)
 
@@ -13656,21 +13656,21 @@ Examples:
     # =========================================================================
     logs_parser = subparsers.add_parser(
         "logs",
-        help="View and filter Hermes log files",
+        help="View and filter STOA log files",
         description="View, tail, and filter agent.log / errors.log / gateway.log",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""\
 Examples:
-    hermes logs                    Show last 50 lines of agent.log
-    hermes logs -f                 Follow agent.log in real time
-    hermes logs errors             Show last 50 lines of errors.log
-    hermes logs gateway -n 100     Show last 100 lines of gateway.log
-    hermes logs --level WARNING    Only show WARNING and above
-    hermes logs --session abc123   Filter by session ID
-    hermes logs --component tools  Only show tool-related lines
-    hermes logs --since 1h         Lines from the last hour
-    hermes logs --since 30m -f     Follow, starting from 30 min ago
-    hermes logs list               List available log files with sizes
+    stoa logs                    Show last 50 lines of agent.log
+    stoa logs -f                 Follow agent.log in real time
+    stoa logs errors             Show last 50 lines of errors.log
+    stoa logs gateway -n 100     Show last 100 lines of gateway.log
+    stoa logs --level WARNING    Only show WARNING and above
+    stoa logs --session abc123   Filter by session ID
+    stoa logs --component tools  Only show tool-related lines
+    stoa logs --since 1h         Lines from the last hour
+    stoa logs --since 30m -f     Follow, starting from 30 min ago
+    stoa logs list               List available log files with sizes
 """,
     )
     logs_parser.add_argument(
@@ -13719,7 +13719,7 @@ Examples:
     # =========================================================================
     # Pre-process argv so unquoted multi-word session names after -c / -r
     # are merged into a single token before argparse sees them.
-    # e.g. ``hermes -c Pokemon Agent Dev`` → ``hermes -c 'Pokemon Agent Dev'``
+    # e.g. ``stoa -c Pokemon Agent Dev`` → ``stoa -c 'Pokemon Agent Dev'``
     # ── Container-aware routing ────────────────────────────────────────
     # When NixOS container mode is active, route ALL subcommands into
     # the managed container.  This MUST run before parse_args() so that
@@ -13744,7 +13744,7 @@ Examples:
     #
     # Fix: when argv contains a token matching a known subcommand, set
     # subparsers.required=True to force deterministic routing.  If that
-    # fails (e.g. 'hermes -c model' where 'model' is consumed as the
+    # fails (e.g. 'stoa -c model' where 'model' is consumed as the
     # session name for --continue), fall back to the default behaviour.
     import io as _io
 
@@ -13784,7 +13784,7 @@ Examples:
 
     # Discover Python plugins and register shell hooks once, before any
     # command that can fire lifecycle hooks.  Both are idempotent; gated
-    # so introspection/management commands (hermes hooks list, cron
+    # so introspection/management commands (stoa hooks list, cron
     # list, gateway status, mcp add, ...) don't pay discovery cost or
     # trigger consent prompts for hooks the user is still inspecting.
     _prepare_agent_startup(args)

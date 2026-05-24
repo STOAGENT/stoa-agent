@@ -175,7 +175,7 @@ def _fake_popen_capture(captured):
 
 
 def test_run_prompt_prefers_profile_home_when_available(monkeypatch, tmp_path):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     profile_home = stoa_home / "home"
     profile_home.mkdir(parents=True)
 

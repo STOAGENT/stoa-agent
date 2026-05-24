@@ -6,7 +6,7 @@ author: Hugo Sequier (Hugo-SEQUIER), STOA Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  hermes:
+  stoa:
     tags: [Hyperliquid, Blockchain, Crypto, Trading, Perpetuals, Spot, DeFi]
     related_skills: []
 ---

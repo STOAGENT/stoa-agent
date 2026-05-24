@@ -1049,7 +1049,7 @@ def test_has_spawnable_ready_false_when_only_terminal_lanes(kanban_home, monkeyp
 
 def test_has_spawnable_ready_true_when_real_profile_present(kanban_home, monkeypatch):
     """``has_spawnable_ready`` returns True as soon as ANY ready task
-    has an assignee that maps to a real Hermes profile — preserves the
+    has an assignee that maps to a real STOA profile — preserves the
     real "stuck" signal when a daily/agent task is queued."""
     from stoa_cli import profiles
     monkeypatch.setattr(
@@ -1057,7 +1057,7 @@ def test_has_spawnable_ready_true_when_real_profile_present(kanban_home, monkeyp
     )
     with kb.connect() as conn:
         kb.create_task(conn, title="terminal-task", assignee="orion-cc")
-        kb.create_task(conn, title="hermes-task", assignee="daily")
+        kb.create_task(conn, title="stoa-task", assignee="daily")
         assert kb.has_spawnable_ready(conn) is True
 
 
@@ -1609,7 +1609,7 @@ def test_session_id_compose_with_tenant_filter(kanban_home):
 # Shared-board path resolution (issue #19348)
 #
 # The kanban board is a cross-profile coordination primitive: a worker
-# spawned with `hermes -p <profile>` must read/write the same kanban.db
+# spawned with `stoa -p <profile>` must read/write the same kanban.db
 # as the dispatcher that claimed the task. These tests exercise the
 # path-resolution layer directly and would have caught the regression
 # where `kanban_db_path()` resolved to the active profile's STOA_HOME.
@@ -1624,7 +1624,7 @@ class TestSharedBoardPaths:
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.delenv("STOA_KANBAN_HOME", raising=False)
 
-    def test_default_install_anchors_at_home_dot_hermes(
+    def test_default_install_anchors_at_home_dot_stoa(
         self, tmp_path, monkeypatch
     ):
         # Standard install: STOA_HOME == ~/.stoa, no profile active.
@@ -1684,7 +1684,7 @@ class TestSharedBoardPaths:
         dispatcher_ws = kb.workspaces_root()
         dispatcher_log = kb.worker_log_path("t_handoff")
 
-        # Worker's perspective (profile activated by `hermes -p coder`).
+        # Worker's perspective (profile activated by `stoa -p coder`).
         monkeypatch.setenv("STOA_HOME", str(profile_home))
         worker_db = kb.kanban_db_path()
         worker_ws = kb.workspaces_root()
@@ -1701,7 +1701,7 @@ class TestSharedBoardPaths:
         # `get_default_stoa_root()` returns env_home directly when it
         # is not a `<root>/profiles/<name>` shape and not under
         # `Path.home() / ".stoa"`.
-        custom_root = tmp_path / "opt" / "hermes"
+        custom_root = tmp_path / "opt" / "stoa"
         custom_root.mkdir(parents=True)
         self._set_home(monkeypatch, tmp_path, custom_root)
 
@@ -1711,10 +1711,10 @@ class TestSharedBoardPaths:
     def test_docker_profile_layout_uses_grandparent(
         self, tmp_path, monkeypatch
     ):
-        # Docker profile shape: STOA_HOME=/opt/hermes/profiles/coder;
-        # `get_default_stoa_root()` walks up to /opt/hermes because
+        # Docker profile shape: STOA_HOME=/opt/stoa/profiles/coder;
+        # `get_default_stoa_root()` walks up to /opt/stoa because
         # the immediate parent dir is named "profiles".
-        custom_root = tmp_path / "opt" / "hermes"
+        custom_root = tmp_path / "opt" / "stoa"
         profile = custom_root / "profiles" / "coder"
         profile.mkdir(parents=True)
         self._set_home(monkeypatch, tmp_path, profile)
@@ -2020,7 +2020,7 @@ def test_unlink_tasks_triggers_recompute_ready(kanban_home):
     complete_task and unblock_task.
 
     Before the fix, child stayed 'todo' indefinitely after unlink; only the
-    next dispatcher tick or a manual 'hermes kanban recompute' would promote it.
+    next dispatcher tick or a manual 'stoa kanban recompute' would promote it.
     """
     with kb.connect() as conn:
         # A is done.
@@ -2156,10 +2156,10 @@ def test_migrate_add_optional_columns_tolerates_concurrent_migration(kanban_home
 # ---------------------------------------------------------------------------
 # Dispatcher spawn invocation — _resolve_stoa_argv()
 #
-# Workers spawned by the dispatcher must use a `hermes` invocation that does
+# Workers spawned by the dispatcher must use a `stoa` invocation that does
 # not depend on PATH being set up correctly. cron jobs, systemd User= services,
 # launchd jobs, and other detached processes routinely run with a stripped
-# $PATH that doesn't include the venv's bin/, so a bare `["hermes", ...]`
+# $PATH that doesn't include the venv's bin/, so a bare `["stoa", ...]`
 # spawn fails with FileNotFoundError and the task gets stuck. The resolver
 # prefers the PATH shim (familiar `ps` output) but falls back to the module
 # form so the spawn keeps working when PATH is missing the shim.
@@ -2167,14 +2167,14 @@ def test_migrate_add_optional_columns_tolerates_concurrent_migration(kanban_home
 
 
 def test_resolve_stoa_argv_prefers_path_shim(monkeypatch):
-    """When `hermes` is on PATH, use the shim — preserves familiar ps output."""
+    """When `stoa` is on PATH, use the shim — preserves familiar ps output."""
     import shutil
     import stoa_cli.kanban_db as kb
 
     monkeypatch.delenv("STOA_BIN", raising=False)
-    monkeypatch.setattr(shutil, "which", lambda name: "/usr/local/bin/hermes")
+    monkeypatch.setattr(shutil, "which", lambda name: "/usr/local/bin/stoa")
     argv = kb._resolve_stoa_argv()
-    assert argv == ["/usr/local/bin/hermes"]
+    assert argv == ["/usr/local/bin/stoa"]
 
 
 def test_resolve_stoa_argv_absolutizes_relative_exe_shim(monkeypatch, tmp_path):
@@ -2182,10 +2182,10 @@ def test_resolve_stoa_argv_absolutizes_relative_exe_shim(monkeypatch, tmp_path):
     import stoa_cli.kanban_db as kb
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("STOA_BIN", ".\\hermes.exe")
+    monkeypatch.setenv("STOA_BIN", ".\\stoa.exe")
     monkeypatch.setattr(kb, "_IS_WINDOWS", True)
 
-    assert kb._resolve_stoa_argv() == [os.path.abspath(".\\hermes.exe")]
+    assert kb._resolve_stoa_argv() == [os.path.abspath(".\\stoa.exe")]
 
 
 def test_resolve_stoa_argv_avoids_implicit_windows_batch_shim(monkeypatch, tmp_path):
@@ -2195,7 +2195,7 @@ def test_resolve_stoa_argv_avoids_implicit_windows_batch_shim(monkeypatch, tmp_p
 
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    (bin_dir / "hermes.CMD").write_text("@echo off\n", encoding="utf-8")
+    (bin_dir / "stoa.CMD").write_text("@echo off\n", encoding="utf-8")
     monkeypatch.delenv("STOA_BIN", raising=False)
     monkeypatch.setenv("PATH", str(bin_dir))
     monkeypatch.setenv("PATHEXT", ".CMD")
@@ -2209,7 +2209,7 @@ def test_resolve_stoa_argv_honors_stoa_bin_path_override(monkeypatch, tmp_path):
     import shutil
     import stoa_cli.kanban_db as kb
 
-    shim = tmp_path / "bin" / "hermes"
+    shim = tmp_path / "bin" / "stoa"
     shim.parent.mkdir()
     shim.write_text("#!/bin/sh\n", encoding="utf-8")
     monkeypatch.setenv("STOA_BIN", str(shim))
@@ -2223,18 +2223,18 @@ def test_resolve_stoa_argv_stoa_bin_bare_name_uses_path(monkeypatch, tmp_path):
     import stat
     import stoa_cli.kanban_db as kb
 
-    cwd_hermes = tmp_path / "hermes"
-    cwd_hermes.write_text("wrong\n", encoding="utf-8")
-    cwd_hermes.chmod(cwd_hermes.stat().st_mode | stat.S_IXUSR)
-    path_hermes = tmp_path / "bin" / "hermes"
-    path_hermes.parent.mkdir()
-    path_hermes.write_text("right\n", encoding="utf-8")
-    path_hermes.chmod(path_hermes.stat().st_mode | stat.S_IXUSR)
+    cwd_stoa = tmp_path / "stoa"
+    cwd_stoa.write_text("wrong\n", encoding="utf-8")
+    cwd_stoa.chmod(cwd_stoa.stat().st_mode | stat.S_IXUSR)
+    path_stoa = tmp_path / "bin" / "stoa"
+    path_stoa.parent.mkdir()
+    path_stoa.write_text("right\n", encoding="utf-8")
+    path_stoa.chmod(path_stoa.stat().st_mode | stat.S_IXUSR)
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("PATH", str(path_hermes.parent))
-    monkeypatch.setenv("STOA_BIN", "hermes")
+    monkeypatch.setenv("PATH", str(path_stoa.parent))
+    monkeypatch.setenv("STOA_BIN", "stoa")
 
-    assert kb._resolve_stoa_argv() == [str(path_hermes)]
+    assert kb._resolve_stoa_argv() == [str(path_stoa)]
 
 
 def test_resolve_stoa_argv_stoa_bin_bare_name_ignores_cwd(monkeypatch, tmp_path):
@@ -2242,10 +2242,10 @@ def test_resolve_stoa_argv_stoa_bin_bare_name_ignores_cwd(monkeypatch, tmp_path)
     import sys
     import stoa_cli.kanban_db as kb
 
-    (tmp_path / "hermes.exe").write_text("wrong\n", encoding="utf-8")
+    (tmp_path / "stoa.exe").write_text("wrong\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("PATH", "")
-    monkeypatch.setenv("STOA_BIN", "hermes")
+    monkeypatch.setenv("STOA_BIN", "stoa")
     monkeypatch.setattr(kb, "_IS_WINDOWS", True)
 
     assert kb._resolve_stoa_argv() == [sys.executable, "-m", "stoa_cli.main"]
@@ -2258,10 +2258,10 @@ def test_resolve_stoa_argv_stoa_bin_bare_cmd_uses_module_fallback(monkeypatch, t
 
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    (bin_dir / "hermes.CMD").write_text("@echo off\n", encoding="utf-8")
+    (bin_dir / "stoa.CMD").write_text("@echo off\n", encoding="utf-8")
     monkeypatch.setenv("PATH", str(bin_dir))
     monkeypatch.setenv("PATHEXT", ".CMD")
-    monkeypatch.setenv("STOA_BIN", "hermes")
+    monkeypatch.setenv("STOA_BIN", "stoa")
     monkeypatch.setattr(kb, "_IS_WINDOWS", True)
 
     assert kb._resolve_stoa_argv() == [sys.executable, "-m", "stoa_cli.main"]
@@ -2273,7 +2273,7 @@ def test_resolve_stoa_argv_stoa_bin_unresolved_bare_name_falls_back(monkeypatch)
     import stoa_cli.kanban_db as kb
 
     monkeypatch.setenv("PATH", "")
-    monkeypatch.setenv("STOA_BIN", "hermes")
+    monkeypatch.setenv("STOA_BIN", "stoa")
 
     assert kb._resolve_stoa_argv() == [sys.executable, "-m", "stoa_cli.main"]
 
@@ -2281,9 +2281,9 @@ def test_resolve_stoa_argv_stoa_bin_unresolved_bare_name_falls_back(monkeypatch)
 def test_resolve_stoa_argv_falls_back_to_module_form_when_no_path_shim(monkeypatch):
     """When the shim is not on PATH, fall back to `python -m stoa_cli.main`.
 
-    Pins the correct module name (NOT `hermes` — there is no top-level
-    `hermes` package). Regression for #23198: the original PR shipped
-    `python -m hermes` which fails with `No module named hermes` on every
+    Pins the correct module name (NOT `stoa` — there is no top-level
+    `stoa` package). Regression for #23198: the original PR shipped
+    `python -m stoa` which fails with `No module named stoa` on every
     invocation.
     """
     import shutil

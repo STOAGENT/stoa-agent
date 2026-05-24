@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Skills Hub — Source adapters and hub state management for the Hermes Skills Hub.
+Skills Hub — Source adapters and hub state management for the STOA Skills Hub.
 
 This is a library module (not an agent tool). It provides:
   - GitHubAuth: Shared GitHub API authentication (PAT, gh CLI, GitHub App)
@@ -442,7 +442,7 @@ class GitHubSource(SkillSource):
         tags = []
         metadata = fm.get("metadata", {})
         if isinstance(metadata, dict):
-            stoa_meta = metadata.get("hermes", {})
+            stoa_meta = metadata.get("stoa", {})
             if isinstance(stoa_meta, dict):
                 tags = stoa_meta.get("tags", [])
         if not tags:
@@ -1037,7 +1037,7 @@ class UrlSource(SkillSource):
         tags: List[str] = []
         metadata = fm.get("metadata", {})
         if isinstance(metadata, dict):
-            stoa_meta = metadata.get("hermes", {})
+            stoa_meta = metadata.get("stoa", {})
             if isinstance(stoa_meta, dict):
                 raw_tags = stoa_meta.get("tags", [])
                 if isinstance(raw_tags, list):
@@ -2333,7 +2333,7 @@ class LobeHubSource(SkillSource):
             f"name: {identifier}",
             f"description: {description[:500]}",
             "metadata:",
-            "  hermes:",
+            "  stoa:",
             f"    tags: [{', '.join(str(t) for t in tag_list)}]",
             "  lobehub:",
             "    source: lobehub",
@@ -2668,7 +2668,7 @@ class OptionalSkillSource(SkillSource):
             tags = []
             meta_block = fm.get("metadata", {})
             if isinstance(meta_block, dict):
-                stoa_meta = meta_block.get("hermes", {})
+                stoa_meta = meta_block.get("stoa", {})
                 if isinstance(stoa_meta, dict):
                     tags = stoa_meta.get("tags", [])
 
@@ -3097,11 +3097,11 @@ def check_for_skill_updates(
 
 
 # ---------------------------------------------------------------------------
-# Hermes centralized index source
+# STOA centralized index source
 # ---------------------------------------------------------------------------
 
 STOA_INDEX_URL = "https://stoa-agent.nousresearch.com/docs/api/skills-index.json"
-STOA_INDEX_CACHE_FILE = INDEX_CACHE_DIR / "hermes-index.json"
+STOA_INDEX_CACHE_FILE = INDEX_CACHE_DIR / "stoa-index.json"
 STOA_INDEX_TTL = 6 * 3600  # 6 hours
 
 
@@ -3125,11 +3125,11 @@ def _load_stoa_index() -> Optional[dict]:
     try:
         resp = httpx.get(STOA_INDEX_URL, timeout=15, follow_redirects=True)
         if resp.status_code != 200:
-            logger.debug("Hermes index fetch returned %d", resp.status_code)
+            logger.debug("STOA index fetch returned %d", resp.status_code)
             return _load_stale_index_cache()
         data = resp.json()
     except (httpx.HTTPError, json.JSONDecodeError) as e:
-        logger.debug("Hermes index fetch failed: %s", e)
+        logger.debug("STOA index fetch failed: %s", e)
         return _load_stale_index_cache()
 
     # Validate structure
@@ -3156,8 +3156,8 @@ def _load_stale_index_cache() -> Optional[dict]:
     return None
 
 
-class HermesIndexSource(SkillSource):
-    """Skill source backed by the centralized Hermes Skills Index.
+class STOAIndexSource(SkillSource):
+    """Skill source backed by the centralized STOA Skills Index.
 
     The index is a JSON catalog published to the docs site and rebuilt
     daily by CI.  It contains metadata + resolved GitHub paths for every
@@ -3188,7 +3188,7 @@ class HermesIndexSource(SkillSource):
         return self._github
 
     def source_id(self) -> str:
-        return "hermes-index"
+        return "stoa-index"
 
     @property
     def is_available(self) -> bool:
@@ -3242,7 +3242,7 @@ class HermesIndexSource(SkillSource):
         if resolved:
             bundle = self._get_github().fetch(resolved)
             if bundle:
-                bundle.source = entry.get("source", "hermes-index")
+                bundle.source = entry.get("source", "stoa-index")
                 bundle.identifier = identifier
                 return bundle
 
@@ -3253,7 +3253,7 @@ class HermesIndexSource(SkillSource):
             github_id = f"{repo}/{path}"
             bundle = self._get_github().fetch(github_id)
             if bundle:
-                bundle.source = entry.get("source", "hermes-index")
+                bundle.source = entry.get("source", "stoa-index")
                 bundle.identifier = identifier
                 return bundle
 
@@ -3302,7 +3302,7 @@ class HermesIndexSource(SkillSource):
         return SkillMeta(
             name=entry.get("name", ""),
             description=entry.get("description", ""),
-            source=entry.get("source", "hermes-index"),
+            source=entry.get("source", "stoa-index"),
             identifier=entry.get("identifier", ""),
             trust_level=entry.get("trust_level", "community"),
             repo=entry.get("repo"),
@@ -3325,7 +3325,7 @@ def create_source_router(auth: Optional[GitHubAuth] = None) -> List[SkillSource]
 
     sources: List[SkillSource] = [
         OptionalSkillSource(),        # Official optional skills (highest priority)
-        HermesIndexSource(auth=auth), # Centralized index (search + resolved install paths)
+        STOAIndexSource(auth=auth), # Centralized index (search + resolved install paths)
         SkillsShSource(auth=auth),
         WellKnownSkillSource(),
         UrlSource(),                  # Direct HTTP(S) URL to a SKILL.md file
@@ -3379,7 +3379,7 @@ def parallel_search_sources(
                                   "claude-marketplace", "lobehub", "well-known"})
     if source_filter == "all":
         for src in sources:
-            if (src.source_id() == "hermes-index"
+            if (src.source_id() == "stoa-index"
                     and getattr(src, "is_available", False)):
                 _index_available = True
                 break

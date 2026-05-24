@@ -2,7 +2,7 @@
 
 Regression: the old implementation wrote ``stoa_conversation_<ts>.json``
 to the current working directory (CWD). Users who ran /save expected the
-file to be discoverable via ``hermes sessions browse``, but CWD-resident
+file to be discoverable via ``stoa sessions browse``, but CWD-resident
 snapshots are not indexed in the state DB and are generally invisible.
 The fix writes snapshots under ``~/.stoa/sessions/saved/`` and prints
 the absolute path plus the resume hint for the live session.
@@ -62,7 +62,7 @@ def test_save_conversation_writes_under_stoa_home(stoa_home, tmp_path, monkeypat
     ])
 
     # Call the unbound method against our stub.
-    cli.HermesCLI.save_conversation(stub)
+    cli.STOACLI.save_conversation(stub)
 
     # File must NOT be in CWD
     cwd_leak = list(work.glob("stoa_conversation_*.json"))
@@ -85,7 +85,7 @@ def test_save_conversation_writes_under_stoa_home(stoa_home, tmp_path, monkeypat
     # User-facing message must include the absolute path AND the resume hint.
     out = capsys.readouterr().out
     assert str(files[0]) in out, out
-    assert "hermes --resume 20260101_120000_abc123" in out, out
+    assert "stoa --resume 20260101_120000_abc123" in out, out
 
 
 def test_save_conversation_empty_history_does_nothing(stoa_home, capsys):
@@ -94,7 +94,7 @@ def test_save_conversation_empty_history_does_nothing(stoa_home, capsys):
     import cli
 
     stub = _make_stub_cli([])
-    cli.HermesCLI.save_conversation(stub)
+    cli.STOACLI.save_conversation(stub)
 
     saved_dir = stoa_home / "sessions" / "saved"
     assert not saved_dir.exists() or not list(saved_dir.iterdir())

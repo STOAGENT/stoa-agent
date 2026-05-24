@@ -1,7 +1,7 @@
 """
 Unified tool configuration for STOA Agent.
 
-`hermes tools` and `hermes setup tools` both enter this module.
+`stoa tools` and `stoa setup tools` both enter this module.
 Select a platform → toggle toolsets on/off → for newly enabled tools
 that need API keys, run through provider-aware configuration.
 
@@ -85,13 +85,13 @@ CONFIGURABLE_TOOLSETS = [
 # but the setup checklist won't pre-select them for first-time users.
 #
 # Video gen is off by default — it's a niche, paid, slow feature. Users
-# who want it opt in via `hermes tools` → Video Generation, which walks
+# who want it opt in via `stoa tools` → Video Generation, which walks
 # them through provider + model selection.
 #
 # X search is off by default for users without xAI credentials, but
 # auto-enables when SuperGrok OAuth tokens are stored OR XAI_API_KEY is
 # set — mirroring the HASS_TOKEN → homeassistant auto-enable below. The
-# `hermes tools` → X (Twitter) Search setup walks users through credential
+# `stoa tools` → X (Twitter) Search setup walks users through credential
 # setup. The tool's check_fn means the schema still won't appear to the
 # model if the credential later goes missing or expires.
 _DEFAULT_OFF_TOOLSETS = {"moa", "homeassistant", "spotify", "discord", "discord_admin", "video", "video_gen", "x_search"}
@@ -122,7 +122,7 @@ def _xai_credentials_present() -> bool:
         pass
     return bool(str(os.environ.get("XAI_API_KEY") or "").strip())
 
-# Platform-scoped toolsets: only appear in the `hermes tools` checklist for
+# Platform-scoped toolsets: only appear in the `stoa tools` checklist for
 # these platforms, and only resolve/save for these platforms.  A toolset
 # absent from this map is available on every platform (current behaviour).
 #
@@ -152,7 +152,7 @@ def _get_effective_configurable_toolsets():
     already appears in ``CONFIGURABLE_TOOLSETS`` is skipped — bundled
     plugins (e.g. ``plugins/spotify``) share their toolset key with the
     built-in entry, and we want the built-in label/description to win.
-    Without the dedupe, ``hermes tools`` → "reconfigure existing" would
+    Without the dedupe, ``stoa tools`` → "reconfigure existing" would
     list the same toolset twice.
     """
     result = list(CONFIGURABLE_TOOLSETS)
@@ -347,7 +347,7 @@ TOOL_CATEGORIES = {
         "name": "X (Twitter) Search",
         "setup_title": "Select xAI Credential Source",
         "setup_note": (
-            "Hermes routes X searches through xAI's built-in x_search "
+            "STOA routes X searches through xAI's built-in x_search "
             "Responses tool. Both credential sources hit the same "
             "https://api.x.ai/v1/responses endpoint — pick whichever you "
             "already have. SuperGrok OAuth is preferred when both are set "
@@ -615,8 +615,8 @@ def install_cua_driver(upgrade: bool = False) -> bool:
       installed, install otherwise. Used by the toolset enable flow where
       we don't want to surprise the user with a network fetch.
     * ``upgrade=True`` — always re-run the installer (or call ``cua-driver
-      update`` if the binary supports it). Used by ``hermes update`` and
-      by ``hermes computer-use install --upgrade``.
+      update`` if the binary supports it). Used by ``stoa update`` and
+      by ``stoa computer-use install --upgrade``.
 
     Returns True iff cua-driver is installed (or successfully refreshed)
     when the function returns. macOS-only — silently returns False on
@@ -628,7 +628,7 @@ def install_cua_driver(upgrade: bool = False) -> bool:
 
     if _plat.system() != "Darwin":
         if upgrade:
-            # Silent on non-macOS — `hermes update` calls this for every
+            # Silent on non-macOS — `stoa update` calls this for every
             # user; only macOS users with cua-driver care.
             return False
         _print_warning("    Computer Use (cua-driver) is macOS-only; skipping.")
@@ -698,37 +698,101 @@ def install_cua_driver(upgrade: bool = False) -> bool:
     return ok
 
 
-def _run_cua_driver_installer(label: str = "Installing", verbose: bool = True) -> bool:
-    """Run the upstream cua-driver install.sh. Returns True on success.
+# V-AGENT-013 (audit v2 HIGH): pin the cua-driver installer to a specific
+# trycua/cua commit and verify the install.sh SHA256 before executing it,
+# instead of curl|bash-ing whatever main happens to ship today. Update the
+# triplet together (commit hash, computed SHA256). To recompute when
+# upgrading: see _CUA_DRIVER_PIN_UPDATE_INSTRUCTIONS below.
+_CUA_DRIVER_COMMIT = "main"           # TODO: pin to a real commit before reveal
+_CUA_DRIVER_SCRIPT_SHA256 = ""        # TODO: paste sha256 below before reveal
 
-    The script is idempotent: it always downloads the latest release, so
-    re-running it on an already-installed system performs an upgrade.
+_CUA_DRIVER_PIN_UPDATE_INSTRUCTIONS = """
+To pin cua-driver to a verified release, run this once and paste both
+values into _CUA_DRIVER_COMMIT / _CUA_DRIVER_SCRIPT_SHA256:
+
+  COMMIT=$(gh api repos/trycua/cua/commits/main --jq .sha)
+  SHA256=$(curl -fsSL "https://raw.githubusercontent.com/trycua/cua/$COMMIT/libs/cua-driver/scripts/install.sh" | sha256sum | cut -d' ' -f1)
+  echo "_CUA_DRIVER_COMMIT     = \\"$COMMIT\\""
+  echo "_CUA_DRIVER_SCRIPT_SHA256 = \\"$SHA256\\""
+
+Until both are filled, the installer prints a warning and refuses to
+run -- failing closed rather than executing an unverified remote script.
+"""
+
+
+def _run_cua_driver_installer(label: str = "Installing", verbose: bool = True) -> bool:
+    """Run the trycua/cua install.sh -- pinned + SHA256-verified.
+
+    V-AGENT-013 (audit v2 HIGH): replaced curl|bash with download-then-verify-
+    then-execute. The installer script bytes must hash to
+    ``_CUA_DRIVER_SCRIPT_SHA256``; mismatch fails closed with no execution.
+    If the pin constants are unset (default in v0.x), the installer refuses
+    to run and prints the recompute instructions above -- we never silently
+    pull from ``main`` again.
     """
+    import hashlib
     import shutil
     import subprocess
+    import tempfile
+    import urllib.request
 
-    install_cmd = (
-        "/bin/bash -c \"$(curl -fsSL "
-        "https://raw.githubusercontent.com/trycua/cua/main/"
-        "libs/cua-driver/scripts/install.sh)\""
+    driver_cmd = _cua_driver_cmd()
+
+    if not _CUA_DRIVER_SCRIPT_SHA256:
+        _print_warning(
+            f"    cua-driver {label.lower()} blocked: pin constants are unset."
+        )
+        _print_info(
+            "    Fill _CUA_DRIVER_COMMIT + _CUA_DRIVER_SCRIPT_SHA256 in "
+            "stoa_cli/tools_config.py before enabling Computer Use."
+        )
+        return False
+
+    script_url = (
+        f"https://raw.githubusercontent.com/trycua/cua/{_CUA_DRIVER_COMMIT}/"
+        f"libs/cua-driver/scripts/install.sh"
     )
+
     if verbose:
         _print_info(f"    {label} cua-driver (macOS background computer-use)...")
     else:
         _print_info(f"    {label} cua-driver...")
-    driver_cmd = _cua_driver_cmd()
+
     try:
-        result = subprocess.run(install_cmd, shell=True, timeout=300)
+        with urllib.request.urlopen(script_url, timeout=30) as resp:
+            script_body = resp.read()
+    except Exception as e:
+        _print_warning(f"    cua-driver download failed: {e}")
+        _print_info(f"      tried: {script_url}")
+        return False
+
+    actual = hashlib.sha256(script_body).hexdigest()
+    if actual != _CUA_DRIVER_SCRIPT_SHA256:
+        _print_warning("    cua-driver script hash mismatch — REFUSING to run:")
+        _print_info(f"      expected: {_CUA_DRIVER_SCRIPT_SHA256}")
+        _print_info(f"      actual:   {actual}")
+        _print_info(
+            "    If upstream legitimately changed, re-pin per the recipe in "
+            "_CUA_DRIVER_PIN_UPDATE_INSTRUCTIONS."
+        )
+        return False
+
+    with tempfile.NamedTemporaryFile(suffix=".sh", delete=False) as tmp:
+        tmp.write(script_body)
+        tmp_path = tmp.name
+    try:
+        result = subprocess.run(["/bin/bash", tmp_path], timeout=300)
         if result.returncode == 0 and shutil.which(driver_cmd):
             if verbose:
                 _print_success(f"    {driver_cmd} installed.")
                 _print_info("    IMPORTANT — grant macOS permissions now:")
                 _print_info("      System Settings > Privacy & Security > Accessibility")
                 _print_info("      System Settings > Privacy & Security > Screen Recording")
-                _print_info("    Both must allow the terminal / Hermes process.")
+                _print_info("    Both must allow the terminal / STOA process.")
             return True
-        _print_warning(f"    cua-driver {label.lower()} did not complete. Re-run manually:")
-        _print_info(f"      {install_cmd}")
+        _print_warning(
+            f"    cua-driver {label.lower()} did not complete (exit {result.returncode})."
+        )
         return False
     except subprocess.TimeoutExpired:
         _print_warning(f"    cua-driver {label.lower()} timed out. Re-run manually.")
@@ -736,6 +800,11 @@ def _run_cua_driver_installer(label: str = "Installing", verbose: bool = True) -
     except Exception as e:
         _print_warning(f"    cua-driver {label.lower()} failed: {e}")
         return False
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
 
 
 def _run_post_setup(post_setup_key: str):
@@ -859,7 +928,7 @@ def _run_post_setup(post_setup_key: str):
             _print_info("    First run downloads the Camoufox engine (~300MB) — this can take several minutes.")
             import subprocess
             # Install @askjo/camofox-browser on-demand. It is NOT in
-            # package.json so that `hermes update` does not silently pull
+            # package.json so that `stoa update` does not silently pull
             # the ~300MB Camoufox Firefox-fork binary for every user.
             # Stream output (no capture, no --silent) so the long-running
             # postinstall download is visible instead of looking frozen.
@@ -964,7 +1033,7 @@ def _run_post_setup(post_setup_key: str):
         _print_info("    Pair with an extract provider if you also need web_extract.")
 
     elif post_setup_key == "spotify":
-        # Run the full `hermes auth spotify` flow — if the user has no
+        # Run the full `stoa auth spotify` flow — if the user has no
         # client_id yet, this drops them into the interactive wizard
         # (opens the Spotify dashboard, prompts for client_id, persists
         # to ~/.stoa/.env), then continues straight into PKCE. If they
@@ -974,7 +1043,7 @@ def _run_post_setup(post_setup_key: str):
             from stoa_cli.auth import login_spotify_command
         except Exception as exc:
             _print_warning(f"    Could not load Spotify auth: {exc}")
-            _print_info("    Run manually: hermes auth spotify")
+            _print_info("    Run manually: stoa auth spotify")
             return
         _print_info("    Starting Spotify login...")
         try:
@@ -985,12 +1054,12 @@ def _run_post_setup(post_setup_key: str):
             _print_success("    Spotify authenticated")
         except SystemExit as exc:
             # User aborted the wizard, or OAuth failed — don't fail the
-            # toolset enable; they can retry with `hermes auth spotify`.
+            # toolset enable; they can retry with `stoa auth spotify`.
             _print_warning(f"    Spotify login did not complete: {exc}")
-            _print_info("    Run later: hermes auth spotify")
+            _print_info("    Run later: stoa auth spotify")
         except Exception as exc:
             _print_warning(f"    Spotify login failed: {exc}")
-            _print_info("    Run manually: hermes auth spotify")
+            _print_info("    Run manually: stoa auth spotify")
 
     elif post_setup_key == "xai_grok":
         # Shared credential bootstrap for any picker entry that talks to xAI
@@ -1025,7 +1094,7 @@ def _run_post_setup(post_setup_key: str):
             from stoa_cli.config import save_env_value
         except Exception as exc:
             _print_warning(f"    Could not load setup helpers: {exc}")
-            _print_info("    Run later: hermes auth add xai-oauth   (or set XAI_API_KEY)")
+            _print_info("    Run later: stoa auth add xai-oauth   (or set XAI_API_KEY)")
             return
 
         idx = prompt_choice(
@@ -1033,7 +1102,7 @@ def _run_post_setup(post_setup_key: str):
             choices=[
                 "Sign in with xAI Grok OAuth (SuperGrok Subscription) — browser login",
                 "Paste an xAI API key (console.x.ai)",
-                "Skip — configure later via `hermes auth add xai-oauth`",
+                "Skip — configure later via `stoa auth add xai-oauth`",
             ],
             default=0,
         )
@@ -1045,7 +1114,7 @@ def _run_post_setup(post_setup_key: str):
             else:
                 _print_warning(
                     "    xAI Grok OAuth login did not complete. "
-                    "Run later: hermes auth add xai-oauth"
+                    "Run later: stoa auth add xai-oauth"
                 )
         elif idx == 1:
             api_key = _setup_prompt("    xAI API key", password=True)
@@ -1054,7 +1123,7 @@ def _run_post_setup(post_setup_key: str):
                 _print_success("    XAI_API_KEY saved")
             else:
                 _print_warning(
-                    "    No API key provided. Run later: hermes auth add xai-oauth"
+                    "    No API key provided. Run later: stoa auth add xai-oauth"
                 )
         else:
             _print_info("    xAI will remain inactive until credentials are configured.")
@@ -1129,7 +1198,7 @@ def _get_platform_tools(
             default_ts = plat_info["default_toolset"]
         else:
             # Plugin platform — derive toolset name from platform key
-            default_ts = f"hermes-{platform}"
+            default_ts = f"stoa-{platform}"
         toolset_names = [default_ts]
 
     # YAML may parse bare numeric names (e.g. ``12306:``) as int.
@@ -1153,7 +1222,7 @@ def _get_platform_tools(
             if ts in configurable_keys and _toolset_allowed_for_platform(ts, platform)
         }
         # Mixed config: composite toolset alongside configurables (e.g.
-        # ``[stoa-cli, spotify]`` after enabling Spotify via ``hermes
+        # ``[stoa-cli, spotify]`` after enabling Spotify via ``stoa
         # tools``). Without expansion the composite name is silently dropped,
         # leaving sessions with only the configurable opt-ins and no native
         # tools. Mirror the else-branch's subset inference, but apply
@@ -1206,7 +1275,7 @@ def _get_platform_tools(
         # NOT include, so the subset loop never picks it up. Inject it
         # directly here, mirroring the HASS_TOKEN → ``homeassistant`` rule
         # below: once you have working creds, you don't have to also click
-        # through ``hermes tools`` to flip the toolset on. Only fires when
+        # through ``stoa tools`` to flip the toolset on. Only fires when
         # the user has not yet saved an explicit toolset list — once they
         # do, the saved list is authoritative.
         x_search_auto_enabled = (
@@ -1244,10 +1313,10 @@ def _get_platform_tools(
     # feishu_drive).  These are part of the platform's default composite but
     # absent from CONFIGURABLE_TOOLSETS, so they can't appear in the TUI
     # checklist or in a user-saved config.  Must run in BOTH branches —
-    # otherwise saving via `hermes tools` (which flips has_explicit_config
+    # otherwise saving via `stoa tools` (which flips has_explicit_config
     # to True) silently drops them.
     _plat_info = PLATFORMS.get(platform)
-    _default_ts = _plat_info["default_toolset"] if _plat_info else f"hermes-{platform}"
+    _default_ts = _plat_info["default_toolset"] if _plat_info else f"stoa-{platform}"
     platform_tool_universe = set(resolve_toolset(_default_ts))
     configurable_tool_universe = set()
     for ck in configurable_keys:
@@ -1256,7 +1325,7 @@ def _get_platform_tools(
     for ts_key in enabled_toolsets:
         claimed.update(resolve_toolset(ts_key))
     skip = configurable_keys | plugin_ts_keys | platform_default_keys
-    skip |= {k for k in TOOLSETS if k.startswith("hermes-")}
+    skip |= {k for k in TOOLSETS if k.startswith("stoa-")}
     skip |= set(_DEFAULT_OFF_TOOLSETS) - {platform}
     for ts_key, ts_def in TOOLSETS.items():
         if ts_key in skip:
@@ -1274,9 +1343,9 @@ def _get_platform_tools(
 
     # Plugin toolsets: enabled by default unless explicitly disabled, or
     # unless the toolset is in _DEFAULT_OFF_TOOLSETS (e.g. spotify —
-    # shipped as a bundled plugin but user must opt in via `hermes tools`
+    # shipped as a bundled plugin but user must opt in via `stoa tools`
     # so we don't ship 7 Spotify tool schemas to users who don't use it).
-    # A plugin toolset is "known" for a platform once `hermes tools`
+    # A plugin toolset is "known" for a platform once `stoa tools`
     # has been saved for that platform (tracked via known_plugin_toolsets).
     # Unknown plugins default to enabled; known-but-absent = disabled.
     if plugin_ts_keys:
@@ -1290,7 +1359,7 @@ def _get_platform_tools(
                 # Opt-in plugin toolset — stay off until user picks it
                 continue
             elif pts not in known_for_platform:
-                # New plugin not yet seen by hermes tools — default enabled
+                # New plugin not yet seen by stoa tools — default enabled
                 enabled_toolsets.add(pts)
             # else: known but not in config = user disabled it
 
@@ -1364,7 +1433,7 @@ def _save_platform_tools(config: dict, platform: str, enabled_toolset_keys: Set[
     plugin_keys = _get_plugin_toolset_keys()
     configurable_keys |= plugin_keys
 
-    # Also exclude platform default toolsets (stoa-cli, hermes-telegram, etc.)
+    # Also exclude platform default toolsets (stoa-cli, stoa-telegram, etc.)
     # These are "super" toolsets that resolve to ALL tools, so preserving them
     # would silently override the user's unchecked selections on the next read.
     platform_default_keys = {p["default_toolset"] for p in PLATFORMS.values()}
@@ -1381,7 +1450,7 @@ def _save_platform_tools(config: dict, platform: str, enabled_toolset_keys: Set[
         entry for entry in existing_toolsets
         if entry not in configurable_keys and entry not in platform_default_keys
     }
-    # Opening `hermes tools` is the user's opt-in to reconfigure tools, so treat
+    # Opening `stoa tools` is the user's opt-in to reconfigure tools, so treat
     # saving from the picker as consent to clear the "no_mcp" sentinel. The
     # picker has no checkbox for no_mcp, so without this users who once set it
     # by hand could never re-enable MCP servers through the UI.
@@ -1798,7 +1867,7 @@ _POST_SETUP_INSTALLED: dict = {
     # is already satisfied. Used by `_toolset_needs_configuration_prompt`
     # to force the provider-setup flow when a no-key provider still needs
     # a binary/dependency install (otherwise an already-configured user
-    # who toggles the toolset on via `hermes tools` gets a silent no-op
+    # who toggles the toolset on via `stoa tools` gets a silent no-op
     # because the gate sees "no env vars to ask about" and skips the
     # provider-setup flow that would have run the post_setup hook).
     #
@@ -2792,7 +2861,7 @@ def _reconfigure_simple_requirements(ts_key: str):
 # ─── Main Entry Point ─────────────────────────────────────────────────────────
 
 def tools_command(args=None, first_install: bool = False, config: dict = None):
-    """Entry point for `hermes tools` and `hermes setup tools`.
+    """Entry point for `stoa tools` and `stoa setup tools`.
 
     Args:
         first_install: When True (set by the setup wizard on fresh installs),
@@ -2827,7 +2896,7 @@ def tools_command(args=None, first_install: bool = False, config: dict = None):
                 print(color("    (none enabled)", Colors.DIM))
         print()
         return
-    print(color("⚕ Hermes Tool Configuration", Colors.CYAN, Colors.BOLD))
+    print(color("⚕ STOA Tool Configuration", Colors.CYAN, Colors.BOLD))
     print(color("  Enable or disable tools per platform.", Colors.DIM))
     print(color("  Tools that need API keys will be configured when enabled.", Colors.DIM))
     print(color("  Guide: https://stoa-agent.nousresearch.com/docs/user-guide/features/tools", Colors.DIM))
@@ -3024,7 +3093,7 @@ def tools_command(args=None, first_install: bool = False, config: dict = None):
     print()
     from stoa_constants import display_stoa_home
     print(color(f"  Tool configuration saved to {display_stoa_home()}/config.yaml", Colors.DIM))
-    print(color("  Changes take effect on next 'hermes' or gateway restart.", Colors.DIM))
+    print(color("  Changes take effect on next 'stoa' or gateway restart.", Colors.DIM))
     print()
 
 

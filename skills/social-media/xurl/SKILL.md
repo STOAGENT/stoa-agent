@@ -8,7 +8,7 @@ platforms: [linux, macos]
 prerequisites:
   commands: [xurl]
 metadata:
-  hermes:
+  stoa:
     tags: [twitter, x, social-media, xurl, official-api]
     homepage: https://github.com/xdevplatform/xurl
     upstream_skill: https://github.com/openclaw/openclaw/blob/main/skills/xurl/SKILL.md
@@ -411,4 +411,4 @@ xurl --app staging /2/users/me             # one-off against staging
 
 - Upstream CLI: https://github.com/xdevplatform/xurl (X developer platform team, Chris Park et al.)
 - Upstream agent skill: https://github.com/openclaw/openclaw/blob/main/skills/xurl/SKILL.md
-- Hermes adaptation: reformatted for Hermes skill conventions; safety guardrails preserved verbatim.
+- STOA adaptation: reformatted for STOA skill conventions; safety guardrails preserved verbatim.

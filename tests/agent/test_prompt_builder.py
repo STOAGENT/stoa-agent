@@ -620,9 +620,9 @@ class TestBuildContextFilesPrompt:
     def test_stoa_md_beats_agents_md(self, tmp_path):
         """When both exist, .stoa.md wins and AGENTS.md is not loaded."""
         (tmp_path / "AGENTS.md").write_text("Agent guidelines here.")
-        (tmp_path / ".stoa.md").write_text("Hermes project rules.")
+        (tmp_path / ".stoa.md").write_text("STOA project rules.")
         result = build_context_files_prompt(cwd=str(tmp_path))
-        assert "Hermes project rules" in result
+        assert "STOA project rules" in result
         assert "Agent guidelines" not in result
 
     def test_agents_md_beats_claude_md(self, tmp_path):
@@ -673,12 +673,12 @@ class TestBuildContextFilesPrompt:
 
     def test_stoa_md_beats_all_others(self, tmp_path):
         """When all four types exist, only .stoa.md is loaded."""
-        (tmp_path / ".stoa.md").write_text("Hermes wins.")
+        (tmp_path / ".stoa.md").write_text("STOA wins.")
         (tmp_path / "AGENTS.md").write_text("Agents lose.")
         (tmp_path / "CLAUDE.md").write_text("Claude loses.")
         (tmp_path / ".cursorrules").write_text("Cursor loses.")
         result = build_context_files_prompt(cwd=str(tmp_path))
-        assert "Hermes wins" in result
+        assert "STOA wins" in result
         assert "Agents lose" not in result
         assert "Claude loses" not in result
         assert "Cursor loses" not in result
@@ -695,7 +695,7 @@ class TestBuildContextFilesPrompt:
 # =========================================================================
 
 
-class TestFindHermesMd:
+class TestFindSTOAMd:
     def test_finds_in_cwd(self, tmp_path):
         (tmp_path / ".stoa.md").write_text("rules")
         assert _find_stoa_md(tmp_path) == tmp_path / ".stoa.md"
@@ -1018,7 +1018,7 @@ class TestBuildSkillsSystemPromptConditional:
         skill_dir = tmp_path / "skills" / "search" / "duckduckgo"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: duckduckgo\ndescription: Free web search\nmetadata:\n  hermes:\n    fallback_for_toolsets: [web]\n---\n"
+            "---\nname: duckduckgo\ndescription: Free web search\nmetadata:\n  stoa:\n    fallback_for_toolsets: [web]\n---\n"
         )
         result = build_skills_system_prompt(
             available_tools=set(),
@@ -1031,7 +1031,7 @@ class TestBuildSkillsSystemPromptConditional:
         skill_dir = tmp_path / "skills" / "search" / "duckduckgo"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: duckduckgo\ndescription: Free web search\nmetadata:\n  hermes:\n    fallback_for_toolsets: [web]\n---\n"
+            "---\nname: duckduckgo\ndescription: Free web search\nmetadata:\n  stoa:\n    fallback_for_toolsets: [web]\n---\n"
         )
         result = build_skills_system_prompt(
             available_tools=set(),
@@ -1044,7 +1044,7 @@ class TestBuildSkillsSystemPromptConditional:
         skill_dir = tmp_path / "skills" / "iot" / "openhue"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: openhue\ndescription: Hue lights\nmetadata:\n  hermes:\n    requires_toolsets: [terminal]\n---\n"
+            "---\nname: openhue\ndescription: Hue lights\nmetadata:\n  stoa:\n    requires_toolsets: [terminal]\n---\n"
         )
         result = build_skills_system_prompt(
             available_tools=set(),
@@ -1057,7 +1057,7 @@ class TestBuildSkillsSystemPromptConditional:
         skill_dir = tmp_path / "skills" / "iot" / "openhue"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: openhue\ndescription: Hue lights\nmetadata:\n  hermes:\n    requires_toolsets: [terminal]\n---\n"
+            "---\nname: openhue\ndescription: Hue lights\nmetadata:\n  stoa:\n    requires_toolsets: [terminal]\n---\n"
         )
         result = build_skills_system_prompt(
             available_tools=set(),
@@ -1084,7 +1084,7 @@ class TestBuildSkillsSystemPromptConditional:
         skill_dir = tmp_path / "skills" / "search" / "duckduckgo"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: duckduckgo\ndescription: Free web search\nmetadata:\n  hermes:\n    fallback_for_toolsets: [web]\n---\n"
+            "---\nname: duckduckgo\ndescription: Free web search\nmetadata:\n  stoa:\n    fallback_for_toolsets: [web]\n---\n"
         )
         result = build_skills_system_prompt()
         assert "duckduckgo" in result
@@ -1105,12 +1105,12 @@ class TestBuildSkillsSystemPromptConditional:
         assert "safe-skill" in result
 
     def test_null_stoa_under_metadata_does_not_crash(self, monkeypatch, tmp_path):
-        """Regression: metadata.hermes present but null should not crash."""
+        """Regression: metadata.stoa present but null should not crash."""
         monkeypatch.setenv("STOA_HOME", str(tmp_path))
         skill_dir = tmp_path / "skills" / "general" / "nested-null"
         skill_dir.mkdir(parents=True)
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: nested-null\ndescription: Null hermes key\nmetadata:\n  hermes:\n---\n"
+            "---\nname: nested-null\ndescription: Null stoa key\nmetadata:\n  stoa:\n---\n"
         )
         result = build_skills_system_prompt(
             available_tools=set(),

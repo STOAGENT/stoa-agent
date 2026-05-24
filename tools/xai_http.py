@@ -11,7 +11,7 @@ def has_xai_credentials() -> bool:
     """Cheap probe — return True when xAI credentials are *likely* usable.
 
     Deliberately avoids :func:`resolve_xai_http_credentials` so callers in
-    hot-paint paths (``hermes tools`` repaint, tool-registration scans,
+    hot-paint paths (``stoa tools`` repaint, tool-registration scans,
     ``WebSearchProvider.is_available()``) don't incur disk locks or — in
     the OAuth path — a network token refresh. The ABC contract on
     :meth:`agent.web_search_provider.WebSearchProvider.is_available`
@@ -77,7 +77,7 @@ def resolve_xai_http_credentials(*, force_refresh: bool = False) -> Dict[str, st
 
     Prefers STOA-managed xAI OAuth credentials when available, then falls back
     to ``XAI_API_KEY`` resolved via ``stoa_cli.config.get_env_value`` so keys
-    stored in ``~/.stoa/.env`` (the standard Hermes location) are honored —
+    stored in ``~/.stoa/.env`` (the standard STOA location) are honored —
     not just ones already exported into ``os.environ``. This keeps direct xAI
     endpoints (images, TTS, STT, etc.) aligned with the main runtime auth model
     and preserves the regression contract from PR #17140 / #17163.

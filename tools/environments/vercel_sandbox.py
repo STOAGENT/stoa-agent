@@ -1,6 +1,6 @@
 """Vercel Sandbox execution environment.
 
-Uses the Vercel Python SDK to run commands in cloud sandboxes through Hermes'
+Uses the Vercel Python SDK to run commands in cloud sandboxes through STOA'
 shared ``BaseEnvironment`` shell contract. When persistence is enabled, the
 backend stores task-scoped snapshot metadata under ``STOA_HOME`` and restores
 new sandboxes from those snapshots on later task reuse.
@@ -544,12 +544,12 @@ class VercelSandboxEnvironment(BaseEnvironment):
             )
 
     def _vercel_bulk_download(self, dest_tar_path: Path) -> None:
-        remote_hermes = (
+        remote_stoa = (
             "/.stoa"
             if self._remote_home == "/"
             else f"{self._remote_home.rstrip('/')}/.stoa"
         )
-        archive_member = remote_hermes.lstrip("/")
+        archive_member = remote_stoa.lstrip("/")
         remote_tar = f"/tmp/.stoa_sync.{os.getpid()}.tar"
         sandbox = self._sandbox
         if sandbox is None:

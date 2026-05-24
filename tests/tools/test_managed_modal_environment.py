@@ -52,7 +52,7 @@ def _install_fake_tools_package(*, credential_mounts=None):
     stoa_cli.__path__ = []  # type: ignore[attr-defined]
     sys.modules["stoa_cli"] = stoa_cli
     sys.modules["stoa_cli.config"] = types.SimpleNamespace(
-        get_stoa_home=lambda: Path(tempfile.gettempdir()) / "hermes-home",
+        get_stoa_home=lambda: Path(tempfile.gettempdir()) / "stoa-home",
     )
 
     tools_package = types.ModuleType("tools")

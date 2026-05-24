@@ -3196,7 +3196,7 @@ output_dir: ./outputs/lora-out
 
 Example 4 (yaml):
 ```yaml
-base_model: stoa-xyz/Nous-Hermes-llama-1b-v1
+base_model: stoa-xyz/Nous-STOA-llama-1b-v1
 
 load_in_8bit: true
 adapter: lora

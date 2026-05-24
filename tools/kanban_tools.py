@@ -3,14 +3,14 @@
 These tools are registered into the model's schema when the agent is
 running under the dispatcher (env var ``STOA_KANBAN_TASK`` set) or when
 the active profile explicitly enables the ``kanban`` toolset for
-orchestrator work. A normal ``hermes chat`` session still sees **zero**
+orchestrator work. A normal ``stoa chat`` session still sees **zero**
 kanban tools in its schema unless configured.
 
-Why tools instead of just shelling out to ``hermes kanban``?
+Why tools instead of just shelling out to ``stoa kanban``?
 
 1. **Backend portability.** A worker whose terminal tool points at Docker
-   / Modal / Singularity / SSH would run ``hermes kanban complete …``
-   inside the container, where ``hermes`` isn't installed and the DB
+   / Modal / Singularity / SSH would run ``stoa kanban complete …``
+   inside the container, where ``stoa`` isn't installed and the DB
    isn't mounted. Tools run in the agent's Python process, so they
    always reach ``~/.stoa/kanban.db`` regardless of terminal backend.
 
@@ -20,8 +20,8 @@ Why tools instead of just shelling out to ``hermes kanban``?
 3. **Better errors.** Tool-call failures return structured JSON the
    model can reason about, not stderr strings it has to parse.
 
-Humans continue to use the CLI (``hermes kanban …``), the dashboard
-(``hermes dashboard``), and the slash command (``/kanban …``) — all
+Humans continue to use the CLI (``stoa kanban …``), the dashboard
+(``stoa dashboard``), and the slash command (``/kanban …``) — all
 three bypass the agent entirely. The tools are for dispatcher-spawned
 worker handoffs and for configured orchestrator profiles that route work
 through the board.
@@ -66,7 +66,7 @@ def _check_kanban_mode() -> bool:
     2. The current profile has ``kanban`` in its toolsets config
        (orchestrator profiles like techlead that route work via Kanban).
 
-    Humans running ``hermes chat`` without the kanban toolset see zero
+    Humans running ``stoa chat`` without the kanban toolset see zero
     kanban tools. Workers spawned by the kanban dispatcher (gateway-
     embedded by default) and orchestrator profiles with the kanban
     toolset enabled see the Kanban lifecycle tool surface.
@@ -170,7 +170,7 @@ def _connect(board: Optional[str] = None):
     default) preserves the legacy resolution chain
     (``STOA_KANBAN_DB`` → ``STOA_KANBAN_BOARD`` env → current symlink
     → ``default``). Per-tool ``board`` lets a Telegram-side agent override
-    the env-pinned active board without restarting Hermes.
+    the env-pinned active board without restarting STOA.
     """
     from stoa_cli import kanban_db as kb
     return kb, kb.connect(board=board)
@@ -616,7 +616,7 @@ def _handle_comment(args: dict, **kw) -> str:
     # into the next worker's system prompt by ``build_worker_context``
     # as ``**{author}** (timestamp): {body}`` — accepting an
     # ``args["author"]`` override let a worker forge a comment from
-    # an authoritative-looking name like ``hermes-system`` and poison
+    # an authoritative-looking name like ``stoa-system`` and poison
     # the future-worker context with what reads as a system directive.
     # Cross-task commenting itself remains unrestricted (see #19713) —
     # comments are the deliberate handoff channel between tasks.

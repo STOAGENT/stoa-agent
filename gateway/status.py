@@ -66,7 +66,7 @@ def _get_lock_dir() -> Path:
     if override:
         return Path(override)
     state_home = Path(os.getenv("XDG_STATE_HOME", Path.home() / ".local" / "state"))
-    return state_home / "hermes" / _LOCKS_DIRNAME
+    return state_home / "stoa" / _LOCKS_DIRNAME
 
 
 def _utc_now_iso() -> str:
@@ -165,7 +165,7 @@ def _read_process_cmdline(pid: int) -> Optional[str]:
 
 
 def _looks_like_gateway_process(pid: int) -> bool:
-    """Return True when the live PID still looks like the Hermes gateway."""
+    """Return True when the live PID still looks like the STOA gateway."""
     cmdline = _read_process_cmdline(pid)
     if not cmdline:
         return False
@@ -173,7 +173,7 @@ def _looks_like_gateway_process(pid: int) -> bool:
     patterns = (
         "stoa_cli.main gateway",
         "stoa_cli/main.py gateway",
-        "hermes gateway",
+        "stoa gateway",
         "stoa-gateway",
         "gateway/run.py",
     )
@@ -194,7 +194,7 @@ def _record_looks_like_gateway(record: dict[str, Any]) -> bool:
     patterns = (
         "stoa_cli.main gateway",
         "stoa_cli/main.py gateway",
-        "hermes gateway",
+        "stoa gateway",
         "gateway/run.py",
     )
     return any(pattern in cmdline for pattern in patterns)
@@ -747,7 +747,7 @@ def release_all_scoped_locks(
 # unexpected kills — but that also means a --replace takeover target
 # exits 1, which tricks systemd into reviving it 30 seconds later,
 # starting a flap loop against the replacer when both services are
-# enabled in the user's systemd (e.g. ``hermes.service`` + ``hermes-
+# enabled in the user's systemd (e.g. ``stoa.service`` + ``stoa-
 # gateway.service``).
 #
 # The takeover marker breaks the loop: the replacer writes a short-lived

@@ -248,9 +248,9 @@ def auth_add_command(args) -> None:
 
     if provider == "nous":
         # Codex-style auto-import: if a shared Nous credential lives at
-        # <hermes-root>/shared/nous_auth.json (written by any previous
+        # <stoa-root>/shared/nous_auth.json (written by any previous
         # successful login), offer to import it instead of running the
-        # full device-code flow. This makes `hermes --profile <name>
+        # full device-code flow. This makes `stoa --profile <name>
         # auth add nous --type oauth` a one-tap operation for users who
         # run multiple profiles.
         shared = auth_mod._read_shared_nous_state()
@@ -311,7 +311,7 @@ def auth_add_command(args) -> None:
         return
 
     if provider == "openai-codex":
-        # Clear any existing suppression marker so a re-link after `hermes auth
+        # Clear any existing suppression marker so a re-link after `stoa auth
         # remove openai-codex` works without the new tokens being skipped.
         auth_mod.unsuppress_credential_source(provider, "device_code")
         creds = auth_mod._codex_device_code_login()
@@ -426,7 +426,7 @@ def auth_add_command(args) -> None:
         print(f'Added {provider} OAuth credential #{len(pool.entries())}: "{entry.label}"')
         return
 
-    raise SystemExit(f"`hermes auth add {provider}` is not implemented for auth type {requested_type} yet.")
+    raise SystemExit(f"`stoa auth add {provider}` is not implemented for auth type {requested_type} yet.")
 
 
 def auth_list_command(args) -> None:
@@ -470,7 +470,7 @@ def auth_remove_command(args) -> None:
         raise SystemExit(f'No credential matching "{target}" for provider {provider}.')
     print(f"Removed {provider} credential #{index} ({removed.label})")
 
-    # Unified removal dispatch.  Every credential source Hermes reads from
+    # Unified removal dispatch.  Every credential source STOA reads from
     # (env vars, external OAuth files, auth.json blocks, custom config)
     # has a RemovalStep registered in agent.credential_sources.  The step
     # handles its source-specific cleanup and we centralise suppression +
@@ -504,7 +504,7 @@ def auth_reset_command(args) -> None:
 def auth_status_command(args) -> None:
     provider = _normalize_provider(getattr(args, "provider", "") or "")
     if not provider:
-        raise SystemExit("Provider is required. Example: `hermes auth status spotify`.")
+        raise SystemExit("Provider is required. Example: `stoa auth status spotify`.")
     status = auth_mod.get_auth_status(provider)
     if not status.get("logged_in"):
         reason = status.get("error")
@@ -540,7 +540,7 @@ def auth_spotify_command(args) -> None:
 
 
 def _interactive_auth() -> None:
-    """Interactive credential pool management when `hermes auth` is called bare."""
+    """Interactive credential pool management when `stoa auth` is called bare."""
     # Show current pool status first
     print("Credential Pool Status")
     print("=" * 50)

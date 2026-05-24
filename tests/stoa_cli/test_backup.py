@@ -1,4 +1,4 @@
-"""Tests for hermes backup and import commands."""
+"""Tests for stoa backup and import commands."""
 
 import json
 import os
@@ -240,7 +240,7 @@ class TestBackup:
             assert pid_files == []
 
     def test_default_output_path(self, tmp_path, monkeypatch):
-        """When no output path given, zip goes to ~/hermes-backup-*.zip."""
+        """When no output path given, zip goes to ~/stoa-backup-*.zip."""
         stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         (stoa_home / "config.yaml").write_text("model: test\n")
@@ -254,7 +254,7 @@ class TestBackup:
         run_backup(args)
 
         # Should exist in home dir
-        zips = list(tmp_path.glob("hermes-backup-*.zip"))
+        zips = list(tmp_path.glob("stoa-backup-*.zip"))
         assert len(zips) == 1
 
 
@@ -269,7 +269,7 @@ class TestValidateBackupZip:
                 zf.writestr(name, "dummy")
 
     def test_state_db_passes(self, tmp_path):
-        """A zip containing state.db is accepted as a valid Hermes backup."""
+        """A zip containing state.db is accepted as a valid STOA backup."""
         from stoa_cli.backup import _validate_backup_zip
         zip_path = tmp_path / "backup.zip"
         self._make_zip(zip_path, ["state.db", "sessions/abc.json"])
@@ -311,7 +311,7 @@ class TestImport:
                     zf.writestr(name, content)
 
     def test_restores_files(self, tmp_path, monkeypatch):
-        """Import extracts files into hermes home."""
+        """Import extracts files into stoa home."""
         stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -374,7 +374,7 @@ class TestImport:
             run_import(args)
 
     def test_rejects_non_stoa_zip(self, tmp_path, monkeypatch):
-        """Import rejects a zip that doesn't look like a hermes backup."""
+        """Import rejects a zip that doesn't look like a stoa backup."""
         stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -413,7 +413,7 @@ class TestImport:
 
         # config.yaml should be restored
         assert (stoa_home / "config.yaml").exists()
-        # traversal file should NOT exist outside hermes home
+        # traversal file should NOT exist outside stoa home
         assert not (tmp_path / "etc" / "passwd").exists()
 
     def test_confirmation_prompt_abort(self, tmp_path, monkeypatch):
@@ -598,7 +598,7 @@ class TestValidation:
         assert ok
 
     def test_validate_rejects_random(self):
-        """Zip without hermes markers fails validation."""
+        """Zip without stoa markers fails validation."""
         import io
         from stoa_cli.backup import _validate_backup_zip
 
@@ -610,7 +610,7 @@ class TestValidation:
             ok, reason = _validate_backup_zip(zf)
         assert not ok
 
-    def test_detect_prefix_hermes(self):
+    def test_detect_prefix_stoa(self):
         """Detects .stoa/ prefix wrapping all entries."""
         import io
         from stoa_cli.backup import _detect_prefix
@@ -657,7 +657,7 @@ class TestValidation:
 
 class TestBackupEdgeCases:
     def test_nonexistent_stoa_home(self, tmp_path, monkeypatch):
-        """Backup exits when hermes home doesn't exist."""
+        """Backup exits when stoa home doesn't exist."""
         fake_home = tmp_path / "nonexistent" / ".stoa"
         monkeypatch.setenv("STOA_HOME", str(fake_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path / "nonexistent")
@@ -685,7 +685,7 @@ class TestBackupEdgeCases:
         from stoa_cli.backup import run_backup
         run_backup(args)
 
-        zips = list(out_dir.glob("hermes-backup-*.zip"))
+        zips = list(out_dir.glob("stoa-backup-*.zip"))
         assert len(zips) == 1
 
     def test_output_without_zip_suffix(self, tmp_path, monkeypatch):
@@ -707,7 +707,7 @@ class TestBackupEdgeCases:
         assert (tmp_path / "mybackup.tar.zip").exists()
 
     def test_empty_stoa_home(self, tmp_path, monkeypatch):
-        """Backup handles empty hermes home (no files to back up)."""
+        """Backup handles empty stoa home (no files to back up)."""
         stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         # Only excluded dirs, no actual files
@@ -780,8 +780,8 @@ class TestBackupEdgeCases:
             # The pre-1980 file should be skipped, not crash the backup
             assert "ancient.txt" not in names
 
-    def test_skips_output_zip_inside_hermes(self, tmp_path, monkeypatch):
-        """Backup skips its own output zip if it's inside hermes root."""
+    def test_skips_output_zip_inside_stoa(self, tmp_path, monkeypatch):
+        """Backup skips its own output zip if it's inside stoa root."""
         stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         (stoa_home / "config.yaml").write_text("model: test\n")
@@ -789,7 +789,7 @@ class TestBackupEdgeCases:
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
 
-        # Output inside hermes home
+        # Output inside stoa home
         out_zip = stoa_home / "backup.zip"
         args = Namespace(output=str(out_zip))
 
@@ -955,7 +955,7 @@ class TestProfileRestoration:
 
         # Wrappers should contain the right content
         coder_wrapper = (wrapper_dir / "coder").read_text()
-        assert "hermes -p coder" in coder_wrapper
+        assert "stoa -p coder" in coder_wrapper
 
     def test_import_skips_profile_dirs_without_config(self, tmp_path, monkeypatch):
         """Import doesn't create wrappers for profile dirs without config."""
@@ -1270,11 +1270,11 @@ class TestQuickSnapshot:
         assert snap_id is not None
 
 # ---------------------------------------------------------------------------
-# Pre-update backup (hermes update safety net)
+# Pre-update backup (stoa update safety net)
 # ---------------------------------------------------------------------------
 
 class TestPreUpdateBackup:
-    """Tests for create_pre_update_backup — the auto-backup ``hermes update``
+    """Tests for create_pre_update_backup — the auto-backup ``stoa update``
     runs before touching anything."""
 
     @pytest.fixture
@@ -1295,7 +1295,7 @@ class TestPreUpdateBackup:
 
     def test_backup_contents_match_full_backup(self, stoa_home):
         """Pre-update backup should include the same user data that
-        ``hermes backup`` would, and should exclude the same directories."""
+        ``stoa backup`` would, and should exclude the same directories."""
         from stoa_cli.backup import create_pre_update_backup
         out = create_pre_update_backup(stoa_home=stoa_home)
         assert out is not None
@@ -1449,7 +1449,7 @@ class TestRunPreUpdateBackup:
         assert "Creating pre-update backup" in out
         assert "Saved:" in out
         assert "Restore:" in out
-        assert "hermes import" in out
+        assert "stoa import" in out
         assert "Disable:" in out
         # Actual backup was created
         backups = list((stoa_home / "backups").glob("pre-update-*.zip"))
@@ -1538,12 +1538,12 @@ class TestRunPreUpdateBackup:
 
 
 # ---------------------------------------------------------------------------
-# Pre-migration backup (hermes claw migrate safety net)
+# Pre-migration backup (stoa claw migrate safety net)
 # ---------------------------------------------------------------------------
 
 class TestPreMigrationBackup:
     """Tests for create_pre_migration_backup — the auto-backup
-    ``hermes claw migrate`` runs before mutating ~/.stoa/."""
+    ``stoa claw migrate`` runs before mutating ~/.stoa/."""
 
     @pytest.fixture
     def stoa_home(self, tmp_path):
@@ -1557,7 +1557,7 @@ class TestPreMigrationBackup:
         out = create_pre_migration_backup(stoa_home=stoa_home)
         assert out is not None
         assert out.exists()
-        # Shares the backups/ directory with pre-update backups so `hermes
+        # Shares the backups/ directory with pre-update backups so `stoa
         # import` and the update-backup listing both pick them up.
         assert out.parent == stoa_home / "backups"
         assert out.name.startswith("pre-migration-")
@@ -1565,7 +1565,7 @@ class TestPreMigrationBackup:
 
     def test_backup_uses_shared_exclusion_rules(self, stoa_home):
         """Pre-migration backup reuses the same exclusion rules as
-        ``hermes backup`` / ``create_pre_update_backup`` — no drift."""
+        ``stoa backup`` / ``create_pre_update_backup`` — no drift."""
         from stoa_cli.backup import create_pre_migration_backup
         out = create_pre_migration_backup(stoa_home=stoa_home)
         assert out is not None
@@ -1581,8 +1581,8 @@ class TestPreMigrationBackup:
         assert "gateway.pid" not in names
 
     def test_restorable_with_stoa_import(self, stoa_home, tmp_path):
-        """The zip produced by pre-migration backup must be a valid Hermes
-        backup — `hermes import` should accept it."""
+        """The zip produced by pre-migration backup must be a valid STOA
+        backup — `stoa import` should accept it."""
         from stoa_cli.backup import create_pre_migration_backup, _validate_backup_zip
         out = create_pre_migration_backup(stoa_home=stoa_home)
         assert out is not None

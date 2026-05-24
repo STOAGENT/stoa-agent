@@ -1,6 +1,6 @@
 """Resolve STOA_HOME for standalone skill scripts.
 
-Skill scripts may run outside the Hermes process (e.g. system Python,
+Skill scripts may run outside the STOA process (e.g. system Python,
 nix env, CI) where ``stoa_constants`` is not importable.  This module
 provides the same ``get_stoa_home()`` and ``display_stoa_home()``
 contracts as ``stoa_constants`` without requiring it on ``sys.path``.
@@ -25,7 +25,7 @@ try:
 except (ModuleNotFoundError, ImportError):
 
     def get_stoa_home() -> Path:
-        """Return the Hermes home directory (default: ~/.stoa).
+        """Return the STOA home directory (default: ~/.stoa).
 
         Mirrors ``stoa_constants.get_stoa_home()``."""
         val = os.environ.get("STOA_HOME", "").strip()

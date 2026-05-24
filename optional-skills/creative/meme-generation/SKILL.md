@@ -6,7 +6,7 @@ author: adanaleycio
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  hermes:
+  stoa:
     tags: [creative, memes, humor, images]
     related_skills: [ascii-art, generative-widgets]
     category: creative

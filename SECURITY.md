@@ -7,7 +7,7 @@ scope for vulnerability reports.
 ## 1. Reporting a Vulnerability
 
 Report privately via [GitHub Security Advisories](https://github.com/STOAGENT/stoa-agent/security/advisories/new)
-or **security@nousresearch.com**. Do not open public issues for
+or **security@stoax.xyz**. Do not open public issues for
 security vulnerabilities. **STOA Agent does not operate a bug
 bounty program.**
 
@@ -16,7 +16,7 @@ A useful report includes:
 - A concise description and severity assessment.
 - The affected component, identified by file path and line range
   (e.g. `path/to/file.py:120-145`).
-- Environment details (`hermes version`, commit SHA, OS, Python
+- Environment details (`stoa version`, commit SHA, OS, Python
   version).
 - A reproduction against `main` or the latest release.
 - A statement of which trust boundary in §2 is crossed.
@@ -274,14 +274,14 @@ private-disclosure channel and don't receive advisories.
   that explicitly disable protections: `--insecure` and equivalent
   flags on the dashboard or other components, disabled approvals,
   local backend in production, development profiles that bypass
-  hermes-home security, and similar. Reports against those
+  stoa-home security, and similar. Reports against those
   configurations are not vulnerabilities — that's the flag's job.
 - **Community-contributed skills and plugins.** Third-party skills
   (including the community skills repository) and third-party
   plugins are in the operator's review surface, not STOA Agent's
   trust surface (§2.4, §2.5). A skill or plugin doing something
   malicious is the expected failure mode of one that wasn't
-  reviewed, not a vulnerability in STOA Agent. Bugs in Hermes
+  reviewed, not a vulnerability in STOA Agent. Bugs in STOA
   Agent's skill-install or plugin-install path that prevent the
   operator from seeing what they're installing are in scope under
   §3.1.
@@ -326,6 +326,6 @@ that:
 - **Coordinated disclosure window:** 90 days from report, or until a
   fix is released, whichever comes first.
 - **Channel:** the GHSA thread or email correspondence with
-  security@nousresearch.com.
+  security@stoax.xyz.
 - **Credit:** reporters are credited in release notes unless
   anonymity is requested.

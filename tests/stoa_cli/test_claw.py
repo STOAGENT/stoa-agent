@@ -1,4 +1,4 @@
-"""Tests for hermes claw commands."""
+"""Tests for stoa claw commands."""
 
 from argparse import Namespace
 import subprocess
@@ -443,7 +443,7 @@ class TestCmdMigrate:
         """The 'full' preset must NOT auto-enable migrate_secrets.
 
         Users have to opt in to secret import explicitly via --migrate-secrets,
-        even under the 'full' preset.  This mirrors OpenClaw's migrate-hermes
+        even under the 'full' preset.  This mirrors OpenClaw's migrate-stoa
         posture (two-phase import) and prevents a 'full' run from silently
         copying API keys.
         """

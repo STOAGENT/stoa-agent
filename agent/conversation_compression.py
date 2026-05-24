@@ -92,7 +92,7 @@ def check_compression_model_feasibility(agent: Any) -> None:
                 msg = (
                     "⚠ No auxiliary LLM provider configured — context "
                     "compression will drop middle turns without a summary. "
-                    "Run `hermes setup` or set OPENROUTER_API_KEY."
+                    "Run `stoa setup` or set OPENROUTER_API_KEY."
                 )
             agent._compression_warning = msg
             agent._emit_status(msg)
@@ -410,10 +410,10 @@ def compress_context(
             logger.warning("Session DB compression split failed — new session will NOT be indexed: %s", e)
 
     # Notify the context engine that the session_id rotated because of
-    # compression (not a fresh /new). Plugin engines (e.g. hermes-lcm) use
+    # compression (not a fresh /new). Plugin engines (e.g. stoa-lcm) use
     # boundary_reason="compression" to preserve DAG lineage across the
     # rollover instead of re-initializing fresh per-session state.
-    # See hermes-lcm#68. Built-in ContextCompressor ignores kwargs.
+    # See stoa-lcm#68. Built-in ContextCompressor ignores kwargs.
     try:
         _old_sid = locals().get("old_session_id")
         if _old_sid and hasattr(agent.context_compressor, "on_session_start"):

@@ -29,7 +29,7 @@ Before starting, make sure you have:
 - **An LLM provider configured** — at minimum, an API key for OpenAI, Anthropic, or another supported provider in `~/.stoa/.env`
 
 :::tip
-A $5/month VPS is plenty for running the gateway. Hermes itself is lightweight — the LLM API calls are what cost money, and those happen remotely.
+A $5/month VPS is plenty for running the gateway. STOA itself is lightweight — the LLM API calls are what cost money, and those happen remotely.
 :::
 
 ---
@@ -86,7 +86,7 @@ You have two options: the interactive setup wizard (recommended) or manual confi
 ### Option A: Interactive Setup (Recommended)
 
 ```bash
-hermes gateway setup
+stoa gateway setup
 ```
 
 This walks you through everything with arrow-key selection. Pick **Telegram**, paste your bot token, and enter your user ID when prompted.
@@ -124,13 +124,13 @@ Telegram user IDs are permanent numbers like `123456789`. They're different from
 Run the gateway in the foreground first to make sure everything works:
 
 ```bash
-hermes gateway
+stoa gateway
 ```
 
 You should see output like:
 
 ```
-[Gateway] Starting Hermes Gateway...
+[Gateway] Starting STOA Gateway...
 [Gateway] Telegram adapter connected
 [Gateway] Cron scheduler started (tick every 60s)
 ```
@@ -142,17 +142,17 @@ Open Telegram, find your bot, and send it a message. If it replies, you're in bu
 For a persistent deployment that survives reboots:
 
 ```bash
-hermes gateway install
-sudo hermes gateway install --system   # Linux only: boot-time system service
+stoa gateway install
+sudo stoa gateway install --system   # Linux only: boot-time system service
 ```
 
 This creates a background service: a user-level **systemd** service on Linux by default, a **launchd** service on macOS, or a boot-time Linux system service if you pass `--system`.
 
 ```bash
 # Linux — manage the default user service
-hermes gateway start
-hermes gateway stop
-hermes gateway status
+stoa gateway start
+stoa gateway stop
+stoa gateway status
 
 # View live logs
 journalctl --user -u stoa-gateway -f
@@ -161,26 +161,26 @@ journalctl --user -u stoa-gateway -f
 sudo loginctl enable-linger $USER
 
 # Linux servers — explicit system-service commands
-sudo hermes gateway start --system
-sudo hermes gateway status --system
+sudo stoa gateway start --system
+sudo stoa gateway status --system
 journalctl -u stoa-gateway -f
 ```
 
 ```bash
 # macOS — manage the service
-hermes gateway start
-hermes gateway stop
+stoa gateway start
+stoa gateway stop
 tail -f ~/.stoa/logs/gateway.log
 ```
 
 :::tip macOS PATH
-The launchd plist captures your shell PATH at install time so gateway subprocesses can find tools like Node.js and ffmpeg. If you install new tools later, re-run `hermes gateway install` to update the plist.
+The launchd plist captures your shell PATH at install time so gateway subprocesses can find tools like Node.js and ffmpeg. If you install new tools later, re-run `stoa gateway install` to update the plist.
 :::
 
 ### Verify It's Running
 
 ```bash
-hermes gateway status
+stoa gateway status
 ```
 
 Then send a test message to your bot on Telegram. You should get a response within a few seconds.
@@ -203,7 +203,7 @@ TELEGRAM_ALLOWED_USERS=123456789,987654321,555555555
 Restart the gateway after changes:
 
 ```bash
-hermes gateway stop && hermes gateway start
+stoa gateway stop && stoa gateway start
 ```
 
 ### Approach B: DM Pairing (Recommended for Teams)
@@ -220,7 +220,7 @@ DM pairing is more flexible — you don't need to collect user IDs upfront. Here
 
 3. **You approve it** on the server:
    ```bash
-   hermes pairing approve telegram XKGH5N7P
+   stoa pairing approve telegram XKGH5N7P
    ```
 
 4. **They're in** — the bot immediately starts responding to their messages
@@ -229,13 +229,13 @@ DM pairing is more flexible — you don't need to collect user IDs upfront. Here
 
 ```bash
 # See all pending and approved users
-hermes pairing list
+stoa pairing list
 
 # Revoke someone's access
-hermes pairing revoke telegram 987654321
+stoa pairing revoke telegram 987654321
 
 # Clear expired pending codes
-hermes pairing clear-pending
+stoa pairing clear-pending
 ```
 
 :::tip
@@ -291,7 +291,7 @@ Users can also change this per-session with the `/verbose` command in chat.
 
 Customize how the bot communicates by editing `~/.stoa/SOUL.md`:
 
-For a full guide, see [Use SOUL.md with Hermes](/docs/guides/use-soul-with-hermes).
+For a full guide, see [Use SOUL.md with STOA](/docs/guides/use-soul-with-stoa).
 
 ```markdown
 # Soul
@@ -352,8 +352,8 @@ partitions above 80%, containers that have restarted, or high memory usage.
 
 ```bash
 # From the CLI
-hermes cron list          # View all scheduled jobs
-hermes cron status        # Check if scheduler is running
+stoa cron list          # View all scheduled jobs
+stoa cron status        # Check if scheduler is running
 
 # From Telegram chat
 /cron list                # View jobs
@@ -394,7 +394,7 @@ This way, even if someone asks the bot to run something destructive, your host s
 
 ```bash
 # Check if the gateway is running
-hermes gateway status
+stoa gateway status
 
 # Watch live logs (Linux)
 journalctl --user -u stoa-gateway -f
@@ -403,13 +403,13 @@ journalctl --user -u stoa-gateway -f
 tail -f ~/.stoa/logs/gateway.log
 ```
 
-### Keep Hermes Updated
+### Keep STOA Updated
 
 From Telegram, send `/update` to the bot — it will pull the latest version and restart. Or from the server:
 
 ```bash
-hermes update
-hermes gateway stop && hermes gateway start
+stoa update
+stoa gateway stop && stoa gateway start
 ```
 
 ### Log Locations

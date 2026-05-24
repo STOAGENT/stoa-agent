@@ -6,7 +6,7 @@ author: STOA Agent
 license: MIT
 platforms: [linux, macos]
 metadata:
-  hermes:
+  stoa:
     tags: [cron, polling, rss, github, http, automation, monitoring]
     category: devops
     requires_toolsets: [terminal]
@@ -66,7 +66,7 @@ Watch a GitHub repo (set `GITHUB_TOKEN` in `~/.stoa/.env` to avoid the 60 req/hr
 
 ```bash
 python $STOA_HOME/skills/devops/watchers/scripts/watch_github.py \
-  --name hermes-issues --repo STOAGENT/stoa-agent --scope issues
+  --name stoa-issues --repo STOAGENT/stoa-agent --scope issues
 ```
 
 Poll an arbitrary JSON API:

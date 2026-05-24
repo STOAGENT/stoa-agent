@@ -48,7 +48,7 @@ Press **Ctrl+C** once to interrupt the agent mid-response. You can then type a n
 
 ### Resume Sessions with `-c`
 
-Forgot something from your last session? Run `hermes -c` to resume exactly where you left off, with full conversation history restored. You can also resume by title: `hermes -r "my research project"`.
+Forgot something from your last session? Run `stoa -c` to resume exactly where you left off, with full conversation history restored. You can also resume by title: `stoa -r "my research project"`.
 
 ### Clipboard Image Paste
 
@@ -78,9 +78,9 @@ Create an `AGENTS.md` in your project root with architecture decisions, coding c
 
 ### SOUL.md: Customize Personality
 
-Want Hermes to have a stable default voice? Edit `~/.stoa/SOUL.md` (or `$STOA_HOME/SOUL.md` if you use a custom Hermes home). Hermes now seeds a starter SOUL automatically and uses that global file as the instance-wide personality source.
+Want STOA to have a stable default voice? Edit `~/.stoa/SOUL.md` (or `$STOA_HOME/SOUL.md` if you use a custom STOA home). STOA now seeds a starter SOUL automatically and uses that global file as the instance-wide personality source.
 
-For a full walkthrough, see [Use SOUL.md with Hermes](/docs/guides/use-soul-with-hermes).
+For a full walkthrough, see [Use SOUL.md with STOA](/docs/guides/use-soul-with-stoa).
 
 ```markdown
 # Soul
@@ -93,11 +93,11 @@ Use `SOUL.md` for durable personality. Use `AGENTS.md` for project-specific inst
 
 ### .cursorrules Compatibility
 
-Already have a `.cursorrules` or `.cursor/rules/*.mdc` file? Hermes reads those too. No need to duplicate your coding conventions — they're loaded automatically from the working directory.
+Already have a `.cursorrules` or `.cursor/rules/*.mdc` file? STOA reads those too. No need to duplicate your coding conventions — they're loaded automatically from the working directory.
 
 ### Discovery
 
-Hermes loads the top-level `AGENTS.md` from the current working directory at session start. Subdirectory `AGENTS.md` files are discovered lazily during tool calls (via `subdirectory_hints.py`) and injected into tool results — they are not loaded upfront into the system prompt.
+STOA loads the top-level `AGENTS.md` from the current working directory at session start. Subdirectory `AGENTS.md` files are discovered lazily during tool calls (via `subdirectory_hints.py`) and injected into tool results — they are not loaded upfront into the system prompt.
 
 :::tip
 Keep context files focused and concise. Every character counts against your token budget since they're injected into every single message.
@@ -159,11 +159,11 @@ Use `/sethome` in your preferred Telegram or Discord chat to designate it as the
 
 ### Use /title to Organize Sessions
 
-Name your sessions with `/title auth-refactor` or `/title research-llm-quantization`. Named sessions are easy to find with `hermes sessions list` and resume with `hermes -r "auth-refactor"`. Unnamed sessions pile up and become impossible to distinguish.
+Name your sessions with `/title auth-refactor` or `/title research-llm-quantization`. Named sessions are easy to find with `stoa sessions list` and resume with `stoa -r "auth-refactor"`. Unnamed sessions pile up and become impossible to distinguish.
 
 ### DM Pairing for Team Access
 
-Instead of manually collecting user IDs for allowlists, enable DM pairing. When a teammate DMs the bot, they get a one-time pairing code. You approve it with `hermes pairing approve telegram XKGH5N7P` — simple and secure.
+Instead of manually collecting user IDs for allowlists, enable DM pairing. When a teammate DMs the bot, they get a one-time pairing code. You approve it with `stoa pairing approve telegram XKGH5N7P` — simple and secure.
 
 ### Tool Progress Display Modes
 
@@ -182,7 +182,7 @@ When working with untrusted repositories or running unfamiliar code, use Docker 
 ```bash
 # In your .env:
 TERMINAL_BACKEND=docker
-TERMINAL_DOCKER_IMAGE=hermes-sandbox:latest
+TERMINAL_DOCKER_IMAGE=stoa-sandbox:latest
 ```
 
 ### Avoid Windows Encoding Pitfalls
@@ -210,7 +210,7 @@ When the agent triggers a dangerous command approval (`rm -rf`, `DROP TABLE`, et
 
 ### Command Approval Is Your Safety Net
 
-Hermes checks every command against a curated list of dangerous patterns before execution. This includes recursive deletes, SQL drops, piping curl to shell, and more. Don't disable this in production — it exists for good reasons.
+STOA checks every command against a curated list of dangerous patterns before execution. This includes recursive deletes, SQL drops, piping curl to shell, and more. Don't disable this in production — it exists for good reasons.
 
 :::warning
 When running in a container backend (Docker, Singularity, Modal, Daytona), dangerous command checks are **skipped** because the container is the security boundary. Make sure your container images are properly locked down.

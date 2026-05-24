@@ -18,7 +18,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Non-root user for runtime; UID can be overridden via STOA_UID at runtime
-RUN useradd -u 10000 -m -d /opt/data hermes
+RUN useradd -u 10000 -m -d /opt/data stoa
 
 COPY --chmod=0755 --from=gosu_source /gosu /usr/local/bin/
 COPY --chmod=0755 --from=uv_source /usr/local/bin/uv /usr/local/bin/uvx /usr/local/bin/
@@ -43,7 +43,7 @@ COPY ui-tui/packages/stoa-ink/ ui-tui/packages/stoa-ink/
 # which defaults to `install-links=true` and installs file deps as *copies*.
 # The host-side package-lock.json is generated with a newer npm that uses
 # symlinks, so an install-as-copy produces a hidden node_modules/.package-lock.json
-# that permanently disagrees with the root lock on the @hermes/ink entry.
+# that permanently disagrees with the root lock on the @stoa/ink entry.
 # That disagreement trips the TUI launcher's `_tui_need_npm_install()`
 # check on every startup and triggers a runtime `npm install` that then
 # fails with EACCES (node_modules/ is root-owned from build time).
@@ -82,7 +82,7 @@ RUN uv sync --frozen --no-install-project --extra all --extra messaging
 
 # ---------- Source code ----------
 # .dockerignore excludes node_modules, so the installs above survive.
-COPY --chown=hermes:hermes . .
+COPY --chown=stoa:stoa . .
 
 # Build browser dashboard and terminal UI assets.
 RUN cd web && npm run build && \
@@ -91,20 +91,20 @@ RUN cd web && npm run build && \
 # ---------- Permissions ----------
 # Make install dir world-readable so any STOA_UID can read it at runtime.
 # The venv needs to be traversable too.
-# node_modules trees additionally need to be writable by the hermes user
+# node_modules trees additionally need to be writable by the stoa user
 # so the runtime `npm install` triggered by _tui_need_npm_install() in
 # stoa_cli/main.py succeeds (see #18800). /opt/stoa/web is build-time
 # only (STOA_WEB_DIST points at stoa_cli/web_dist) and is intentionally
 # not chowned here.
-# The .venv MUST remain hermes-writable so lazy_deps.py can install
+# The .venv MUST remain stoa-writable so lazy_deps.py can install
 # remaining optional platform packages and future pin bumps at first use.
 # Without this, `uv pip install` fails with EACCES and adapters silently
 # fail to load.  See tools/lazy_deps.py.
 USER root
 RUN chmod -R a+rX /opt/stoa && \
-    chown -R hermes:hermes /opt/stoa/.venv /opt/stoa/ui-tui /opt/stoa/node_modules
+    chown -R stoa:stoa /opt/stoa/.venv /opt/stoa/ui-tui /opt/stoa/node_modules
 # Start as root so the entrypoint can usermod/groupmod + gosu.
-# If STOA_UID is unset, the entrypoint drops to the default hermes user (10000).
+# If STOA_UID is unset, the entrypoint drops to the default stoa user (10000).
 
 # ---------- Link stoa-agent itself (editable) ----------
 # Deps are already installed in the cached layer above; `--no-deps` makes

@@ -16,7 +16,7 @@ from stoa_constants import (
 )
 
 
-class TestGetDefaultHermesRoot:
+class TestGetDefaultSTOARoot:
     """Tests for get_default_stoa_root() — Docker/custom deployment awareness."""
 
     def test_no_stoa_home_returns_native(self, tmp_path, monkeypatch):
@@ -53,7 +53,7 @@ class TestGetDefaultHermesRoot:
 
     def test_stoa_home_is_custom_path(self, tmp_path, monkeypatch):
         """Any STOA_HOME outside ~/.stoa is treated as the root."""
-        custom = tmp_path / "my-hermes-data"
+        custom = tmp_path / "my-stoa-data"
         custom.mkdir()
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setenv("STOA_HOME", str(custom))

@@ -34,8 +34,8 @@ def container_env(tmp_path, monkeypatch):
         "# Written by NixOS activation script. Do not edit manually.\n"
         "backend=podman\n"
         "container_name=stoa-agent\n"
-        "exec_user=hermes\n"
-        "stoa_bin=/data/current-package/bin/hermes\n"
+        "exec_user=stoa\n"
+        "stoa_bin=/data/current-package/bin/stoa\n"
     )
     return stoa_home
 
@@ -48,8 +48,8 @@ def test_get_container_exec_info_returns_metadata(container_env):
     assert info is not None
     assert info["backend"] == "podman"
     assert info["container_name"] == "stoa-agent"
-    assert info["exec_user"] == "hermes"
-    assert info["stoa_bin"] == "/data/current-package/bin/hermes"
+    assert info["exec_user"] == "stoa"
+    assert info["stoa_bin"] == "/data/current-package/bin/stoa"
 
 
 def test_get_container_exec_info_none_inside_container(container_env):
@@ -113,26 +113,26 @@ def test_get_container_exec_info_defaults():
         assert info is not None
         assert info["backend"] == "docker"
         assert info["container_name"] == "stoa-agent"
-        assert info["exec_user"] == "hermes"
-        assert info["stoa_bin"] == "/data/current-package/bin/hermes"
+        assert info["exec_user"] == "stoa"
+        assert info["stoa_bin"] == "/data/current-package/bin/stoa"
 
 
 def test_get_container_exec_info_docker_backend(container_env):
     """Correctly reads docker backend with custom exec_user."""
     (container_env / ".container-mode").write_text(
         "backend=docker\n"
-        "container_name=hermes-custom\n"
+        "container_name=stoa-custom\n"
         "exec_user=myuser\n"
-        "stoa_bin=/opt/hermes/bin/hermes\n"
+        "stoa_bin=/opt/stoa/bin/stoa\n"
     )
 
     with patch("stoa_constants.is_container", return_value=False):
         info = get_container_exec_info()
 
     assert info["backend"] == "docker"
-    assert info["container_name"] == "hermes-custom"
+    assert info["container_name"] == "stoa-custom"
     assert info["exec_user"] == "myuser"
-    assert info["stoa_bin"] == "/opt/hermes/bin/hermes"
+    assert info["stoa_bin"] == "/opt/stoa/bin/stoa"
 
 
 def test_get_container_exec_info_crashes_on_permission_error(container_env):
@@ -153,8 +153,8 @@ def docker_container_info():
     return {
         "backend": "docker",
         "container_name": "stoa-agent",
-        "exec_user": "hermes",
-        "stoa_bin": "/data/current-package/bin/hermes",
+        "exec_user": "stoa",
+        "stoa_bin": "/data/current-package/bin/stoa",
     }
 
 
@@ -163,8 +163,8 @@ def podman_container_info():
     return {
         "backend": "podman",
         "container_name": "stoa-agent",
-        "exec_user": "hermes",
-        "stoa_bin": "/data/current-package/bin/hermes",
+        "exec_user": "stoa",
+        "stoa_bin": "/data/current-package/bin/stoa",
     }
 
 
@@ -190,13 +190,13 @@ def test_exec_in_container_calls_execvp(docker_container_info):
     assert cmd[1] == "exec"
     assert "-it" in cmd
     idx_u = cmd.index("-u")
-    assert cmd[idx_u + 1] == "hermes"
+    assert cmd[idx_u + 1] == "stoa"
     e_indices = [i for i, v in enumerate(cmd) if v == "-e"]
     e_values = [cmd[i + 1] for i in e_indices]
     assert "TERM=xterm-256color" in e_values
     assert "LANG=en_US.UTF-8" in e_values
     assert "stoa-agent" in cmd
-    assert "/data/current-package/bin/hermes" in cmd
+    assert "/data/current-package/bin/stoa" in cmd
     assert "chat" in cmd
 
 

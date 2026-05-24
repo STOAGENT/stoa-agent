@@ -120,8 +120,8 @@ export const ko: Translations = {
     starting: "시작 중",
     startedInBackground: "백그라운드에서 시작됨 — 진행 상황은 로그를 확인하세요",
     stopped: "중지됨",
-    updateHermes: "Hermes 업데이트",
-    updatingHermes: "Hermes 업데이트 중…",
+    updateSTOA: "STOA 업데이트",
+    updatingSTOA: "STOA 업데이트 중…",
     waitingForOutput: "출력 대기 중…",
   },
 
@@ -267,7 +267,7 @@ export const ko: Translations = {
     enableRuntime: "활성화",
     forceReinstall: "강제 재설치 (기존 폴더를 먼저 삭제)",
     headline:
-      "Hermes 플러그인을 검색, 설치, 활성화 및 업데이트합니다 (`hermes plugins` 동등).",
+      "STOA 플러그인을 검색, 설치, 활성화 및 업데이트합니다 (`stoa plugins` 동등).",
     identifierLabel: "Git URL 또는 owner/repo",
     inactive: "비활성",
     installBtn: "설치",
@@ -433,11 +433,11 @@ export const ko: Translations = {
   achievements: {
     hero: {
       kicker: "Agentic Gamerscore",
-      title: "Hermes Achievements",
+      title: "STOA Achievements",
       subtitle:
-        "실제 세션 기록에서 획득하는 Hermes 컬렉터블 배지입니다. 알려져 있지만 아직 달성되지 않은 업적은 Discovered로 표시되며, Secret 업적은 일치하는 동작이 처음 나타날 때까지 숨겨집니다.",
+        "실제 세션 기록에서 획득하는 STOA 컬렉터블 배지입니다. 알려져 있지만 아직 달성되지 않은 업적은 Discovered로 표시되며, Secret 업적은 일치하는 동작이 처음 나타날 때까지 숨겨집니다.",
       scan_subtitle:
-        "Hermes 세션 기록을 스캔하고 있습니다. 기록이 많으면 첫 스캔에 5~10초가 걸릴 수 있습니다.",
+        "STOA 세션 기록을 스캔하고 있습니다. 기록이 많으면 첫 스캔에 5~10초가 걸릴 수 있습니다.",
     },
     actions: {
       rescan: "다시 스캔",
@@ -452,7 +452,7 @@ export const ko: Translations = {
       highest_tier: "최고 등급",
       highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
       latest: "최근",
-      latest_hint_empty: "Hermes를 더 사용해 보세요",
+      latest_hint_empty: "STOA를 더 사용해 보세요",
       none_yet: "아직 없음",
     },
     state: {
@@ -483,10 +483,10 @@ export const ko: Translations = {
       tiers_header: "등급",
       secret_header: "시크릿 업적",
       secret_body:
-        "시크릿은 정확한 트리거 조건을 숨깁니다. Hermes가 관련 신호를 감지하면 카드가 Discovered로 바뀌고 요건이 표시됩니다.",
+        "시크릿은 정확한 트리거 조건을 숨깁니다. STOA가 관련 신호를 감지하면 카드가 Discovered로 바뀌고 요건이 표시됩니다.",
       scan_status_header: "스캔 상태",
       scan_status_body:
-        "Hermes는 로컬 기록을 한 번 스캔한 뒤 카드를 자동으로 표시합니다. 몇 초 걸리더라도 멈춘 것이 아닙니다.",
+        "STOA는 로컬 기록을 한 번 스캔한 뒤 카드를 자동으로 표시합니다. 몇 초 걸리더라도 멈춘 것이 아닙니다.",
       what_scanned_header: "스캔 대상",
       what_scanned_body:
         "세션, 도구 호출, 모델 메타데이터, 오류, 업적 및 로컬 해제 상태입니다.",

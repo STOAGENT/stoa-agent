@@ -1,6 +1,6 @@
 """Welcome banner, ASCII art, skills summary, and update check for the CLI.
 
-Pure display functions with no HermesCLI state dependency.
+Pure display functions with no STOACLI state dependency.
 """
 
 import json
@@ -124,7 +124,7 @@ def get_available_skills() -> Dict[str, List[str]]:
 _UPDATE_CHECK_CACHE_SECONDS = 6 * 3600
 
 # Sentinel returned when we know an update exists but can't count commits
-# (e.g. nix-built hermes — no local git history to count against).
+# (e.g. nix-built stoa — no local git history to count against).
 UPDATE_AVAILABLE_NO_COUNT = -1
 
 _UPSTREAM_REPO_URL = "https://github.com/STOAGENT/stoa-agent.git"
@@ -218,7 +218,7 @@ def check_via_pypi() -> Optional[int]:
 
 
 def check_for_updates() -> Optional[int]:
-    """Check whether a Hermes update is available.
+    """Check whether a STOA update is available.
 
     Two paths: if ``STOA_REVISION`` is set (nix builds embed it), compare
     it to upstream main via ``git ls-remote``. Otherwise look for a local
@@ -268,7 +268,7 @@ def check_for_updates() -> Optional[int]:
 
 
 def _resolve_repo_dir() -> Optional[Path]:
-    """Return the active Hermes git checkout, or None if this isn't a git install.
+    """Return the active STOA git checkout, or None if this isn't a git install.
 
     Prefers the running code's location over the profile-scoped path
     because ``$STOA_HOME/stoa-agent/`` may be a stale copy carried
@@ -335,7 +335,7 @@ def get_latest_release_tag(repo_dir: Optional[Path] = None) -> Optional[tuple]:
     """Return ``(tag, release_url)`` for the latest git tag, or None.
 
     Local-only — runs ``git describe --tags --abbrev=0`` against the
-    Hermes checkout. Cached per-process. Release URL always points at the
+    STOA checkout. Cached per-process. Release URL always points at the
     canonical STOAGENT/stoa-agent repo (forks don't get a link).
     """
     global _latest_release_cache
@@ -663,7 +663,7 @@ def build_welcome_banner(console: Console, model: str, cwd: str,
                     f"[dim yellow] — run [bold]{recommended_update_command()}[/bold] to update[/]"
                 )
             else:
-                # UPDATE_AVAILABLE_NO_COUNT: nix-built hermes; we know an update
+                # UPDATE_AVAILABLE_NO_COUNT: nix-built stoa; we know an update
                 # exists but not by how much, and we don't know how the user
                 # installed it (nix run, profile, system flake, home-manager).
                 managed_cmd = get_managed_update_command()

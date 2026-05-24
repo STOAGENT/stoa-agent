@@ -1,4 +1,4 @@
-"""Tests for Codex auth — tokens stored in Hermes auth store (~/.stoa/auth.json)."""
+"""Tests for Codex auth — tokens stored in STOA auth store (~/.stoa/auth.json)."""
 
 import json
 import time
@@ -26,7 +26,7 @@ from stoa_cli.auth import (
 
 
 def _setup_stoa_auth(stoa_home: Path, *, access_token: str = "access", refresh_token: str = "refresh"):
-    """Write Codex tokens into the Hermes auth store."""
+    """Write Codex tokens into the STOA auth store."""
     stoa_home.mkdir(parents=True, exist_ok=True)
     auth_store = {
         "version": 1,
@@ -54,7 +54,7 @@ def _jwt_with_exp(exp_epoch: int) -> str:
 
 
 def test_read_codex_tokens_success(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     _setup_stoa_auth(stoa_home)
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -64,7 +64,7 @@ def test_read_codex_tokens_success(tmp_path, monkeypatch):
 
 
 def test_read_codex_tokens_missing(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stoa_home.mkdir(parents=True, exist_ok=True)
     # Empty auth store
     (stoa_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
@@ -76,7 +76,7 @@ def test_read_codex_tokens_missing(tmp_path, monkeypatch):
 
 
 def test_resolve_codex_runtime_credentials_missing_access_token(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     _setup_stoa_auth(stoa_home, access_token="")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -87,7 +87,7 @@ def test_resolve_codex_runtime_credentials_missing_access_token(tmp_path, monkey
 
 
 def test_resolve_codex_runtime_credentials_refreshes_expiring_token(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     expiring_token = _jwt_with_exp(int(time.time()) - 10)
     _setup_stoa_auth(stoa_home, access_token=expiring_token, refresh_token="refresh-old")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -107,7 +107,7 @@ def test_resolve_codex_runtime_credentials_refreshes_expiring_token(tmp_path, mo
 
 
 def test_resolve_codex_runtime_credentials_force_refresh(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     _setup_stoa_auth(stoa_home, access_token="access-current", refresh_token="refresh-old")
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -132,7 +132,7 @@ def test_resolve_provider_explicit_codex_does_not_fallback(monkeypatch):
 
 
 def test_save_codex_tokens_roundtrip(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     stoa_home.mkdir(parents=True, exist_ok=True)
     (stoa_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -164,8 +164,8 @@ def test_import_codex_cli_tokens_missing(tmp_path, monkeypatch):
 
 
 def test_codex_tokens_not_written_to_shared_file(tmp_path, monkeypatch):
-    """Verify _save_codex_tokens writes only to Hermes auth store, not ~/.codex/."""
-    stoa_home = tmp_path / "hermes"
+    """Verify _save_codex_tokens writes only to STOA auth store, not ~/.codex/."""
+    stoa_home = tmp_path / "stoa"
     codex_home = tmp_path / "codex-cli"
     stoa_home.mkdir(parents=True, exist_ok=True)
     codex_home.mkdir(parents=True, exist_ok=True)
@@ -174,23 +174,23 @@ def test_codex_tokens_not_written_to_shared_file(tmp_path, monkeypatch):
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
     monkeypatch.setenv("CODEX_HOME", str(codex_home))
 
-    _save_codex_tokens({"access_token": "hermes-at", "refresh_token": "hermes-rt"})
+    _save_codex_tokens({"access_token": "stoa-at", "refresh_token": "stoa-rt"})
 
-    # ~/.codex/auth.json should NOT exist — _save_codex_tokens only touches Hermes store
+    # ~/.codex/auth.json should NOT exist — _save_codex_tokens only touches STOA store
     assert not (codex_home / "auth.json").exists()
 
-    # Hermes auth store should have the tokens
+    # STOA auth store should have the tokens
     data = _read_codex_tokens()
-    assert data["tokens"]["access_token"] == "hermes-at"
+    assert data["tokens"]["access_token"] == "stoa-at"
 
 
 def test_resolve_returns_stoa_auth_store_source(tmp_path, monkeypatch):
-    stoa_home = tmp_path / "hermes"
+    stoa_home = tmp_path / "stoa"
     _setup_stoa_auth(stoa_home)
     monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
     creds = resolve_codex_runtime_credentials()
-    assert creds["source"] == "hermes-auth-store"
+    assert creds["source"] == "stoa-auth-store"
     assert creds["provider"] == "openai-codex"
     assert creds["base_url"] == DEFAULT_CODEX_BASE_URL
 

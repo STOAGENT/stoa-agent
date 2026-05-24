@@ -1,13 +1,13 @@
 """Regression tests for the /model picker's credential-discovery paths.
 
 Covers:
- - Normal path (tokens already in Hermes auth store)
+ - Normal path (tokens already in STOA auth store)
  - Claude Code fallback (tokens only in ~/.claude/.credentials.json)
  - Negative case (no credentials anywhere)
 
-Note: auto-import from ~/.codex/auth.json was removed in #12360 — Hermes
+Note: auto-import from ~/.codex/auth.json was removed in #12360 — STOA
 now owns its own openai-codex auth state, and users explicitly adopt
-existing Codex CLI tokens via `hermes auth openai-codex`. The old
+existing Codex CLI tokens via `stoa auth openai-codex`. The old
 "Codex CLI shared file" discovery tests were removed with that change.
 """
 
@@ -33,7 +33,7 @@ def _make_fake_jwt(expiry_offset: int = 3600) -> str:
 
 @pytest.fixture()
 def stoa_auth_only_env(tmp_path, monkeypatch):
-    """Tokens already in Hermes auth store (no Codex CLI needed)."""
+    """Tokens already in STOA auth store (no Codex CLI needed)."""
     stoa_home = tmp_path / ".stoa"
     stoa_home.mkdir()
 
@@ -64,7 +64,7 @@ def stoa_auth_only_env(tmp_path, monkeypatch):
 
 
 def test_normal_path_still_works(stoa_auth_only_env):
-    """openai-codex appears when tokens are already in Hermes auth store."""
+    """openai-codex appears when tokens are already in STOA auth store."""
     from stoa_cli.model_switch import list_authenticated_providers
 
     providers = list_authenticated_providers(
@@ -109,7 +109,7 @@ def test_codex_picker_uses_live_codex_catalog(stoa_auth_only_env, tmp_path, monk
 @pytest.fixture()
 def claude_code_only_env(tmp_path, monkeypatch):
     """Set up an environment where Anthropic credentials only exist in
-    ~/.claude/.credentials.json (Claude Code) — not in env vars or Hermes
+    ~/.claude/.credentials.json (Claude Code) — not in env vars or STOA
     auth store."""
     stoa_home = tmp_path / ".stoa"
     stoa_home.mkdir()

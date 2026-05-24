@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from cli import HermesCLI
+from cli import STOACLI
 
 
 class _InsightsEngineStub:
@@ -18,7 +18,7 @@ class _InsightsEngineStub:
 
 
 def _run_show_insights(command: str):
-    cli_obj = HermesCLI.__new__(HermesCLI)
+    cli_obj = STOACLI.__new__(STOACLI)
     db = MagicMock()
     _InsightsEngineStub.calls = []
     with patch("stoa_state.SessionDB", return_value=db), \

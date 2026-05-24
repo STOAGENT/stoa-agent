@@ -14,7 +14,7 @@ def test_top_level_skills_flag_defaults_to_chat(monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["hermes", "-s", "stoa-agent-dev,github-auth"],
+        ["stoa", "-s", "stoa-agent-dev,github-auth"],
     )
 
     main_mod.main()
@@ -38,7 +38,7 @@ def test_chat_subcommand_accepts_skills_flag(monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["hermes", "chat", "-s", "github-auth", "-q", "hello"],
+        ["stoa", "chat", "-s", "github-auth", "-q", "hello"],
     )
 
     main_mod.main()
@@ -62,7 +62,7 @@ def test_chat_subcommand_accepts_image_flag(monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["hermes", "chat", "-q", "hello", "--image", "~/storage/shared/Pictures/cat.png"],
+        ["stoa", "chat", "-q", "hello", "--image", "~/storage/shared/Pictures/cat.png"],
     )
 
     main_mod.main()
@@ -88,7 +88,7 @@ def test_continue_worktree_and_skills_flags_work_together(monkeypatch):
     monkeypatch.setattr(
         sys,
         "argv",
-        ["hermes", "-c", "-w", "-s", "stoa-agent-dev"],
+        ["stoa", "-c", "-w", "-s", "stoa-agent-dev"],
     )
 
     main_mod.main()

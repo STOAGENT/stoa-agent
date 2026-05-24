@@ -1,6 +1,6 @@
 // The dashboard can be served either at the root of its host (e.g.
 // https://kanban.tilos.com/) or under a URL prefix when reverse-proxied
-// (e.g. https://mission-control.tilos.com/hermes/). The Python backend
+// (e.g. https://mission-control.tilos.com/stoa/). The Python backend
 // injects ``window.__STOA_BASE_PATH__`` into index.html based on the
 // incoming ``X-Forwarded-Prefix`` header so the SPA can address its own
 // ``/api/...`` and ``/dashboard-plugins/...`` URLs correctly without a
@@ -28,7 +28,7 @@ declare global {
   }
 }
 let _sessionToken: string | null = null;
-const SESSION_HEADER = "X-Hermes-Session-Token";
+const SESSION_HEADER = "X-STOA-Session-Token";
 
 function setSessionHeader(headers: Headers, token: string): void {
   if (!headers.has(SESSION_HEADER)) {
@@ -63,7 +63,7 @@ async function getSessionToken(): Promise<string> {
     _sessionToken = injected;
     return _sessionToken;
   }
-  throw new Error("Session token not available — page must be served by the Hermes dashboard server");
+  throw new Error("Session token not available — page must be served by the STOA dashboard server");
 }
 
 export const api = {
@@ -274,8 +274,8 @@ export const api = {
   // Gateway / update actions
   restartGateway: () =>
     fetchJSON<ActionResponse>("/api/gateway/restart", { method: "POST" }),
-  updateHermes: () =>
-    fetchJSON<ActionResponse>("/api/hermes/update", { method: "POST" }),
+  updateSTOA: () =>
+    fetchJSON<ActionResponse>("/api/stoa/update", { method: "POST" }),
   getActionStatus: (name: string, lines = 200) =>
     fetchJSON<ActionStatusResponse>(
       `/api/actions/${encodeURIComponent(name)}/status?lines=${lines}`,

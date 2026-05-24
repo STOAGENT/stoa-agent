@@ -77,7 +77,7 @@ const config: Config = {
         docs: {
           routeBasePath: '/',  // Docs at the root of /docs/
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/stoa-xyz/stoa-agent/edit/main/website/',
+          editUrl: 'https://github.com/STOAGENT/stoa-agent/edit/main/website/',
         },
         blog: false,
         theme: {
@@ -127,7 +127,7 @@ const config: Config = {
           position: 'right',
         },
         {
-          href: 'https://github.com/stoa-xyz/stoa-agent',
+          href: 'https://github.com/STOAGENT/stoa-agent',
           label: 'GitHub',
           position: 'right',
         },
@@ -154,14 +154,14 @@ const config: Config = {
           title: 'Community',
           items: [
             { label: 'Discord', href: 'https://discord.gg/stoa-xyz' },
-            { label: 'GitHub Discussions', href: 'https://github.com/stoa-xyz/stoa-agent/discussions' },
+            { label: 'GitHub Discussions', href: 'https://github.com/STOAGENT/stoa-agent/discussions' },
             { label: 'Skills Hub', href: 'https://agentskills.io' },
           ],
         },
         {
           title: 'More',
           items: [
-            { label: 'GitHub', href: 'https://github.com/stoa-xyz/stoa-agent' },
+            { label: 'GitHub', href: 'https://github.com/STOAGENT/stoa-agent' },
             { label: 'STOA', href: 'https://nousresearch.com' },
           ],
         },

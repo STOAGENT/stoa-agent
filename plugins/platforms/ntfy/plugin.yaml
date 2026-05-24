@@ -6,7 +6,7 @@ description: >
   ntfy push-notification gateway adapter for STOA Agent.
   Subscribes to a topic on ntfy.sh or any self-hosted ntfy server via
   HTTP streaming, and publishes replies via HTTP POST. Lightweight —
-  no external SDK, only httpx (already a Hermes dependency).
+  no external SDK, only httpx (already a STOA dependency).
 
   ntfy has no native user-identity primitive; the adapter treats each
   topic as a single trusted channel and never derives user identity
@@ -14,11 +14,11 @@ description: >
   for any real trust boundary.
 author: sprmn24
 # ``requires_env`` and ``optional_env`` entries are surfaced in the
-# ``hermes config`` UI via the platform-plugin env var injector in
+# ``stoa config`` UI via the platform-plugin env var injector in
 # ``stoa_cli/config.py``.
 requires_env:
   - name: NTFY_TOPIC
-    description: "Topic name to subscribe to (e.g. hermes-in)"
+    description: "Topic name to subscribe to (e.g. stoa-in)"
     prompt: "ntfy subscribe topic"
     password: false
 optional_env:

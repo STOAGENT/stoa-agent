@@ -1,7 +1,7 @@
 """
-Email platform adapter for the Hermes gateway.
+Email platform adapter for the STOA gateway.
 
-Allows users to interact with Hermes by sending emails.
+Allows users to interact with STOA by sending emails.
 Uses IMAP to receive and SMTP to send messages.
 
 Environment variables:
@@ -543,7 +543,7 @@ class EmailAdapter(BasePlatformAdapter):
             msg["References"] = original_msg_id
 
         msg["Date"] = formatdate(localtime=True)
-        msg_id = f"<hermes-{uuid.uuid4().hex[:12]}@{self._address.split('@')[1]}>"
+        msg_id = f"<stoa-{uuid.uuid4().hex[:12]}@{self._address.split('@')[1]}>"
         msg["Message-ID"] = msg_id
 
         msg.attach(MIMEText(body, "plain", "utf-8"))
@@ -652,7 +652,7 @@ class EmailAdapter(BasePlatformAdapter):
             msg["References"] = original_msg_id
 
         msg["Date"] = formatdate(localtime=True)
-        msg_id = f"<hermes-{uuid.uuid4().hex[:12]}@{self._address.split('@')[1]}>"
+        msg_id = f"<stoa-{uuid.uuid4().hex[:12]}@{self._address.split('@')[1]}>"
         msg["Message-ID"] = msg_id
 
         if body:
@@ -733,7 +733,7 @@ class EmailAdapter(BasePlatformAdapter):
             msg["References"] = original_msg_id
 
         msg["Date"] = formatdate(localtime=True)
-        msg_id = f"<hermes-{uuid.uuid4().hex[:12]}@{self._address.split('@')[1]}>"
+        msg_id = f"<stoa-{uuid.uuid4().hex[:12]}@{self._address.split('@')[1]}>"
         msg["Message-ID"] = msg_id
 
         if body:

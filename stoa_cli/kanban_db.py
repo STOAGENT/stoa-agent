@@ -1,10 +1,10 @@
 """SQLite-backed Kanban board for multi-profile, multi-project collaboration.
 
 In a fresh install the board lives at ``<root>/kanban.db`` where
-``<root>`` is the **shared Hermes root** (the parent of any active
+``<root>`` is the **shared STOA root** (the parent of any active
 profile). Profiles intentionally collapse onto a shared board: it IS
 the cross-profile coordination primitive. A worker spawned with
-``hermes -p <profile>`` joins the same board as the dispatcher that
+``stoa -p <profile>`` joins the same board as the dispatcher that
 claimed the task. The same applies to ``<root>/kanban/workspaces/`` and
 ``<root>/kanban/logs/``.
 
@@ -12,7 +12,7 @@ claimed the task. The same applies to ``<root>/kanban/workspaces/`` and
 separate unrelated streams of work (e.g. one per project / repo / domain).
 Each board is a directory under ``<root>/kanban/boards/<slug>/`` with
 its own ``kanban.db``, ``workspaces/``, and ``logs/``. All boards share
-the profile's Hermes home but are otherwise isolated: a worker spawned
+the profile's STOA home but are otherwise isolated: a worker spawned
 for a task on board ``atm10-server`` sees only that board's tasks,
 cannot enumerate other boards, and its dispatcher ticks don't touch
 other boards' DBs.
@@ -33,12 +33,12 @@ Board resolution order (highest precedence first, all optional):
   override still honoured; highest precedence when the file path itself
   is what the caller wants to force).
 * ``<root>/kanban/current`` — a one-line text file holding the slug of
-  the "currently selected" board. Written by ``hermes kanban boards
+  the "currently selected" board. Written by ``stoa kanban boards
   switch <slug>``. When absent, the active board is ``default``.
 
 In standard installs ``<root>`` is ``~/.stoa``. In Docker / custom
 deployments where ``STOA_HOME`` points outside ``~/.stoa`` (e.g.
-``/opt/hermes``), ``<root>`` is ``STOA_HOME``. Legacy env-var
+``/opt/stoa``), ``<root>`` is ``STOA_HOME``. Legacy env-var
 overrides still work:
 
 * ``STOA_KANBAN_DB`` — pin the database file path directly.
@@ -55,7 +55,7 @@ Docker layouts.
 Schema is intentionally small: tasks, task_links, task_comments,
 task_events.  The ``workspace_kind`` field decouples coordination from git
 worktrees so that research / ops / digital-twin workloads work alongside
-coding workloads.  See ``docs/hermes-kanban-v1-spec.pdf`` for the full
+coding workloads.  See ``docs/stoa-kanban-v1-spec.pdf`` for the full
 design specification.
 
 Concurrency strategy: WAL mode + ``BEGIN IMMEDIATE`` for write
@@ -176,7 +176,7 @@ def _normalize_board_slug(slug: Optional[str]) -> Optional[str]:
 
 
 def kanban_home() -> Path:
-    """Return the shared Hermes root that anchors the kanban board.
+    """Return the shared STOA root that anchors the kanban board.
 
     Resolution order:
 
@@ -212,7 +212,7 @@ def boards_root() -> Path:
 def current_board_path() -> Path:
     """Return the path to ``<root>/kanban/current``.
 
-    One-line text file written by ``hermes kanban boards switch <slug>``
+    One-line text file written by ``stoa kanban boards switch <slug>``
     to persist the user's board selection across CLI invocations. Absent
     by default (meaning: active board is ``default``).
     """
@@ -226,7 +226,7 @@ def get_current_board() -> str:
 
     1. ``STOA_KANBAN_BOARD`` env var (set by the dispatcher on worker
        spawn, or manually for ad-hoc overrides).
-    2. ``<root>/kanban/current`` on disk (set by ``hermes kanban boards
+    2. ``<root>/kanban/current`` on disk (set by ``stoa kanban boards
        switch``), but only when that board still exists.
     3. ``DEFAULT_BOARD`` (``"default"``).
 
@@ -263,7 +263,7 @@ def set_current_board(slug: str) -> Path:
 
     Writes ``<root>/kanban/current``. The caller should validate the slug
     exists first (via :func:`board_exists`) — this function does not —
-    so that ``hermes kanban boards switch <typo>`` returns an error
+    so that ``stoa kanban boards switch <typo>`` returns an error
     instead of silently pointing at nothing.
     """
     normed = _normalize_board_slug(slug)
@@ -363,7 +363,7 @@ def worker_logs_dir(board: Optional[str] = None) -> Path:
 
     ``default`` keeps the legacy path ``<root>/kanban/logs/``. Other
     boards use ``<root>/kanban/boards/<slug>/logs/``. Logs follow the
-    board — makes ``hermes kanban log`` unambiguous even when multiple
+    board — makes ``stoa kanban log`` unambiguous even when multiple
     boards have tasks with the same id.
     """
     slug = _normalize_board_slug(board)
@@ -1094,7 +1094,7 @@ def _guard_existing_db_is_healthy(path: Path) -> None:
     Path-trust note: ``path`` arrives via :func:`connect`, which itself
     resolves it from an explicit ``db_path`` argument, the
     :func:`kanban_db_path` env-var chain, or the kanban-home default —
-    all sources Hermes treats as user-controlled-but-trusted on the
+    all sources STOA treats as user-controlled-but-trusted on the
     user's own machine. We additionally resolve the path here and
     confine all filesystem writes to its parent directory so any
     accidental ``..`` segments are collapsed before any I/O happens.
@@ -1206,7 +1206,7 @@ def init_db(
 ) -> Path:
     """Create the schema if it doesn't exist; return the path used.
 
-    Kept as a public entry point so CLI ``hermes kanban init`` and the
+    Kept as a public entry point so CLI ``stoa kanban init`` and the
     daemon have something explicit to call. Unlike :func:`connect`'s
     first-time auto-init (which caches by path), ``init_db`` always
     re-runs the migration pass. Callers that know the on-disk schema
@@ -1565,7 +1565,7 @@ def create_task(
 
     ``skills`` is an optional list of skill names to force-load into
     the worker when dispatched. Stored as JSON; the dispatcher passes
-    each name to ``hermes --skills ...`` alongside the built-in
+    each name to ``stoa --skills ...`` alongside the built-in
     ``kanban-worker``. Use this to pin a task to a specialist skill
     (e.g. ``skills=["translation"]`` so the worker loads the
     translation skill regardless of the profile's default config).
@@ -1591,7 +1591,7 @@ def create_task(
     # Normalise + validate skills: strip whitespace, drop empties, dedupe
     # (preserving order). Refuse commas inside a single name so we don't
     # invisibly splatter a comma-joined string into one argv slot — the
-    # `hermes --skills X,Y` comma syntax is handled in the dispatcher,
+    # `stoa --skills X,Y` comma syntax is handled in the dispatcher,
     # not here.
     skills_list: Optional[list[str]] = None
     if skills is not None:
@@ -1770,7 +1770,7 @@ def get_task(conn: sqlite3.Connection, task_id: str) -> Optional[Task]:
     return Task.from_row(row) if row else None
 
 
-# Canonical sort-order mappings for ``hermes kanban list --sort``.
+# Canonical sort-order mappings for ``stoa kanban list --sort``.
 # Each value is a raw SQL fragment appended after ``ORDER BY``.
 VALID_SORT_ORDERS: dict[str, str] = {
     "created": "created_at ASC, id ASC",
@@ -1942,7 +1942,7 @@ def unlink_tasks(conn: sqlite3.Connection, parent_id: str, child_id: str) -> boo
         # Dependency edge removed — re-evaluate promotion eligibility for the
         # child immediately.  Matches the contract of complete_task and
         # unblock_task; without this the child stays stuck in todo until the
-        # next dispatcher tick or a manual `hermes kanban recompute` (issue #22459).
+        # next dispatcher tick or a manual `stoa kanban recompute` (issue #22459).
         recompute_ready(conn)
     return removed
 
@@ -2085,7 +2085,7 @@ def _end_run(
     timed_out / spawn_failed / gave_up / reclaimed). ``status`` is the
     run-row status (usually just ``outcome``, but callers can pass it
     explicitly). Returns the closed run_id or ``None`` if no active run
-    existed (e.g. a CLI user calling ``hermes kanban complete`` on a
+    existed (e.g. a CLI user calling ``stoa kanban complete`` on a
     task that was never claimed).
     """
     now = int(time.time())
@@ -2145,7 +2145,7 @@ def _synthesize_ended_run(
     """Insert a zero-duration, already-closed run row.
 
     Used when a terminal transition happens on a task that was never
-    claimed (CLI user calling ``hermes kanban complete <ready-task>
+    claimed (CLI user calling ``stoa kanban complete <ready-task>
     --summary X``, or dashboard "mark done" on a ready task). Without
     this, the handoff fields (summary / metadata / error) would be
     silently dropped: ``_end_run`` is a no-op because there's no
@@ -2196,7 +2196,7 @@ def _has_sticky_block(conn: sqlite3.Connection, task_id: str) -> bool:
 
     * **Worker- or operator-initiated** — a worker called
       ``kanban_block(reason="review-required: ...")`` (or somebody ran
-      ``hermes kanban block <id>``).  This is a deliberate handoff that
+      ``stoa kanban block <id>``).  This is a deliberate handoff that
       should stay blocked until an operator unblocks it.  The block tool
       emits a ``"blocked"`` event row in ``task_events``.
 
@@ -2864,7 +2864,7 @@ def complete_task(
     """Transition ``running|ready -> done`` and record ``result``.
 
     Accepts a task that is merely ``ready`` too, so a manual CLI
-    completion (``hermes kanban complete <id>``) works without requiring
+    completion (``stoa kanban complete <id>``) works without requiring
     a claim/start/complete sequence.
 
     ``summary`` and ``metadata`` are stored on the closing run (if any)
@@ -3107,7 +3107,7 @@ def _cleanup_worker_tmux(conn: sqlite3.Connection, task_id: str) -> None:
 # we:
 #   1. Log a warning line on the dispatcher logger.
 #   2. Append a ``tip_scratch_workspace`` event on the task so it's visible
-#      via ``hermes kanban show <id>`` and the dashboard.
+#      via ``stoa kanban show <id>`` and the dashboard.
 #   3. Touch a sentinel file under ``kanban_home() / '.scratch_tip_shown'``
 #      so we don't repeat the tip — once you know, you know.
 #
@@ -3910,7 +3910,7 @@ class DispatchResult:
     Operator-actionable — usually a misfiled task waiting for routing."""
     skipped_nonspawnable: list[str] = field(default_factory=list)
     """Ready task ids skipped because their assignee names a control-plane
-    lane (a Claude Code terminal like ``orion-cc``) rather than a Hermes
+    lane (a Claude Code terminal like ``orion-cc``) rather than a STOA
     profile. Expected steady-state on multi-lane setups; NOT an
     operator-actionable failure. Tracked separately so health telemetry
     can distinguish "real stuck" (nothing spawned but spawnable work
@@ -4753,7 +4753,7 @@ def _record_spawn_failure(
 def _set_worker_pid(conn: sqlite3.Connection, task_id: str, pid: int) -> None:
     """Record the spawned child's pid + emit a ``spawned`` event.
 
-    The event's payload carries the pid so a human reading ``hermes kanban
+    The event's payload carries the pid so a human reading ``stoa kanban
     tail`` can correlate log lines with OS-level traces without opening
     the drawer.
     """
@@ -4864,7 +4864,7 @@ def check_respawn_guard(conn: sqlite3.Connection, task_id: str) -> Optional[str]
 
 def has_spawnable_ready(conn: sqlite3.Connection) -> bool:
     """Return True iff there is at least one ready+assigned+unclaimed task
-    whose assignee maps to a real Hermes profile.
+    whose assignee maps to a real STOA profile.
 
     Used by the gateway- and CLI-embedded dispatchers' health telemetry to
     decide whether ``0 spawned`` is a "stuck" condition (real spawnable
@@ -4896,7 +4896,7 @@ def has_spawnable_ready(conn: sqlite3.Connection) -> bool:
 
 def has_spawnable_review(conn: sqlite3.Connection) -> bool:
     """Return True iff there is at least one review+assigned+unclaimed task
-    whose assignee maps to a real Hermes profile.
+    whose assignee maps to a real STOA profile.
 
     Mirror of :func:`has_spawnable_ready` for the review column —
     used by the health telemetry to decide whether the dispatcher
@@ -5050,11 +5050,11 @@ def dispatch_once(
         if not row["assignee"]:
             result.skipped_unassigned.append(row["id"])
             continue
-        # Skip ready tasks whose assignee is not a real Hermes profile.
-        # `_default_spawn` invokes ``hermes -p <assignee>`` which fails
+        # Skip ready tasks whose assignee is not a real STOA profile.
+        # `_default_spawn` invokes ``stoa -p <assignee>`` which fails
         # with "Profile 'X' does not exist" when the assignee names a
         # control-plane lane (e.g. an interactive Claude Code terminal
-        # like ``orion-cc`` / ``orion-research``) rather than a Hermes
+        # like ``orion-cc`` / ``orion-research``) rather than a STOA
         # profile. Those task lanes are pulled by terminals via
         # ``claim_task`` directly and should NEVER auto-spawn — the
         # subprocess would crash on startup, get reaped as a zombie,
@@ -5085,7 +5085,7 @@ def dispatch_once(
         if guard_reason is not None:
             result.respawn_guarded.append((row["id"], guard_reason))
             # Emit an event so operators can see why the task was
-            # skipped when reading `hermes kanban tail` — without
+            # skipped when reading `stoa kanban tail` — without
             # this the task appears stuck in ready with no diagnosis.
             if not dry_run:
                 with write_txn(conn):
@@ -5306,15 +5306,15 @@ def _rotate_worker_log(
 
 
 def _module_stoa_argv() -> list[str]:
-    """Return the interpreter-bound Hermes CLI invocation."""
+    """Return the interpreter-bound STOA CLI invocation."""
     # ``stoa_cli.main`` is the console-script target declared in
-    # pyproject.toml, NOT a top-level ``hermes`` package — there is no
-    # ``hermes`` package to import.
+    # pyproject.toml, NOT a top-level ``stoa`` package — there is no
+    # ``stoa`` package to import.
     return [sys.executable, "-m", "stoa_cli.main"]
 
 
 def _absolute_stoa_path(path: str) -> str:
-    """Return an absolute filesystem path for a resolved Hermes shim."""
+    """Return an absolute filesystem path for a resolved STOA shim."""
     expanded = os.path.expanduser(path)
     return expanded if os.path.isabs(expanded) else os.path.abspath(expanded)
 
@@ -5368,7 +5368,7 @@ def _safe_which_no_cwd(command: str) -> Optional[str]:
 
 
 def _stoa_path_argv(path: str) -> list[str]:
-    """Return argv for a resolved Hermes executable path.
+    """Return argv for a resolved STOA executable path.
 
     Windows batch shims (`.cmd` / `.bat`) are not safe as argv[0] for
     worker launches because the argument vector includes task-derived
@@ -5381,21 +5381,21 @@ def _stoa_path_argv(path: str) -> list[str]:
 
 
 def _resolve_stoa_argv() -> list[str]:
-    """Resolve the ``hermes`` invocation as argv parts for ``Popen``.
+    """Resolve the ``stoa`` invocation as argv parts for ``Popen``.
 
     Tries in order:
 
     1. ``$STOA_BIN`` — explicit operator override. Path-like values are
        normalized to absolute paths; bare command names keep normal PATH
        semantics and never prefer a same-directory file before ``PATH``.
-    2. ``shutil.which("hermes")`` — the console-script shim, normalized to
+    2. ``shutil.which("stoa")`` — the console-script shim, normalized to
        an absolute path. On Windows, ``which`` can return a relative
-       ``.\\hermes.CMD`` when the current directory is on ``PATH``; directly
+       ``.\\stoa.CMD`` when the current directory is on ``PATH``; directly
        launching batch shims is also unsafe with task-derived argv. The
        dispatcher therefore falls back to the interpreter-bound module form
        for implicit ``.cmd`` / ``.bat`` shims.
     3. ``sys.executable -m stoa_cli.main`` — fallback for setups where
-       Hermes is launched from a venv and the ``hermes`` shim is not on
+       STOA is launched from a venv and the ``stoa`` shim is not on
        the dispatcher's ``$PATH`` (cron, systemd ``User=`` services,
        launchd jobs, detached processes, etc.). Goes through the running
        interpreter so the result is independent of ``$PATH``.
@@ -5415,7 +5415,7 @@ def _resolve_stoa_argv() -> list[str]:
             return _stoa_path_argv(resolved_env_bin)
         return _module_stoa_argv()
 
-    stoa_bin = _safe_which_no_cwd("hermes") if _IS_WINDOWS else shutil.which("hermes")
+    stoa_bin = _safe_which_no_cwd("stoa") if _IS_WINDOWS else shutil.which("stoa")
     if stoa_bin:
         return _stoa_path_argv(stoa_bin)
     return _module_stoa_argv()
@@ -5426,7 +5426,7 @@ def _kanban_worker_skill_available(stoa_home: Optional[str]) -> bool:
     spawned worker will run under.
 
     The dispatcher injects ``--skills kanban-worker`` into every worker. When
-    the worker activates a profile (``hermes -p <name>``), its ``SKILLS_DIR``
+    the worker activates a profile (``stoa -p <name>``), its ``SKILLS_DIR``
     becomes ``<profile_home>/skills`` — which on many profiles does NOT contain
     the bundled skill (it ships in the *default* root home, not every
     profile-scoped skills dir). Preloading a missing skill is fatal at CLI
@@ -5492,7 +5492,7 @@ def _default_spawn(
     *,
     board: Optional[str] = None,
 ) -> Optional[int]:
-    """Fire-and-forget ``hermes -p <profile> chat -q ...`` subprocess.
+    """Fire-and-forget ``stoa -p <profile> chat -q ...`` subprocess.
 
     Returns the spawned child's PID so the dispatcher can detect crashes
     before the claim TTL expires. The child's completion is still observed
@@ -5518,7 +5518,7 @@ def _default_spawn(
     # Inject STOA_HOME so the worker reads the profile-scoped config.yaml
     # (fallback_providers, toolsets, agent settings, etc.) instead of the root
     # config.  Without this, `env = dict(os.environ)` copies only the parent's
-    # env, and when the child process starts `hermes -p <name>` the
+    # env, and when the child process starts `stoa -p <name>` the
     # _apply_profile_override() runs *before* stoa_constants is imported.
     # If STOA_HOME is absent from the child's env, get_stoa_home() falls
     # back to Path.home() / ".stoa" (the DEFAULT profile root), ignoring the
@@ -5556,7 +5556,7 @@ def _default_spawn(
     if foreground_timeout is not None:
         env["TERMINAL_MAX_FOREGROUND_TIMEOUT"] = foreground_timeout
     # Pin the shared board + workspaces root the dispatcher resolved, so
-    # that even when the worker activates a profile (`hermes -p <name>`
+    # that even when the worker activates a profile (`stoa -p <name>`
     # rewrites STOA_HOME), its kanban paths still match the
     # dispatcher's. Belt-and-braces with the `get_default_stoa_root()`
     # resolution in `kanban_home()` — symmetric resolution is the norm,
@@ -5569,7 +5569,7 @@ def _default_spawn(
     resolved_board = _normalize_board_slug(board) or get_current_board()
     env["STOA_KANBAN_BOARD"] = resolved_board
     # STOA_PROFILE is the author the kanban_comment tool defaults to.
-    # `hermes -p <assignee>` activates the profile, but the env var is
+    # `stoa -p <assignee>` activates the profile, but the env var is
     # what the tool reads — set it explicitly here so comments are
     # attributed correctly regardless of how the child loads config.
     env["STOA_PROFILE"] = profile_arg
@@ -5618,7 +5618,7 @@ def _default_spawn(
     ])
     # Redirect output to a per-task log under <board-root>/logs/.
     # Anchored at the board root (not the shared kanban root), so
-    # `hermes kanban log` on a specific board reads its own file and
+    # `stoa kanban log` on a specific board reads its own file and
     # logs don't collide across boards that happen to share task ids.
     log_dir = worker_logs_dir(board=board)
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -5642,7 +5642,7 @@ def _default_spawn(
     except FileNotFoundError:
         log_f.close()
         raise RuntimeError(
-            "`hermes` executable not found on PATH. "
+            "`stoa` executable not found on PATH. "
             "Install STOA Agent or activate its venv before running the kanban dispatcher."
         )
     # NOTE: we intentionally do NOT close log_f here — we want Popen's
@@ -5668,7 +5668,7 @@ def run_daemon(
     """Run the dispatcher in a loop until interrupted.
 
     Calls :func:`dispatch_once` every ``interval`` seconds. Exits cleanly
-    on SIGINT / SIGTERM so ``hermes kanban daemon`` is systemd-friendly.
+    on SIGINT / SIGTERM so ``stoa kanban daemon`` is systemd-friendly.
     ``stop_event`` (a :class:`threading.Event`) and ``on_tick`` (a
     callable receiving the :class:`DispatchResult`) are test hooks.
     """
@@ -5905,7 +5905,7 @@ def build_worker_context(conn: sqlite3.Connection, task_id: str) -> str:
         for c in shown_c:
             ts = time.strftime("%Y-%m-%d %H:%M", time.localtime(c.created_at))
             # Render author with explicit "comment from worker" framing so
-            # operator-controlled STOA_PROFILE values like "hermes-system"
+            # operator-controlled STOA_PROFILE values like "stoa-system"
             # or "operator" can't be misread by the next worker as a system
             # directive above the (attacker-influenceable) comment body.
             # Defense-in-depth — the LLM-controlled author-forgery surface
@@ -6319,7 +6319,7 @@ def list_profiles_on_disk() -> list[str]:
 
     Includes:
     - named profiles under ``<default-root>/profiles/<name>/config.yaml``
-    - the implicit ``default`` profile when the default Hermes root exists
+    - the implicit ``default`` profile when the default STOA root exists
 
     Reads profile paths directly so this module has no import dependency on
     ``stoa_cli.profiles`` (which pulls in a large chunk of the CLI startup
@@ -6356,7 +6356,7 @@ def known_assignees(conn: sqlite3.Connection) -> list[dict]:
     A name is included when it's a configured profile on disk OR when
     any non-archived task has it as the assignee. Used by:
 
-    - ``hermes kanban assignees`` for the terminal.
+    - ``stoa kanban assignees`` for the terminal.
     - The dashboard assignee dropdown (so a fresh profile appears in
       the picker even before it's been given any task).
     - Router-profile heuristics ("who's overloaded?") without scanning

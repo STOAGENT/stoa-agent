@@ -142,7 +142,7 @@ class TestFirecrawlClientConfig:
         real_home = tmp_path / "real-home"
         (real_home / ".stoa").mkdir(parents=True)
 
-        stoa_home = tmp_path / "hermes-home"
+        stoa_home = tmp_path / "stoa-home"
         stoa_home.mkdir()
         (stoa_home / "auth.json").write_text(json.dumps({
             "providers": {
@@ -245,7 +245,7 @@ class TestBackendSelection:
     """Test suite for _get_backend() backend selection logic.
 
     The backend is configured via config.yaml (web.backend), set by
-    ``hermes tools``.  Falls back to key-based detection for legacy/manual
+    ``stoa tools``.  Falls back to key-based detection for legacy/manual
     setups.
     """
 

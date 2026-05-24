@@ -14,7 +14,7 @@ import { openExternalUrl } from './lib/openExternalUrl.js'
 import { resetTerminalModes } from './lib/terminalModes.js'
 
 if (!process.stdin.isTTY) {
-  console.log('hermes-tui: no TTY')
+  console.log('stoa-tui: no TTY')
   process.exit(0)
 }
 
@@ -36,7 +36,7 @@ const gw = new GatewayClient()
 gw.start()
 
 const dumpNotice = (snap: MemorySnapshot, dump: HeapDumpResult | null) =>
-  `hermes-tui: ${snap.level} memory (${formatBytes(snap.heapUsed)}) — auto heap dump → ${dump?.heapPath ?? '(failed)'}\n`
+  `stoa-tui: ${snap.level} memory (${formatBytes(snap.heapUsed)}) — auto heap dump → ${dump?.heapPath ?? '(failed)'}\n`
 
 setupGracefulExit({
   cleanups: [
@@ -49,20 +49,20 @@ setupGracefulExit({
   onError: (scope, err) => {
     const message = err instanceof Error ? `${err.name}: ${err.message}\n${err.stack ?? ''}` : String(err)
 
-    process.stderr.write(`hermes-tui lifecycle ${scope}: ${message.slice(0, 2000)}\n`)
+    process.stderr.write(`stoa-tui lifecycle ${scope}: ${message.slice(0, 2000)}\n`)
   },
   onSignal: signal => {
     resetTerminalModes()
-    process.stderr.write(`hermes-tui lifecycle: received ${signal}\n`)
+    process.stderr.write(`stoa-tui lifecycle: received ${signal}\n`)
   }
 })
 
 const stopMemoryMonitor = startMemoryMonitor({
   onCritical: (snap, dump) => {
     resetTerminalModes()
-    process.stderr.write(`hermes-tui lifecycle: memory critical exit heap=${formatBytes(snap.heapUsed)} rss=${formatBytes(snap.rss)}\n`)
+    process.stderr.write(`stoa-tui lifecycle: memory critical exit heap=${formatBytes(snap.heapUsed)} rss=${formatBytes(snap.rss)}\n`)
     process.stderr.write(dumpNotice(snap, dump))
-    process.stderr.write('hermes-tui: exiting to avoid OOM; restart to recover\n')
+    process.stderr.write('stoa-tui: exiting to avoid OOM; restart to recover\n')
     process.exit(137)
   },
   onHigh: (snap, dump) => process.stderr.write(dumpNotice(snap, dump))

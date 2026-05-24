@@ -1,4 +1,4 @@
-"""CLI subcommand: ``hermes send`` — pipe text from shell scripts to any
+"""CLI subcommand: ``stoa send`` — pipe text from shell scripts to any
 configured messaging platform (Telegram, Discord, Slack, Signal, SMS, etc.).
 
 This is a thin wrapper around ``tools.send_message_tool.send_message_tool``
@@ -60,7 +60,7 @@ def _read_message_body(
         try:
             return Path(file_path).read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError) as exc:
-            print(f"hermes send: cannot read {file_path}: {exc}", file=sys.stderr)
+            print(f"stoa send: cannot read {file_path}: {exc}", file=sys.stderr)
             sys.exit(_USAGE_EXIT)
 
     # Piped input: only consume stdin when it is not a TTY. Reading from a
@@ -105,7 +105,7 @@ def _emit_result(
         pass
     else:
         if payload.get("error"):
-            print(f"hermes send: {payload['error']}", file=sys.stderr)
+            print(f"stoa send: {payload['error']}", file=sys.stderr)
         elif payload.get("success"):
             note = payload.get("note")
             if note:
@@ -140,13 +140,13 @@ def _list_targets(platform_filter: Optional[str], *, json_mode: bool) -> int:
             load_directory,
         )
     except Exception as exc:
-        print(f"hermes send: failed to load channel directory: {exc}", file=sys.stderr)
+        print(f"stoa send: failed to load channel directory: {exc}", file=sys.stderr)
         return _FAILURE_EXIT
 
     try:
         raw = load_directory()
     except Exception as exc:
-        print(f"hermes send: failed to read channel directory: {exc}", file=sys.stderr)
+        print(f"stoa send: failed to read channel directory: {exc}", file=sys.stderr)
         return _FAILURE_EXIT
 
     platforms = dict(raw.get("platforms") or {})
@@ -156,7 +156,7 @@ def _list_targets(platform_filter: Optional[str], *, json_mode: bool) -> int:
         filtered = {k: v for k, v in platforms.items() if k.lower() == key}
         if not filtered:
             print(
-                f"hermes send: no targets found for platform '{platform_filter}'. "
+                f"stoa send: no targets found for platform '{platform_filter}'. "
                 f"Configured: {', '.join(sorted(platforms)) or '(none)'}",
                 file=sys.stderr,
             )
@@ -169,7 +169,7 @@ def _list_targets(platform_filter: Optional[str], *, json_mode: bool) -> int:
 
     if not any(platforms.values()):
         print("No messaging platforms configured or no channels discovered yet.")
-        print("Set one up with `hermes gateway setup`, or run the gateway once so")
+        print("Set one up with `stoa gateway setup`, or run the gateway once so")
         print("channel discovery can populate ~/.stoa/channel_directory.json.")
         return _SUCCESS_EXIT
 
@@ -202,16 +202,16 @@ def _load_stoa_env() -> None:
 
     ``send_message_tool`` reads tokens and home-channel IDs via
     ``os.getenv(...)`` on each call. The gateway process does two things at
-    startup that ``hermes send`` must replicate when invoked standalone:
+    startup that ``stoa send`` must replicate when invoked standalone:
 
     1. ``load_dotenv(~/.stoa/.env)`` — brings bot tokens into the env.
     2. Bridge top-level simple values from ``~/.stoa/config.yaml`` into
        ``os.environ`` (without overriding existing env vars). This is where
        ``TELEGRAM_HOME_CHANNEL`` and friends live when the user saved them
-       via ``hermes config set``.
+       via ``stoa config set``.
 
     See ``gateway/run.py`` for the canonical version of this bridge — we
-    intentionally reimplement the minimum needed here so ``hermes send``
+    intentionally reimplement the minimum needed here so ``stoa send``
     doesn't pull in the full gateway module just to resolve a home channel.
     """
     # Step 1: dotenv
@@ -293,11 +293,11 @@ def cmd_send(args: argparse.Namespace) -> None:
     target = _resolve_target(getattr(args, "to", None))
     if not target:
         print(
-            "hermes send: --to PLATFORM[:channel[:thread]] is required\n"
+            "stoa send: --to PLATFORM[:channel[:thread]] is required\n"
             "Examples:\n"
-            "  hermes send --to telegram \"hello\"\n"
-            "  hermes send --to discord:#ops --file report.md\n"
-            "  hermes send --list      # list available targets",
+            "  stoa send --to telegram \"hello\"\n"
+            "  stoa send --to discord:#ops --file report.md\n"
+            "  stoa send --list      # list available targets",
             file=sys.stderr,
         )
         sys.exit(_USAGE_EXIT)
@@ -308,7 +308,7 @@ def cmd_send(args: argparse.Namespace) -> None:
     )
     if message is None or not message.strip():
         print(
-            "hermes send: no message provided. Pass text as a positional "
+            "stoa send: no message provided. Pass text as a positional "
             "argument, use --file PATH, or pipe data via stdin.",
             file=sys.stderr,
         )
@@ -320,7 +320,7 @@ def cmd_send(args: argparse.Namespace) -> None:
     if subject:
         message = f"{subject}\n\n{message.lstrip()}"
 
-    # Import lazily so `hermes send --help` stays fast and does not pull in
+    # Import lazily so `stoa send --help` stays fast and does not pull in
     # the full tool registry / gateway config stack.
     from tools.send_message_tool import send_message_tool
 
@@ -355,7 +355,7 @@ def register_send_subparser(subparsers) -> argparse.ArgumentParser:
         "send",
         help="Send a message to a configured platform (scripts, cron jobs, CI).",
         description=(
-            "Pipe text from any shell script to any messaging platform Hermes "
+            "Pipe text from any shell script to any messaging platform STOA "
             "is already configured for. Reuses the gateway's platform "
             "credentials (~/.stoa/.env + ~/.stoa/config.yaml) — no LLM, "
             "no agent loop, no running gateway required for bot-token "
@@ -363,12 +363,12 @@ def register_send_subparser(subparsers) -> argparse.ArgumentParser:
         ),
         epilog=(
             "Examples:\n"
-            "  hermes send --to telegram \"deploy finished\"\n"
-            "  echo \"RAM 92%\" | hermes send --to telegram:-1001234567890\n"
-            "  hermes send --to discord:#ops --file /tmp/report.md\n"
-            "  hermes send --to slack:#eng --subject \"[CI]\" --file build.log\n"
-            "  hermes send --list                  # all platforms\n"
-            "  hermes send --list telegram         # filter by platform\n"
+            "  stoa send --to telegram \"deploy finished\"\n"
+            "  echo \"RAM 92%\" | stoa send --to telegram:-1001234567890\n"
+            "  stoa send --to discord:#ops --file /tmp/report.md\n"
+            "  stoa send --to slack:#eng --subject \"[CI]\" --file build.log\n"
+            "  stoa send --list                  # all platforms\n"
+            "  stoa send --list telegram         # filter by platform\n"
             "\n"
             "Exit codes: 0 ok, 1 delivery/backend error, 2 usage error."
         ),
@@ -420,7 +420,7 @@ def register_send_subparser(subparsers) -> argparse.ArgumentParser:
         dest="list_targets",
         action="store_true",
         default=False,
-        help="List available targets. Optional positional filter: `hermes send --list telegram`.",
+        help="List available targets. Optional positional filter: `stoa send --list telegram`.",
     )
 
     parser.add_argument(

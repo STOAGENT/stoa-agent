@@ -18,7 +18,7 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'Using Hermes',
+      label: 'Using STOA',
       collapsed: true,
       items: [
         'user-guide/cli',
@@ -355,7 +355,7 @@ const sidebars: SidebarsConfig = {
                   key: 'skills-bundled-software-development',
                   collapsed: true,
                   items: [
-                    'user-guide/skills/bundled/software-development/software-development-debugging-hermes-tui-commands',
+                    'user-guide/skills/bundled/software-development/software-development-debugging-stoa-tui-commands',
                     'user-guide/skills/bundled/software-development/software-development-stoa-agent-skill-authoring',
                     'user-guide/skills/bundled/software-development/software-development-node-inspect-debugger',
                     'user-guide/skills/bundled/software-development/software-development-plan',
@@ -667,10 +667,10 @@ const sidebars: SidebarsConfig = {
         'guides/daily-briefing-bot',
         'guides/team-telegram-assistant',
         'guides/python-library',
-        'guides/use-mcp-with-hermes',
-        'guides/use-soul-with-hermes',
-        'guides/use-voice-mode-with-hermes',
-        'guides/build-a-hermes-plugin',
+        'guides/use-mcp-with-stoa',
+        'guides/use-soul-with-stoa',
+        'guides/use-voice-mode-with-stoa',
+        'guides/build-a-stoa-plugin',
         'guides/automate-with-cron',
         'guides/cron-script-only',
         'guides/automation-templates',

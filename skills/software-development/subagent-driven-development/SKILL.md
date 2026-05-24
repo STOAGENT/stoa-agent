@@ -6,7 +6,7 @@ author: STOA Agent (adapted from obra/superpowers)
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  hermes:
+  stoa:
     tags: [delegation, subagent, implementation, workflow, parallel]
     related_skills: [writing-plans, requesting-code-review, test-driven-development]
 ---

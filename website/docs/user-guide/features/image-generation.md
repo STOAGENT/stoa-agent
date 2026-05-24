@@ -1,13 +1,13 @@
 ---
 title: Image Generation
-description: Generate images via FAL.ai — 9 models including FLUX 2, GPT Image (1.5 & 2), Nano Banana Pro, Ideogram, Recraft V4 Pro, and more, selectable via `hermes tools`.
+description: Generate images via FAL.ai — 9 models including FLUX 2, GPT Image (1.5 & 2), Nano Banana Pro, Ideogram, Recraft V4 Pro, and more, selectable via `stoa tools`.
 sidebar_label: Image Generation
 sidebar_position: 6
 ---
 
 # Image Generation
 
-STOA Agent generates images from text prompts via FAL.ai. Nine models are supported out of the box, each with different speed, quality, and cost tradeoffs. The active model is user-configurable via `hermes tools` and persists in `config.yaml`.
+STOA Agent generates images from text prompts via FAL.ai. Nine models are supported out of the box, each with different speed, quality, and cost tradeoffs. The active model is user-configurable via `stoa tools` and persists in `config.yaml`.
 
 ## Supported Models
 
@@ -28,7 +28,7 @@ Prices are FAL's pricing at time of writing; check [fal.ai](https://fal.ai/) for
 ## Setup
 
 :::tip Nous Subscribers
-If you have a paid [Nous Portal](https://portal.nousresearch.com) subscription, you can use image generation through the **[Tool Gateway](tool-gateway.md)** without a FAL API key. Your model selection persists across both paths. New installs can run `hermes setup --portal` to log in and turn on every gateway tool at once; existing installs can pick **Nous Subscription** as the image-gen backend via `hermes tools`.
+If you have a paid [Nous Portal](https://portal.nousresearch.com) subscription, you can use image generation through the **[Tool Gateway](tool-gateway.md)** without a FAL API key. Your model selection persists across both paths. New installs can run `stoa setup --portal` to log in and turn on every gateway tool at once; existing installs can pick **Nous Subscription** as the image-gen backend via `stoa tools`.
 
 If the managed gateway returns `HTTP 4xx` for a specific model, that model isn't yet proxied on the portal side — the agent will tell you so, with remediation steps (set `FAL_KEY` for direct access, or pick a different model).
 :::
@@ -43,7 +43,7 @@ If the managed gateway returns `HTTP 4xx` for a specific model, that model isn't
 Run the tools command:
 
 ```bash
-hermes tools
+stoa tools
 ```
 
 Navigate to **🎨 Image Generation**, pick your backend (Nous Subscription or FAL.ai), then the picker shows all supported models in a column-aligned table — arrow keys to navigate, Enter to select:

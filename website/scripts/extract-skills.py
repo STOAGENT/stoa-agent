@@ -157,7 +157,7 @@ def extract_local_skills():
             tags = []
             metadata = fm.get("metadata")
             if isinstance(metadata, dict):
-                stoa_meta = metadata.get("hermes", {})
+                stoa_meta = metadata.get("stoa", {})
                 if isinstance(stoa_meta, dict):
                     tags = stoa_meta.get("tags", [])
             if not tags:

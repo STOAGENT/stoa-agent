@@ -1,4 +1,4 @@
-"""Tests for the hermes-tools-as-MCP server module surface.
+"""Tests for the stoa-tools-as-MCP server module surface.
 
 We don't run a live MCP session in unit tests — that requires the codex
 subprocess + client + an event loop. These tests pin the static
@@ -38,7 +38,7 @@ class TestModuleSurface:
         )
 
     def test_expected_stoa_specific_tools_listed(self):
-        """The Hermes-specific tools should be present so users on the
+        """The STOA-specific tools should be present so users on the
         codex runtime keep access to them."""
         from agent.transports.stoa_tools_mcp_server import EXPOSED_TOOLS
         for required in (
@@ -63,7 +63,7 @@ class TestModuleSurface:
             )
 
     def test_kanban_worker_tools_exposed(self):
-        """Kanban workers run as `hermes chat -q` subprocesses; if they
+        """Kanban workers run as `stoa chat -q` subprocesses; if they
         come up on the codex_app_server runtime, the worker can do the
         actual work via codex's shell but needs the kanban tools through
         the MCP callback to report back to the kernel. Without these

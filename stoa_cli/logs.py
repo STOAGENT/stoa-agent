@@ -1,4 +1,4 @@
-"""``hermes logs`` — view and filter Hermes log files.
+"""``stoa logs`` — view and filter STOA log files.
 
 Supports tailing, following, session filtering, level filtering,
 component filtering, and relative time ranges.  All log files live
@@ -6,15 +6,15 @@ under ``~/.stoa/logs/``.
 
 Usage examples::
 
-    hermes logs                    # last 50 lines of agent.log
-    hermes logs -f                 # follow agent.log in real time
-    hermes logs errors             # last 50 lines of errors.log
-    hermes logs gateway -n 100    # last 100 lines of gateway.log
-    hermes logs --level WARNING    # only WARNING+ lines
-    hermes logs --session abc123   # filter by session ID substring
-    hermes logs --component tools  # only tool-related lines
-    hermes logs --since 1h         # lines from the last hour
-    hermes logs --since 30m -f     # follow, starting 30 min ago
+    stoa logs                    # last 50 lines of agent.log
+    stoa logs -f                 # follow agent.log in real time
+    stoa logs errors             # last 50 lines of errors.log
+    stoa logs gateway -n 100    # last 100 lines of gateway.log
+    stoa logs --level WARNING    # only WARNING+ lines
+    stoa logs --session abc123   # filter by session ID substring
+    stoa logs --component tools  # only tool-related lines
+    stoa logs --since 1h         # lines from the last hour
+    stoa logs --since 30m -f     # follow, starting 30 min ago
 """
 
 import re
@@ -172,7 +172,7 @@ def tail_log(
     log_path = get_stoa_home() / "logs" / filename
     if not log_path.exists():
         print(f"Log file not found: {log_path}")
-        print(f"(Logs are created when Hermes runs — try 'hermes chat' first)")
+        print(f"(Logs are created when STOA runs — try 'stoa chat' first)")
         sys.exit(1)
 
     # Parse --since into a datetime cutoff
@@ -387,4 +387,4 @@ def list_logs() -> None:
             found = True
 
     if not found:
-        print("  (no log files yet — run 'hermes chat' to generate logs)")
+        print("  (no log files yet — run 'stoa chat' to generate logs)")

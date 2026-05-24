@@ -528,7 +528,7 @@ def _transcribe_local_command(file_path: str, model_name: str) -> Dict[str, Any]
     normalized_model = _normalize_local_command_model(model_name)
 
     try:
-        with tempfile.TemporaryDirectory(prefix="hermes-local-stt-") as output_dir:
+        with tempfile.TemporaryDirectory(prefix="stoa-local-stt-") as output_dir:
             prepared_input, prep_error = _prepare_local_audio(file_path, output_dir)
             if prep_error:
                 return {"success": False, "transcript": "", "error": prep_error}
@@ -746,7 +746,7 @@ def _transcribe_xai(file_path: str, model_name: str) -> Dict[str, Any]:
         return {
             "success": False,
             "transcript": "",
-            "error": "No xAI credentials found. Configure xAI OAuth in `hermes model` or set XAI_API_KEY",
+            "error": "No xAI credentials found. Configure xAI OAuth in `stoa model` or set XAI_API_KEY",
         }
 
     stt_config = _load_stt_config()

@@ -1,4 +1,4 @@
-"""Tests for the `hermes proxy` subcommand and its upstream adapters."""
+"""Tests for the `stoa proxy` subcommand and its upstream adapters."""
 
 from __future__ import annotations
 
@@ -207,7 +207,7 @@ def test_nous_adapter_retry_credential_skips_opaque_bearer(tmp_path, monkeypatch
 def test_nous_adapter_get_credential_raises_when_not_logged_in(tmp_path, monkeypatch):
     monkeypatch.setenv("STOA_HOME", str(tmp_path))
     adapter = NousPortalAdapter()
-    with pytest.raises(RuntimeError, match="hermes login nous"):
+    with pytest.raises(RuntimeError, match="stoa login nous"):
         adapter.get_credential()
 
 
@@ -578,7 +578,7 @@ def test_server_forwards_chat_completions():
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{proxy_base}/v1/chat/completions",
-                    json={"model": "Hermes-4-70B",
+                    json={"model": "STOA-4-70B",
                           "messages": [{"role": "user", "content": "hi"}]},
                     headers={"Authorization": "Bearer client-dummy-key"},
                 ) as resp:
@@ -589,7 +589,7 @@ def test_server_forwards_chat_completions():
             assert len(captured["requests"]) == 1
             req = captured["requests"][0]
             assert req["auth"] == "Bearer real-portal-key"
-            assert "Hermes-4-70B" in req["body"]
+            assert "STOA-4-70B" in req["body"]
         finally:
             await proxy_runner.cleanup()
             await upstream_runner.cleanup()
@@ -614,7 +614,7 @@ def test_server_retries_once_with_adapter_retry_credential_on_401():
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{proxy_base}/v1/chat/completions",
-                    json={"model": "Hermes-4-70B"},
+                    json={"model": "STOA-4-70B"},
                 ) as resp:
                     assert resp.status == 200
                     data = await resp.json()
@@ -784,4 +784,4 @@ def test_cmd_proxy_start_refuses_when_unauthenticated(capsys, tmp_path, monkeypa
     rc = cmd_proxy_start(args)
     assert rc == 2
     err = capsys.readouterr().err
-    assert "hermes login nous" in err
+    assert "stoa login nous" in err

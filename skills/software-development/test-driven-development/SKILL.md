@@ -6,7 +6,7 @@ author: STOA Agent (adapted from obra/superpowers)
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  hermes:
+  stoa:
     tags: [testing, tdd, development, quality, red-green-refactor]
     related_skills: [systematic-debugging, writing-plans, subagent-driven-development]
 ---

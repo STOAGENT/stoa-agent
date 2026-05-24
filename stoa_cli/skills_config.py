@@ -1,6 +1,6 @@
 """
 Skills configuration for STOA Agent.
-`hermes skills` enters this module.
+`stoa skills` enters this module.
 
 Toggle individual skills or categories on/off, globally or per-platform.
 Config stored in ~/.stoa/config.yaml under:
@@ -123,7 +123,7 @@ def _toggle_by_category(skills: List[dict], disabled: Set[str]) -> Set[str]:
 # ─── Entry Point ──────────────────────────────────────────────────────────────
 
 def skills_command(args=None):
-    """Entry point for `hermes skills`."""
+    """Entry point for `stoa skills`."""
     from stoa_cli.curses_ui import curses_checklist
 
     config = load_config()

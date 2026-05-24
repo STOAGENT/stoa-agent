@@ -6,7 +6,7 @@ author: STOA Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  hermes:
+  stoa:
     tags: [Research, Arxiv, Papers, Academic, Science, API]
     related_skills: [ocr-and-documents]
 ---

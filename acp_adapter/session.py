@@ -1,4 +1,4 @@
-"""ACP session manager — maps ACP sessions to Hermes AIAgent instances.
+"""ACP session manager — maps ACP sessions to STOA AIAgent instances.
 
 Sessions are persisted to the shared SessionDB (``~/.stoa/state.db``) so they
 survive process restarts and appear in ``session_search``.  When the editor
@@ -37,9 +37,9 @@ def _win_path_to_wsl(path: str) -> str | None:
 
 
 def _translate_acp_cwd(cwd: str) -> str:
-    """Translate Windows ACP cwd values when Hermes itself is running in WSL.
+    """Translate Windows ACP cwd values when STOA itself is running in WSL.
 
-    Windows ACP clients can launch ``hermes acp`` inside WSL while still sending
+    Windows ACP clients can launch ``stoa acp`` inside WSL while still sending
     editor workspaces as Windows drive paths such as ``E:\\Projects``. Store
     and execute against the WSL mount path so agents, tools, and persisted ACP
     sessions all agree on the usable workspace. Native Linux/macOS keeps the
@@ -123,7 +123,7 @@ def _acp_stderr_print(*args, **kwargs) -> None:
 def _register_task_cwd(task_id: str, cwd: str) -> None:
     """Bind a task/session id to the editor's working directory for tools.
 
-    Zed can launch Hermes from a Windows workspace while the ACP process runs
+    Zed can launch STOA from a Windows workspace while the ACP process runs
     inside WSL. In that case ACP sends cwd as e.g. ``E:\\Projects\\POTI``;
     local tools need the WSL mount equivalent or subprocess creation fails
     before the command can run.
@@ -143,7 +143,7 @@ def _expand_acp_enabled_toolsets(
 ) -> List[str]:
     """Return ACP toolsets plus explicit MCP server toolsets for this session."""
     expanded: List[str] = []
-    for name in list(toolsets or ["hermes-acp"]):
+    for name in list(toolsets or ["stoa-acp"]):
         if name and name not in expanded:
             expanded.append(name)
 
@@ -168,7 +168,7 @@ def _clear_task_cwd(task_id: str) -> None:
 
 @dataclass
 class SessionState:
-    """Tracks per-session state for an ACP-managed Hermes agent."""
+    """Tracks per-session state for an ACP-managed STOA agent."""
 
     session_id: str
     agent: Any  # AIAgent instance
@@ -196,7 +196,7 @@ class SessionManager:
         Args:
             agent_factory: Optional callable that creates an AIAgent-like object.
                            Used by tests. When omitted, a real AIAgent is created
-                           using the current Hermes runtime provider configuration.
+                           using the current STOA runtime provider configuration.
             db:            Optional SessionDB instance. When omitted, the default
                            SessionDB (``~/.stoa/state.db``) is lazily created.
         """
@@ -596,7 +596,7 @@ class SessionManager:
         kwargs = {
             "platform": "acp",
             "enabled_toolsets": _expand_acp_enabled_toolsets(
-                ["hermes-acp"],
+                ["stoa-acp"],
                 mcp_server_names=configured_mcp_servers,
             ),
             "quiet_mode": True,

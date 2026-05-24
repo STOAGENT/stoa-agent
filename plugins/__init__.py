@@ -1,1 +1,1 @@
-# Hermes plugins package
+# STOA plugins package

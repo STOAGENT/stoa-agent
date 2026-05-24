@@ -1,4 +1,4 @@
-"""Base class for all Hermes execution environment backends.
+"""Base class for all STOA execution environment backends.
 
 Unified spawn-per-call model: every command spawns a fresh ``bash -c`` process.
 A session snapshot (env vars, functions, aliases) is captured once at init and
@@ -286,7 +286,7 @@ def _cwd_marker(session_id: str) -> str:
 
 
 class BaseEnvironment(ABC):
-    """Common interface and unified execution flow for all Hermes backends.
+    """Common interface and unified execution flow for all STOA backends.
 
     Subclasses implement ``_run_bash()`` and ``cleanup()``.  The base class
     provides ``execute()`` with session snapshot sourcing, CWD tracking,
@@ -315,8 +315,8 @@ class BaseEnvironment(ABC):
 
         self._session_id = uuid.uuid4().hex[:12]
         temp_dir = self.get_temp_dir().rstrip("/") or "/"
-        self._snapshot_path = f"{temp_dir}/hermes-snap-{self._session_id}.sh"
-        self._cwd_file = f"{temp_dir}/hermes-cwd-{self._session_id}.txt"
+        self._snapshot_path = f"{temp_dir}/stoa-snap-{self._session_id}.sh"
+        self._cwd_file = f"{temp_dir}/stoa-cwd-{self._session_id}.txt"
         self._cwd_marker = _cwd_marker(self._session_id)
         self._snapshot_ready = False
 
@@ -364,7 +364,7 @@ class BaseEnvironment(ABC):
         # ``C:/Users/...``-shaped paths without glob-splitting the colon or
         # tripping on drive letters.  On POSIX this is a no-op (no colons /
         # special chars in a /tmp path).  Previously unquoted interpolation
-        # caused ``C:/Users/.../hermes-snap-*.sh: No such file or directory``
+        # caused ``C:/Users/.../stoa-snap-*.sh: No such file or directory``
         # errors on Windows, leaking via stderr (merged into stdout on Linux
         # backends) into every terminal-tool response.
         _quoted_snap = shlex.quote(self._snapshot_path)

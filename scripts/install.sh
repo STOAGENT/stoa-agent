@@ -16,7 +16,7 @@
 set -e
 
 # Guard against environment leakage when the installer is launched from another
-# Python-driven tool session (e.g. Hermes terminal tool). A pre-set PYTHONPATH
+# Python-driven tool session (e.g. STOA terminal tool). A pre-set PYTHONPATH
 # can force pip/entrypoints to import a different checkout than the one being
 # installed, which makes fresh installs appear broken or stale.
 if [ -n "${PYTHONPATH:-}" ]; then
@@ -60,7 +60,7 @@ PYTHON_VERSION="3.11"
 NODE_VERSION="22"
 
 # FHS-style root install layout (set by resolve_install_layout when applicable):
-#   code at /usr/local/lib/stoa-agent, command at /usr/local/bin/hermes,
+#   code at /usr/local/lib/stoa-agent, command at /usr/local/bin/stoa,
 #   data still at /root/.stoa (STOA_HOME).  Matches Claude Code / Codex CLI
 #   and keeps Docker bind-mounted /root/ volumes lean.
 ROOT_FHS_LAYOUT=false
@@ -107,7 +107,7 @@ while [[ $# -gt 0 ]]; do
             INSTALL_DIR_EXPLICIT=true
             shift 2
             ;;
-        --hermes-home)
+        --stoa-home)
             STOA_HOME="$2"
             shift 2
             ;;
@@ -132,13 +132,13 @@ while [[ $# -gt 0 ]]; do
             echo "  --dir PATH     Installation directory"
             echo "                   default (non-root):  ~/.stoa/stoa-agent"
             echo "                   default (root, Linux): /usr/local/lib/stoa-agent"
-            echo "  --hermes-home PATH  Data directory (default: ~/.stoa, or \$STOA_HOME)"
+            echo "  --stoa-home PATH  Data directory (default: ~/.stoa, or \$STOA_HOME)"
             echo "  -h, --help     Show this help"
             echo ""
             echo "Notes:"
-            echo "  When running as root on Linux, Hermes installs the code under"
+            echo "  When running as root on Linux, STOA installs the code under"
             echo "  /usr/local/lib/stoa-agent and links the command into"
-            echo "  /usr/local/bin/hermes (FHS layout — matches Claude Code / Codex CLI)."
+            echo "  /usr/local/bin/stoa (FHS layout — matches Claude Code / Codex CLI)."
             echo "  Data, config, sessions, and logs still live in \$STOA_HOME"
             echo "  (default /root/.stoa).  This keeps Docker bind-mounted volumes"
             echo "  small and ensures the command is on PATH for all shells."
@@ -147,7 +147,7 @@ while [[ $# -gt 0 ]]; do
             echo "                   Supported: node, browser, ripgrep, ffmpeg"
             echo "                   Does NOT clone repo or create venv"
             echo "  --postinstall  Run post-install setup only (for pip users)"
-            echo "                   Installs optional deps + runs hermes setup"
+            echo "                   Installs optional deps + runs stoa setup"
             echo "                   Does NOT clone repo or create venv"
             exit 0
             ;;
@@ -230,7 +230,7 @@ is_termux() {
     [ -n "${TERMUX_VERSION:-}" ] || [[ "${PREFIX:-}" == *"com.termux/files/usr"* ]]
 }
 
-# Decide where the repo checkout + venv live, and where the `hermes` command
+# Decide where the repo checkout + venv live, and where the `stoa` command
 # symlink goes.  Called after detect_os so $OS/$DISTRO are known.
 #
 # Defaults:
@@ -270,7 +270,7 @@ resolve_install_layout() {
         ROOT_FHS_LAYOUT=true
         log_info "Root install on Linux — using FHS layout"
         log_info "  Code:    $INSTALL_DIR"
-        log_info "  Command: /usr/local/bin/hermes"
+        log_info "  Command: /usr/local/bin/stoa"
         log_info "  Data:    $STOA_HOME (unchanged)"
         return 0
     fi
@@ -302,10 +302,10 @@ get_command_link_display_dir() {
 get_stoa_command_path() {
     local link_dir
     link_dir="$(get_command_link_dir)"
-    if [ -x "$link_dir/hermes" ]; then
-        echo "$link_dir/hermes"
+    if [ -x "$link_dir/stoa" ]; then
+        echo "$link_dir/stoa"
     else
-        echo "hermes"
+        echo "stoa"
     fi
 }
 
@@ -398,8 +398,8 @@ install_uv() {
     # `curl | sh` masks curl failures (sh exits 0 on empty stdin)
     # and conflates network errors with installer errors.
     local _uv_install_log _uv_installer
-    _uv_install_log="$(mktemp 2>/dev/null || echo "/tmp/hermes-uv-install.$$.log")"
-    _uv_installer="$(mktemp 2>/dev/null || echo "/tmp/hermes-uv-installer.$$.sh")"
+    _uv_install_log="$(mktemp 2>/dev/null || echo "/tmp/stoa-uv-install.$$.log")"
+    _uv_installer="$(mktemp 2>/dev/null || echo "/tmp/stoa-uv-installer.$$.sh")"
     if ! curl -LsSf https://astral.sh/uv/install.sh -o "$_uv_installer" 2>"$_uv_install_log"; then
         log_error "Failed to download uv installer from https://astral.sh/uv/install.sh"
         log_info "curl output:"
@@ -547,7 +547,7 @@ check_node() {
     if [ -x "$STOA_HOME/node/bin/node" ]; then
         export PATH="$STOA_HOME/node/bin:$PATH"
         local found_ver=$("$STOA_HOME/node/bin/node" --version)
-        log_success "Node.js $found_ver found (Hermes-managed)"
+        log_success "Node.js $found_ver found (STOA-managed)"
         HAS_NODE=true
         return 0
     fi
@@ -699,7 +699,7 @@ check_network_prerequisites() {
         log_info "If mirrors are stale: termux-change-repo"
         log_info "Then test: curl -I https://pypi.org/simple/ && curl -I https://duckduckgo.com/"
     else
-        log_warn "Network checks failed. Hermes install may complete, but web search and dependency downloads can fail."
+        log_warn "Network checks failed. STOA install may complete, but web search and dependency downloads can fail."
         log_info "Verify internet/DNS and retry if pip install fails."
     fi
 }
@@ -910,7 +910,7 @@ clone_repo() {
             local autostash_ref=""
             if [ -n "$(git status --porcelain)" ]; then
                 local stash_name
-                stash_name="hermes-install-autostash-$(date -u +%Y%m%d-%H%M%S)"
+                stash_name="stoa-install-autostash-$(date -u +%Y%m%d-%H%M%S)"
                 log_info "Local changes detected, stashing before update..."
                 git stash push --include-untracked -m "$stash_name"
                 autostash_ref="stash@{0}"
@@ -939,7 +939,7 @@ clone_repo() {
                     if git stash apply "$autostash_ref"; then
                         git stash drop "$autostash_ref" >/dev/null
                         log_warn "Local changes were restored on top of the updated codebase."
-                        log_warn "Review git diff / git status if Hermes behaves unexpectedly."
+                        log_warn "Review git diff / git status if STOA behaves unexpectedly."
                     else
                         log_error "Update succeeded, but restoring local changes failed. Your changes are still preserved in git stash."
                         log_info "Resolve manually with: git stash apply $autostash_ref"
@@ -1258,21 +1258,21 @@ PY
 }
 
 setup_path() {
-    log_info "Setting up hermes command..."
+    log_info "Setting up stoa command..."
 
     if [ "$USE_VENV" = true ]; then
-        STOA_BIN="$INSTALL_DIR/venv/bin/hermes"
+        STOA_BIN="$INSTALL_DIR/venv/bin/stoa"
     else
-        STOA_BIN="$(which hermes 2>/dev/null || echo "")"
+        STOA_BIN="$(which stoa 2>/dev/null || echo "")"
         if [ -z "$STOA_BIN" ]; then
-            log_warn "hermes not found on PATH after install"
+            log_warn "stoa not found on PATH after install"
             return 0
         fi
     fi
 
     # Verify the entry point script was actually generated
     if [ ! -x "$STOA_BIN" ]; then
-        log_warn "hermes entry point not found at $STOA_BIN"
+        log_warn "stoa entry point not found at $STOA_BIN"
         log_info "This usually means the pip install didn't complete successfully."
         if [ "$DISTRO" = "termux" ]; then
             log_info "Try: cd $INSTALL_DIR && python -m pip install -e '.[termux-all]' -c constraints-termux.txt"
@@ -1287,27 +1287,27 @@ setup_path() {
     command_link_dir="$(get_command_link_dir)"
     command_link_display_dir="$(get_command_link_display_dir)"
 
-    # Create a user-facing shim for the hermes command.
+    # Create a user-facing shim for the stoa command.
     # We intentionally clear PYTHONPATH/PYTHONHOME here so inherited env vars
     # can't make this launcher import modules from another checkout.
     mkdir -p "$command_link_dir"
     # Older installs created this path as a symlink to $STOA_BIN. Without
     # the rm, `cat >` follows the symlink and overwrites the venv pip entry
     # point with this shim — making `exec "$STOA_BIN"` self-recurse. (#21454)
-    rm -f "$command_link_dir/hermes"
-    cat > "$command_link_dir/hermes" <<EOF
+    rm -f "$command_link_dir/stoa"
+    cat > "$command_link_dir/stoa" <<EOF
 #!/usr/bin/env bash
 unset PYTHONPATH
 unset PYTHONHOME
 exec "$STOA_BIN" "\$@"
 EOF
-    chmod +x "$command_link_dir/hermes"
-    log_success "Installed hermes launcher → $command_link_display_dir/hermes"
+    chmod +x "$command_link_dir/stoa"
+    log_success "Installed stoa launcher → $command_link_display_dir/stoa"
 
     if [ "$DISTRO" = "termux" ]; then
         export PATH="$command_link_dir:$PATH"
         log_info "$command_link_display_dir is the native Termux command path"
-        log_success "hermes command ready"
+        log_success "stoa command ready"
         return 0
     fi
 
@@ -1322,14 +1322,14 @@ EOF
         # Probe a fresh non-login interactive bash the way the user will use it.
         # `bash -i -c` sources ~/.bashrc but NOT ~/.bash_profile or /etc/profile,
         # which is the exact scenario where RHEL root loses /usr/local/bin.
-        if env -i HOME="$HOME" TERM="${TERM:-dumb}" bash -i -c 'command -v hermes' \
+        if env -i HOME="$HOME" TERM="${TERM:-dumb}" bash -i -c 'command -v stoa' \
                 >/dev/null 2>&1; then
             log_info "/usr/local/bin is already on PATH for all shells"
-            log_success "hermes command ready"
+            log_success "stoa command ready"
             return 0
         fi
 
-        log_info "hermes not on PATH in non-login shells (common on RHEL-family)"
+        log_info "stoa not on PATH in non-login shells (common on RHEL-family)"
         PATH_LINE='export PATH="/usr/local/bin:$PATH"'
         PATH_COMMENT='# STOA Agent — ensure /usr/local/bin is on PATH (RHEL non-login shells)'
         for SHELL_CONFIG in "$HOME/.bashrc" "$HOME/.bash_profile"; do
@@ -1342,7 +1342,7 @@ EOF
                 log_success "Added /usr/local/bin to PATH in $SHELL_CONFIG"
             fi
         done
-        log_success "hermes command ready"
+        log_success "stoa command ready"
         return 0
     fi
 
@@ -1412,10 +1412,10 @@ EOF
         log_info "~/.local/bin already on PATH"
     fi
 
-    # Export for current session so hermes works immediately
+    # Export for current session so stoa works immediately
     export PATH="$command_link_dir:$PATH"
 
-    log_success "hermes command ready"
+    log_success "stoa command ready"
 }
 
 copy_config_templates() {
@@ -1460,7 +1460,7 @@ copy_config_templates() {
 <!--
 This file defines the agent's personality and tone.
 The agent will embody whatever you write here.
-Edit this to customize how Hermes communicates with you.
+Edit this to customize how STOA communicates with you.
 
 Examples:
   - "You are a warm, playful assistant who uses kaomoji occasionally."
@@ -1603,7 +1603,7 @@ install_node_deps() {
         DETECTED_BROWSER_EXECUTABLE="$(find_system_browser 2>/dev/null || true)"
         if [ -n "$DETECTED_BROWSER_EXECUTABLE" ]; then
             log_success "Found system Chrome/Chromium at $DETECTED_BROWSER_EXECUTABLE"
-            log_info "Skipping Playwright browser download; Hermes will use the system browser."
+            log_info "Skipping Playwright browser download; STOA will use the system browser."
         else
             case "$DISTRO" in
                 ubuntu|debian|raspbian|pop|linuxmint|elementary|zorin|kali|parrot)
@@ -1684,7 +1684,7 @@ install_node_deps() {
         log_info "Installing TUI dependencies..."
         cd "$INSTALL_DIR/ui-tui"
         npm install --silent 2>/dev/null || {
-            log_warn "TUI npm install failed (hermes --tui may not work)"
+            log_warn "TUI npm install failed (stoa --tui may not work)"
         }
         log_success "TUI dependencies installed"
     fi
@@ -1707,7 +1707,7 @@ run_setup_wizard() {
     # but opening fails with ENXIO, so the wizard would proceed and
     # then crash on `< /dev/tty` below.
     if ! (: </dev/tty) 2>/dev/null; then
-        log_info "Setup wizard skipped (no terminal available). Run 'hermes setup' after install."
+        log_info "Setup wizard skipped (no terminal available). Run 'stoa setup' after install."
         return 0
     fi
 
@@ -1717,7 +1717,7 @@ run_setup_wizard() {
 
     cd "$INSTALL_DIR"
 
-    # Run hermes setup using the venv Python directly (no activation needed).
+    # Run stoa setup using the venv Python directly (no activation needed).
     # Redirect stdin from /dev/tty so interactive prompts work when piped from curl.
     if [ "$USE_VENV" = true ]; then
         "$INSTALL_DIR/venv/bin/python" -m stoa_cli.main setup < /dev/tty
@@ -1748,7 +1748,7 @@ maybe_start_gateway() {
 
     echo ""
     log_info "Messaging platform token detected!"
-    log_info "The gateway needs to be running for Hermes to send/receive messages."
+    log_info "The gateway needs to be running for STOA to send/receive messages."
 
     # If WhatsApp is enabled and no session exists yet, run foreground first for QR scan
     WHATSAPP_VAL=$(grep "^WHATSAPP_ENABLED=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2-)
@@ -1757,14 +1757,14 @@ maybe_start_gateway() {
         if [ "$IS_INTERACTIVE" = true ]; then
             echo ""
             log_info "WhatsApp is enabled but not yet paired."
-            log_info "Running 'hermes whatsapp' to pair via QR code..."
+            log_info "Running 'stoa whatsapp' to pair via QR code..."
             echo ""
             if prompt_yes_no "Pair WhatsApp now?" "yes"; then
                 STOA_CMD="$(get_stoa_command_path)"
                 $STOA_CMD whatsapp || true
             fi
         else
-            log_info "WhatsApp pairing skipped (non-interactive). Run 'hermes whatsapp' to pair."
+            log_info "WhatsApp pairing skipped (non-interactive). Run 'stoa whatsapp' to pair."
         fi
     fi
 
@@ -1772,7 +1772,7 @@ maybe_start_gateway() {
     # in Docker builds where the device node is in the mount namespace
     # but opening fails with ENXIO. See #16746.
     if ! (: </dev/tty) 2>/dev/null; then
-        log_info "Gateway setup skipped (no terminal available). Run 'hermes gateway install' later."
+        log_info "Gateway setup skipped (no terminal available). Run 'stoa gateway install' later."
         return 0
     fi
 
@@ -1798,10 +1798,10 @@ maybe_start_gateway() {
                 if $STOA_CMD gateway start 2>/dev/null; then
                     log_success "Gateway started! Your bot is now online."
                 else
-                    log_warn "Service installed but failed to start. Try: hermes gateway start"
+                    log_warn "Service installed but failed to start. Try: stoa gateway start"
                 fi
             else
-                log_warn "Systemd install failed. You can start manually: hermes gateway"
+                log_warn "Systemd install failed. You can start manually: stoa gateway"
             fi
         else
             if [ "$DISTRO" = "termux" ]; then
@@ -1813,13 +1813,13 @@ maybe_start_gateway() {
             GATEWAY_PID=$!
             log_success "Gateway started (PID $GATEWAY_PID). Logs: ~/.stoa/logs/gateway.log"
             log_info "To stop: kill $GATEWAY_PID"
-            log_info "To restart later: hermes gateway"
+            log_info "To restart later: stoa gateway"
             if [ "$DISTRO" = "termux" ]; then
                 log_warn "Android may stop background processes when Termux is suspended or the system reclaims resources."
             fi
         fi
     else
-        log_info "Skipped. Start the gateway later with: hermes gateway"
+        log_info "Skipped. Start the gateway later with: stoa gateway"
     fi
 }
 
@@ -1845,24 +1845,24 @@ print_success() {
     echo ""
     echo -e "${CYAN}${BOLD}🚀 Commands:${NC}"
     echo ""
-    echo -e "   ${GREEN}hermes${NC}              Start chatting"
-    echo -e "   ${GREEN}hermes setup${NC}        Configure API keys & settings"
-    echo -e "   ${GREEN}hermes config${NC}       View/edit configuration"
-    echo -e "   ${GREEN}hermes config edit${NC}  Open config in editor"
-    echo -e "   ${GREEN}hermes gateway install${NC} Install gateway service (messaging + cron)"
-    echo -e "   ${GREEN}hermes update${NC}       Update to latest version"
+    echo -e "   ${GREEN}stoa${NC}              Start chatting"
+    echo -e "   ${GREEN}stoa setup${NC}        Configure API keys & settings"
+    echo -e "   ${GREEN}stoa config${NC}       View/edit configuration"
+    echo -e "   ${GREEN}stoa config edit${NC}  Open config in editor"
+    echo -e "   ${GREEN}stoa gateway install${NC} Install gateway service (messaging + cron)"
+    echo -e "   ${GREEN}stoa update${NC}       Update to latest version"
     echo ""
 
     echo -e "${CYAN}─────────────────────────────────────────────────────────${NC}"
     echo ""
     if [ "$DISTRO" = "termux" ]; then
-        echo -e "${YELLOW}⚡ 'hermes' was linked into $(get_command_link_display_dir), which is already on PATH in Termux.${NC}"
+        echo -e "${YELLOW}⚡ 'stoa' was linked into $(get_command_link_display_dir), which is already on PATH in Termux.${NC}"
         echo ""
     elif [ "$ROOT_FHS_LAYOUT" = true ]; then
-        echo -e "${YELLOW}⚡ 'hermes' was linked into /usr/local/bin and is ready to use — no shell reload needed.${NC}"
+        echo -e "${YELLOW}⚡ 'stoa' was linked into /usr/local/bin and is ready to use — no shell reload needed.${NC}"
         echo ""
     else
-        echo -e "${YELLOW}⚡ Reload your shell to use 'hermes' command:${NC}"
+        echo -e "${YELLOW}⚡ Reload your shell to use 'stoa' command:${NC}"
         echo ""
         LOGIN_SHELL="$(basename "${SHELL:-/bin/bash}")"
         if [ "$LOGIN_SHELL" = "zsh" ]; then
@@ -2012,7 +2012,7 @@ postinstall_mode() {
     print_banner
     detect_os
 
-    log_info "Post-install mode: setting up Hermes for pip install"
+    log_info "Post-install mode: setting up STOA for pip install"
 
     check_node
     check_network_prerequisites
@@ -2022,12 +2022,12 @@ postinstall_mode() {
         ensure_browser
     fi
 
-    STOA_CMD="$(command -v hermes 2>/dev/null || echo "")"
+    STOA_CMD="$(command -v stoa 2>/dev/null || echo "")"
     if [ -n "$STOA_CMD" ]; then
-        log_info "Running hermes setup..."
+        log_info "Running stoa setup..."
         "$STOA_CMD" setup
     else
-        log_warn "hermes command not found on PATH"
+        log_warn "stoa command not found on PATH"
         log_info "Try: python -m stoa_cli.main setup"
     fi
 }

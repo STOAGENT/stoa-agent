@@ -62,7 +62,7 @@ def _install_modal_test_modules(
     stoa_cli = types.ModuleType("stoa_cli")
     stoa_cli.__path__ = []  # type: ignore[attr-defined]
     sys.modules["stoa_cli"] = stoa_cli
-    stoa_home = tmp_path / "hermes-home"
+    stoa_home = tmp_path / "stoa-home"
     os.environ["STOA_HOME"] = str(stoa_home)
     sys.modules["stoa_cli.config"] = types.SimpleNamespace(
         get_stoa_home=lambda: stoa_home,

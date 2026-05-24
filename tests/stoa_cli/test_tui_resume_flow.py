@@ -221,7 +221,7 @@ def test_main_top_level_tui_accepts_toolsets(monkeypatch, main_mod):
 
     import stoa_cli.config as config_mod
 
-    monkeypatch.setattr(sys, "argv", ["hermes", "--tui", "--toolsets", "web,terminal"])
+    monkeypatch.setattr(sys, "argv", ["stoa", "--tui", "--toolsets", "web,terminal"])
     monkeypatch.setitem(
         sys.modules,
         "stoa_cli.plugins",
@@ -257,7 +257,7 @@ def test_termux_fast_tui_launch_uses_light_parser(monkeypatch, main_mod):
 
     monkeypatch.setenv("TERMUX_VERSION", "1")
     monkeypatch.setattr(
-        sys, "argv", ["hermes", "--tui", "--toolsets", "web,terminal"]
+        sys, "argv", ["stoa", "--tui", "--toolsets", "web,terminal"]
     )
     monkeypatch.setattr(
         main_mod,
@@ -271,7 +271,7 @@ def test_termux_fast_tui_launch_uses_light_parser(monkeypatch, main_mod):
 
 def test_termux_fast_tui_launch_skips_help(monkeypatch, main_mod):
     monkeypatch.setenv("TERMUX_VERSION", "1")
-    monkeypatch.setattr(sys, "argv", ["hermes", "--tui", "--help"])
+    monkeypatch.setattr(sys, "argv", ["stoa", "--tui", "--help"])
 
     assert main_mod._try_termux_fast_tui_launch() is False
 
@@ -279,7 +279,7 @@ def test_termux_fast_tui_launch_skips_help(monkeypatch, main_mod):
 def test_fast_tui_launch_is_termux_only(monkeypatch, main_mod):
     monkeypatch.delenv("TERMUX_VERSION", raising=False)
     monkeypatch.setenv("PREFIX", "/usr")
-    monkeypatch.setattr(sys, "argv", ["hermes", "--tui"])
+    monkeypatch.setattr(sys, "argv", ["stoa", "--tui"])
 
     assert main_mod._try_termux_fast_tui_launch() is False
 
@@ -291,7 +291,7 @@ def test_termux_fast_cli_launch_chat_uses_light_parser(monkeypatch, main_mod):
     monkeypatch.setenv("TERMUX_VERSION", "1")
     monkeypatch.delenv("STOA_TUI", raising=False)
     monkeypatch.setattr(
-        sys, "argv", ["hermes", "chat", "-q", "hello", "--toolsets", "web,terminal"]
+        sys, "argv", ["stoa", "chat", "-q", "hello", "--toolsets", "web,terminal"]
     )
     monkeypatch.setattr(
         main_mod, "_prepare_agent_startup", lambda args: prepared.append(args.command)
@@ -321,7 +321,7 @@ def test_termux_fast_cli_launch_bare_defers_agent_startup(monkeypatch, main_mod)
     monkeypatch.delenv("STOA_TUI", raising=False)
     monkeypatch.delenv("STOA_DEFER_AGENT_STARTUP", raising=False)
     monkeypatch.delenv("STOA_FAST_STARTUP_BANNER", raising=False)
-    monkeypatch.setattr(sys, "argv", ["hermes"])
+    monkeypatch.setattr(sys, "argv", ["stoa"])
     monkeypatch.setattr(
         main_mod, "_prepare_agent_startup", lambda args: prepared.append(args.command)
     )
@@ -353,7 +353,7 @@ def test_termux_fast_cli_launch_oneshot_uses_light_parser(monkeypatch, main_mod)
     monkeypatch.setattr(
         sys,
         "argv",
-        ["hermes", "-z", "hello", "--model", "gpt-test", "--provider", "openai"],
+        ["stoa", "-z", "hello", "--model", "gpt-test", "--provider", "openai"],
     )
     monkeypatch.setattr(
         main_mod, "_prepare_agent_startup", lambda args: prepared.append(args.command)
@@ -387,7 +387,7 @@ def test_termux_fast_cli_launch_version_skips_update_check(monkeypatch, main_mod
 
     monkeypatch.setenv("TERMUX_VERSION", "1")
     monkeypatch.delenv("STOA_TUI", raising=False)
-    monkeypatch.setattr(sys, "argv", ["hermes", "version"])
+    monkeypatch.setattr(sys, "argv", ["stoa", "version"])
     monkeypatch.setattr(
         main_mod, "_print_version_info", lambda *, check_updates: captured.append(check_updates)
     )
@@ -401,7 +401,7 @@ def test_termux_ultrafast_version_runs_before_heavy_startup(
 ):
     monkeypatch.setenv("TERMUX_VERSION", "1")
     monkeypatch.delenv("STOA_TERMUX_DISABLE_FAST_CLI", raising=False)
-    monkeypatch.setattr(sys, "argv", ["hermes", "--version"])
+    monkeypatch.setattr(sys, "argv", ["stoa", "--version"])
 
     assert main_mod._try_termux_ultrafast_version() is True
 
@@ -427,7 +427,7 @@ def test_read_openai_version_fast(monkeypatch, tmp_path, main_mod):
 def test_termux_fast_cli_launch_skips_help(monkeypatch, main_mod):
     monkeypatch.setenv("TERMUX_VERSION", "1")
     monkeypatch.delenv("STOA_TUI", raising=False)
-    monkeypatch.setattr(sys, "argv", ["hermes", "chat", "--help"])
+    monkeypatch.setattr(sys, "argv", ["stoa", "chat", "--help"])
 
     assert main_mod._try_termux_fast_cli_launch() is False
 
@@ -436,7 +436,7 @@ def test_termux_fast_cli_launch_can_be_disabled(monkeypatch, main_mod):
     monkeypatch.setenv("TERMUX_VERSION", "1")
     monkeypatch.setenv("STOA_TERMUX_DISABLE_FAST_CLI", "1")
     monkeypatch.delenv("STOA_TUI", raising=False)
-    monkeypatch.setattr(sys, "argv", ["hermes", "version"])
+    monkeypatch.setattr(sys, "argv", ["stoa", "version"])
 
     assert main_mod._try_termux_fast_cli_launch() is False
 
@@ -576,7 +576,7 @@ def test_main_top_level_oneshot_accepts_toolsets(monkeypatch, main_mod):
     import stoa_cli.config as config_mod
 
     monkeypatch.setattr(
-        sys, "argv", ["hermes", "-z", "hello", "--toolsets", "web,terminal"]
+        sys, "argv", ["stoa", "-z", "hello", "--toolsets", "web,terminal"]
     )
     monkeypatch.setitem(
         sys.modules,
@@ -710,7 +710,7 @@ def test_oneshot_rejects_disabled_mcp_toolset(monkeypatch, capsys):
     valid, error = _validate_explicit_toolsets("mcp-off")
 
     assert valid is None
-    assert error == "hermes -z: --toolsets did not contain any valid toolsets.\n"
+    assert error == "stoa -z: --toolsets did not contain any valid toolsets.\n"
     err = capsys.readouterr().err
     assert "ignoring disabled MCP servers" in err
     assert "mcp-off" in err
@@ -739,7 +739,7 @@ def test_oneshot_distinguishes_disabled_mcp_from_unknown(monkeypatch, capsys):
 
 
 def test_oneshot_wires_session_db_for_recall(monkeypatch):
-    """hermes -z bypasses HermesCLI, but recall still needs SessionDB."""
+    """stoa -z bypasses STOACLI, but recall still needs SessionDB."""
     from stoa_cli.oneshot import _run_agent
 
     captured = {}
@@ -825,17 +825,17 @@ def test_launch_tui_exports_model_provider_and_toolsets(monkeypatch, main_mod):
 
     with pytest.raises(SystemExit):
         main_mod._launch_tui(
-            model="nous/hermes-test", provider="nous", toolsets="web, terminal"
+            model="nous/stoa-test", provider="nous", toolsets="web, terminal"
         )
 
     env = captured["env"]
-    assert env["STOA_MODEL"] == "nous/hermes-test"
-    assert env["STOA_INFERENCE_MODEL"] == "nous/hermes-test"
+    assert env["STOA_MODEL"] == "nous/stoa-test"
+    assert env["STOA_INFERENCE_MODEL"] == "nous/stoa-test"
     assert env["STOA_TUI_PROVIDER"] == "nous"
     assert env["STOA_INFERENCE_PROVIDER"] == "nous"
     assert env["STOA_TUI_TOOLSETS"] == "web,terminal"
     active_path = Path(env["STOA_TUI_ACTIVE_SESSION_FILE"])
-    assert active_path.name.startswith("hermes-tui-active-session-")
+    assert active_path.name.startswith("stoa-tui-active-session-")
     assert active_path.suffix == ".json"
     assert active_path_during_call == active_path
     assert not active_path.exists()
@@ -959,8 +959,8 @@ def test_print_tui_exit_summary_includes_resume_and_token_totals(monkeypatch, ca
     out = capsys.readouterr().out
 
     assert "Resume this session with:" in out
-    assert "hermes --tui --resume 20260409_000001_abc123" in out
-    assert 'hermes --tui -c "demo title"' in out
+    assert "stoa --tui --resume 20260409_000001_abc123" in out
+    assert 'stoa --tui -c "demo title"' in out
     assert "Tokens:         21 (in 10, out 6, cache 4, reasoning 1)" in out
 
 
@@ -999,5 +999,5 @@ def test_print_tui_exit_summary_prefers_actual_active_session_file(
     out = capsys.readouterr().out
 
     assert seen == ["actual_session"]
-    assert "hermes --tui --resume actual_session" in out
+    assert "stoa --tui --resume actual_session" in out
     assert "startup_resume" not in out

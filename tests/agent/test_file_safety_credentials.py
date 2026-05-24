@@ -90,7 +90,7 @@ def test_skills_hub_block_still_applies(fake_home):
     hub_file = _create(fake_home, "skills/.hub/manifest.json")
     err = get_read_block_error(str(hub_file))
     assert err is not None
-    assert "internal Hermes cache file" in err
+    assert "internal STOA cache file" in err
 
 
 def test_path_traversal_resolves_to_blocked(fake_home, tmp_path):
@@ -245,7 +245,7 @@ def test_profile_mode_blocks_root_credentials(tmp_path, monkeypatch):
     inherited by every profile."""
     import agent.file_safety as fs
 
-    root = tmp_path / "hermes"
+    root = tmp_path / "stoa"
     profile = root / "profiles" / "coder"
     profile.mkdir(parents=True)
     monkeypatch.setattr(fs, "_stoa_home_path", lambda: profile)

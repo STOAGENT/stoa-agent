@@ -8,13 +8,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/stoa-xyz/Stoa-Agent.git"
+    "url": "git+https://github.com/STOAGENT/stoa-agent.git"
   },
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/stoa-xyz/Stoa-Agent/issues"
+    "url": "https://github.com/STOAGENT/stoa-agent/issues"
   },
-  "homepage": "https://github.com/stoa-xyz/Stoa-Agent#readme",
+  "homepage": "https://github.com/STOAGENT/stoa-agent#readme",
   "dependencies": {
     "agent-browser": "^0.26.0"
   },

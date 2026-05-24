@@ -48,7 +48,7 @@ class TestOfferOpenclawMigration:
         openclaw_dir = tmp_path / ".openclaw"
         openclaw_dir.mkdir()
 
-        # Create a fake hermes home with config
+        # Create a fake stoa home with config
         stoa_home = tmp_path / ".stoa"
         stoa_home.mkdir()
         config_path = stoa_home / "config.yaml"

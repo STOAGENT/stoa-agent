@@ -1,4 +1,4 @@
-"""Tests for stoa_cli/bundles.py — the `hermes bundles` CLI subcommand."""
+"""Tests for stoa_cli/bundles.py — the `stoa bundles` CLI subcommand."""
 
 import argparse
 import sys

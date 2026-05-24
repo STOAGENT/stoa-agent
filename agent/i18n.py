@@ -1,4 +1,4 @@
-"""Lightweight internationalization (i18n) for Hermes static user-facing messages.
+"""Lightweight internationalization (i18n) for STOA static user-facing messages.
 
 Scope (thin slice, by design): only the highest-impact static strings shown
 to the user by STOA itself -- approval prompts, a handful of gateway slash
@@ -137,7 +137,7 @@ def _load_catalog(lang: str) -> dict[str, str]:
         return {}
 
     try:
-        import yaml  # PyYAML is already a hermes dependency
+        import yaml  # PyYAML is already a stoa dependency
         with path.open("r", encoding="utf-8") as f:
             raw = yaml.safe_load(f) or {}
     except Exception as exc:

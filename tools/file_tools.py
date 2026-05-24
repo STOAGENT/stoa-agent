@@ -473,7 +473,7 @@ def read_file_tool(path: str, offset: int = 1, limit: int = 500, task_id: str = 
                 ),
             })
 
-        # ── Hermes internal path guard ────────────────────────────────
+        # ── STOA internal path guard ────────────────────────────────
         # Prevent prompt injection via catalog or hub metadata files,
         # and block credential stores under STOA_HOME.  Pass the
         # already-resolved path so a relative-path read against

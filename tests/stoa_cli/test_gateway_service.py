@@ -163,12 +163,12 @@ class TestSystemdServiceRefresh:
         assert markers == [321]
         output = capsys.readouterr().out
         assert "still stopping after 90s" in output
-        assert "hermes gateway status" in output
+        assert "stoa gateway status" in output
 
     def test_systemd_restart_timeout_prints_status_guidance(self, monkeypatch, capsys):
-        """`hermes gateway restart` must not surface a raw TimeoutExpired traceback.
+        """`stoa gateway restart` must not surface a raw TimeoutExpired traceback.
 
-        The dashboard spawns `hermes gateway restart` in the background; when a
+        The dashboard spawns `stoa gateway restart` in the background; when a
         wedged adapter websocket pushes drain past the 90s CLI timeout, the
         dashboard would previously show a Python traceback (issue #19937
         follow-up: the same failure mode applies to restart, not just stop).
@@ -202,12 +202,12 @@ class TestSystemdServiceRefresh:
 
         output = capsys.readouterr().out
         assert "still restarting after 90s" in output
-        assert "hermes gateway status" in output
+        assert "stoa gateway status" in output
 
     def test_run_gateway_refreshes_outdated_unit_on_boot(self, tmp_path, monkeypatch):
         """run_gateway() should refresh the systemd unit on boot so that
         restart settings take effect even when the process was respawned
-        via exit-code-75 (bypassing `hermes gateway restart`)."""
+        via exit-code-75 (bypassing `stoa gateway restart`)."""
         unit_path = tmp_path / "stoa-gateway.service"
         unit_path.write_text("old unit\n", encoding="utf-8")
 
@@ -300,7 +300,7 @@ class TestRequireServiceInstalled:
         assert exc_info.value.code == 1
         out = capsys.readouterr().out
         assert "not installed" in out
-        assert "hermes gateway install" in out
+        assert "stoa gateway install" in out
 
     def test_passes_when_unit_exists(self, tmp_path, monkeypatch):
         unit_path = tmp_path / "stoa-gateway.service"
@@ -476,7 +476,7 @@ class TestLaunchdServiceRecovery:
         )
 
     def test_launchd_install_repairs_outdated_plist_without_force(self, tmp_path, monkeypatch):
-        plist_path = tmp_path / "ai.hermes.gateway.plist"
+        plist_path = tmp_path / "ai.stoa.gateway.plist"
         plist_path.write_text("<plist>old content</plist>", encoding="utf-8")
 
         monkeypatch.setattr(gateway_cli, "get_launchd_plist_path", lambda: plist_path)
@@ -500,7 +500,7 @@ class TestLaunchdServiceRecovery:
         ]
 
     def test_launchd_start_reloads_unloaded_job_and_retries(self, tmp_path, monkeypatch):
-        plist_path = tmp_path / "ai.hermes.gateway.plist"
+        plist_path = tmp_path / "ai.stoa.gateway.plist"
         plist_path.write_text(gateway_cli.generate_launchd_plist(), encoding="utf-8")
         label = gateway_cli.get_launchd_label()
 
@@ -528,7 +528,7 @@ class TestLaunchdServiceRecovery:
 
     def test_launchd_start_reloads_on_kickstart_exit_code_113(self, tmp_path, monkeypatch):
         """Exit code 113 (\"Could not find service\") should also trigger bootstrap recovery."""
-        plist_path = tmp_path / "ai.hermes.gateway.plist"
+        plist_path = tmp_path / "ai.stoa.gateway.plist"
         plist_path.write_text(gateway_cli.generate_launchd_plist(), encoding="utf-8")
         label = gateway_cli.get_launchd_label()
 
@@ -661,7 +661,7 @@ class TestLaunchdServiceRecovery:
         assert wait_called[0] == {"timeout": 10.0, "force_after": 5.0}
 
     def test_launchd_status_reports_local_stale_plist_when_unloaded(self, tmp_path, monkeypatch, capsys):
-        plist_path = tmp_path / "ai.hermes.gateway.plist"
+        plist_path = tmp_path / "ai.stoa.gateway.plist"
         plist_path.write_text("<plist>old content</plist>", encoding="utf-8")
 
         monkeypatch.setattr(gateway_cli, "get_launchd_plist_path", lambda: plist_path)
@@ -1015,7 +1015,7 @@ class TestGatewaySystemServiceRouting:
 
         out = capsys.readouterr().out
         assert "not supported on Termux" in out
-        assert "Run manually: hermes gateway" in out
+        assert "Run manually: stoa gateway" in out
 
     def test_gateway_status_prefers_system_service_when_only_system_unit_exists(self, monkeypatch):
         user_unit = SimpleNamespace(exists=lambda: False)
@@ -1088,11 +1088,11 @@ class TestGatewaySystemServiceRouting:
 
         out = capsys.readouterr().out
         assert "Gateway is not running" in out
-        assert "nohup hermes gateway" in out
+        assert "nohup stoa gateway" in out
         assert "install as user service" not in out
 
     def test_gateway_restart_does_not_fallback_to_foreground_when_launchd_restart_fails(self, tmp_path, monkeypatch):
-        plist_path = tmp_path / "ai.hermes.gateway.plist"
+        plist_path = tmp_path / "ai.stoa.gateway.plist"
         plist_path.write_text("plist\n", encoding="utf-8")
 
         monkeypatch.setattr(gateway_cli, "is_linux", lambda: False)
@@ -1102,7 +1102,7 @@ class TestGatewaySystemServiceRouting:
             gateway_cli,
             "launchd_restart",
             lambda: (_ for _ in ()).throw(
-                gateway_cli.subprocess.CalledProcessError(5, ["launchctl", "kickstart", "-k", "gui/501/ai.hermes.gateway"])
+                gateway_cli.subprocess.CalledProcessError(5, ["launchctl", "kickstart", "-k", "gui/501/ai.stoa.gateway"])
             ),
         )
 
@@ -1179,7 +1179,7 @@ class TestDetectVenvDir:
         assert result is None
 
 
-class TestSystemUnitHermesHome:
+class TestSystemUnitSTOAHome:
     """STOA_HOME in system units must reference the target user, not root."""
 
     def test_system_unit_uses_target_user_home_not_calling_user(self, monkeypatch):
@@ -1221,7 +1221,7 @@ class TestSystemUnitHermesHome:
     def test_system_unit_preserves_custom_stoa_home(self, monkeypatch):
         # Custom STOA_HOME not under any user's home — keep as-is
         monkeypatch.setattr(Path, "home", staticmethod(lambda: Path("/root")))
-        monkeypatch.setenv("STOA_HOME", "/opt/hermes-shared")
+        monkeypatch.setenv("STOA_HOME", "/opt/stoa-shared")
         monkeypatch.setattr(
             gateway_cli, "_system_service_identity",
             lambda run_as_user=None: ("alice", "alice", "/home/alice"),
@@ -1233,7 +1233,7 @@ class TestSystemUnitHermesHome:
 
         unit = gateway_cli.generate_systemd_unit(system=True, run_as_user="alice")
 
-        assert 'STOA_HOME=/opt/hermes-shared' in unit
+        assert 'STOA_HOME=/opt/stoa-shared' in unit
 
     def test_user_unit_unaffected_by_change(self):
         # User-scope units should still use the calling user's STOA_HOME
@@ -1243,7 +1243,7 @@ class TestSystemUnitHermesHome:
         assert f'STOA_HOME={stoa_home}' in unit
 
 
-class TestHermesHomeForTargetUser:
+class TestSTOAHomeForTargetUser:
     """Unit tests for _stoa_home_for_target_user()."""
 
     def test_remaps_default_home(self, monkeypatch):
@@ -1262,10 +1262,10 @@ class TestHermesHomeForTargetUser:
 
     def test_keeps_custom_path(self, monkeypatch):
         monkeypatch.setattr(Path, "home", staticmethod(lambda: Path("/root")))
-        monkeypatch.setenv("STOA_HOME", "/opt/hermes")
+        monkeypatch.setenv("STOA_HOME", "/opt/stoa")
 
         result = gateway_cli._stoa_home_for_target_user("/home/alice")
-        assert result == "/opt/hermes"
+        assert result == "/opt/stoa"
 
     def test_noop_when_same_user(self, monkeypatch):
         monkeypatch.setattr(Path, "home", staticmethod(lambda: Path("/home/alice")))
@@ -1481,7 +1481,7 @@ class TestPreflightUserSystemd:
 
         msg = str(exc_info.value)
         assert "sudo loginctl enable-linger" in msg
-        assert "hermes gateway run" in msg  # foreground fallback mentioned
+        assert "stoa gateway run" in msg  # foreground fallback mentioned
         assert "Interactive authentication required" in msg
 
     def test_raises_when_loginctl_missing(self, monkeypatch):
@@ -1584,7 +1584,7 @@ class TestProfileArg:
 
     def test_hash_path_returns_empty(self, tmp_path, monkeypatch):
         """Arbitrary non-profile STOA_HOME should return empty string."""
-        custom_home = tmp_path / "custom" / "hermes"
+        custom_home = tmp_path / "custom" / "stoa"
         custom_home.mkdir(parents=True)
         monkeypatch.setattr(Path, "home", lambda: tmp_path)
         monkeypatch.setenv("STOA_HOME", str(tmp_path / ".stoa"))
@@ -1646,7 +1646,7 @@ class TestProfileArg:
 
         plist_path = gateway_cli.get_launchd_plist_path()
 
-        assert plist_path == machine_home / "Library" / "LaunchAgents" / "ai.hermes.gateway-orcha.plist"
+        assert plist_path == machine_home / "Library" / "LaunchAgents" / "ai.stoa.gateway-orcha.plist"
 
 
 class TestRemapPathForUser:
@@ -1664,8 +1664,8 @@ class TestRemapPathForUser:
     def test_keeps_system_path_unchanged(self, monkeypatch, tmp_path):
         monkeypatch.setattr(Path, "home", lambda: tmp_path / "root")
         (tmp_path / "root").mkdir()
-        result = gateway_cli._remap_path_for_user("/opt/hermes", str(tmp_path / "alice"))
-        assert result == "/opt/hermes"
+        result = gateway_cli._remap_path_for_user("/opt/stoa", str(tmp_path / "alice"))
+        assert result == "/opt/stoa"
 
     def test_noop_when_same_user(self, monkeypatch, tmp_path):
         monkeypatch.setattr(Path, "home", lambda: tmp_path / "alice")
@@ -1740,7 +1740,7 @@ class TestDockerAwareGateway:
         assert "status" in calls[0]
 
     def test_install_in_container_prints_docker_guidance(self, monkeypatch, capsys):
-        """'hermes gateway install' inside Docker exits 0 with container guidance."""
+        """'stoa gateway install' inside Docker exits 0 with container guidance."""
         import pytest
 
         monkeypatch.setattr(gateway_cli, "is_managed", lambda: False)
@@ -1760,7 +1760,7 @@ class TestDockerAwareGateway:
         assert "restart" in out.lower()
 
     def test_uninstall_in_container_prints_docker_guidance(self, monkeypatch, capsys):
-        """'hermes gateway uninstall' inside Docker exits 0 with container guidance."""
+        """'stoa gateway uninstall' inside Docker exits 0 with container guidance."""
         import pytest
 
         monkeypatch.setattr(gateway_cli, "is_managed", lambda: False)
@@ -1778,7 +1778,7 @@ class TestDockerAwareGateway:
         assert "docker" in out.lower()
 
     def test_start_in_container_prints_docker_guidance(self, monkeypatch, capsys):
-        """'hermes gateway start' inside Docker exits 0 with container guidance."""
+        """'stoa gateway start' inside Docker exits 0 with container guidance."""
         import pytest
 
         monkeypatch.setattr(gateway_cli, "is_termux", lambda: False)
@@ -1794,26 +1794,26 @@ class TestDockerAwareGateway:
         assert exc_info.value.code == 0
         out = capsys.readouterr().out
         assert "docker" in out.lower()
-        assert "hermes gateway run" in out
+        assert "stoa gateway run" in out
 
 
-class TestLegacyHermesUnitDetection:
+class TestLegacySTOAUnitDetection:
     """Tests for _find_legacy_stoa_units / has_legacy_stoa_units.
 
     These guard against the scenario that tripped Luis in April 2026: an
-    older install left a ``hermes.service`` unit behind when the service was
+    older install left a ``stoa.service`` unit behind when the service was
     renamed to ``stoa-gateway.service``. After PR #5646 (signal recovery
     via systemd), the two services began SIGTERM-flapping over the same
     Telegram bot token in a 30-second cycle.
 
-    The detector must flag ``hermes.service`` ONLY when it actually runs our
+    The detector must flag ``stoa.service`` ONLY when it actually runs our
     gateway, and must NEVER flag profile units
     (``stoa-gateway-<profile>.service``) or unrelated third-party services.
     """
 
     # Minimal ExecStart that looks like our gateway
     _OUR_UNIT_TEXT = (
-        "[Unit]\nDescription=Hermes Gateway\n[Service]\n"
+        "[Unit]\nDescription=STOA Gateway\n[Service]\n"
         "ExecStart=/usr/bin/python -m stoa_cli.main gateway run --replace\n"
     )
 
@@ -1833,28 +1833,28 @@ class TestLegacyHermesUnitDetection:
 
     def test_detects_legacy_stoa_service_in_user_scope(self, tmp_path, monkeypatch):
         user_dir, _ = self._setup_search_paths(tmp_path, monkeypatch)
-        legacy = user_dir / "hermes.service"
+        legacy = user_dir / "stoa.service"
         legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
         results = gateway_cli._find_legacy_stoa_units()
 
         assert len(results) == 1
         name, path, is_system = results[0]
-        assert name == "hermes.service"
+        assert name == "stoa.service"
         assert path == legacy
         assert is_system is False
         assert gateway_cli.has_legacy_stoa_units() is True
 
     def test_detects_legacy_stoa_service_in_system_scope(self, tmp_path, monkeypatch):
         _, system_dir = self._setup_search_paths(tmp_path, monkeypatch)
-        legacy = system_dir / "hermes.service"
+        legacy = system_dir / "stoa.service"
         legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
         results = gateway_cli._find_legacy_stoa_units()
 
         assert len(results) == 1
         name, path, is_system = results[0]
-        assert name == "hermes.service"
+        assert name == "stoa.service"
         assert path == legacy
         assert is_system is True
 
@@ -1884,15 +1884,15 @@ class TestLegacyHermesUnitDetection:
         assert gateway_cli.has_legacy_stoa_units() is False
 
     def test_ignores_unrelated_stoa_service(self, tmp_path, monkeypatch):
-        """Third-party ``hermes.service`` that isn't ours stays untouched.
+        """Third-party ``stoa.service`` that isn't ours stays untouched.
 
-        If a user has some other package named ``hermes`` installed as a
+        If a user has some other package named ``stoa`` installed as a
         service, we must not flag it.
         """
         user_dir, _ = self._setup_search_paths(tmp_path, monkeypatch)
-        (user_dir / "hermes.service").write_text(
-            "[Unit]\nDescription=Some Other Hermes\n[Service]\n"
-            "ExecStart=/opt/other-hermes/bin/daemon --foreground\n",
+        (user_dir / "stoa.service").write_text(
+            "[Unit]\nDescription=Some Other STOA\n[Service]\n"
+            "ExecStart=/opt/other-stoa/bin/daemon --foreground\n",
             encoding="utf-8",
         )
 
@@ -1911,8 +1911,8 @@ class TestLegacyHermesUnitDetection:
         """When a user has BOTH user-scope and system-scope legacy units,
         both are reported so the migration step can remove them together."""
         user_dir, system_dir = self._setup_search_paths(tmp_path, monkeypatch)
-        (user_dir / "hermes.service").write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
-        (system_dir / "hermes.service").write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
+        (user_dir / "stoa.service").write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
+        (system_dir / "stoa.service").write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
         results = gateway_cli._find_legacy_stoa_units()
 
@@ -1925,21 +1925,21 @@ class TestLegacyHermesUnitDetection:
         ExecStart variants we've seen in the wild:
           - python -m stoa_cli.main gateway run
           - python path/to/stoa_cli/main.py gateway run
-          - hermes gateway run   (direct binary)
+          - stoa gateway run   (direct binary)
           - python path/to/gateway/run.py
         """
         user_dir, _ = self._setup_search_paths(tmp_path, monkeypatch)
         variants = [
             "ExecStart=/venv/bin/python -m stoa_cli.main gateway run --replace",
-            "ExecStart=/venv/bin/python /opt/hermes/stoa_cli/main.py gateway run",
-            "ExecStart=/usr/local/bin/hermes gateway run --replace",
-            "ExecStart=/venv/bin/python /opt/hermes/gateway/run.py",
+            "ExecStart=/venv/bin/python /opt/stoa/stoa_cli/main.py gateway run",
+            "ExecStart=/usr/local/bin/stoa gateway run --replace",
+            "ExecStart=/venv/bin/python /opt/stoa/gateway/run.py",
         ]
         for i, execstart in enumerate(variants):
-            name = f"hermes.service" if i == 0 else f"hermes.service"  # same name
+            name = f"stoa.service" if i == 0 else f"stoa.service"  # same name
             # Test each variant fresh
-            (user_dir / "hermes.service").write_text(
-                f"[Unit]\nDescription=Old Hermes\n[Service]\n{execstart}\n",
+            (user_dir / "stoa.service").write_text(
+                f"[Unit]\nDescription=Old STOA\n[Service]\n{execstart}\n",
                 encoding="utf-8",
             )
             results = gateway_cli._find_legacy_stoa_units()
@@ -1955,19 +1955,19 @@ class TestLegacyHermesUnitDetection:
 
     def test_print_legacy_unit_warning_shows_migration_hint(self, tmp_path, monkeypatch, capsys):
         user_dir, _ = self._setup_search_paths(tmp_path, monkeypatch)
-        (user_dir / "hermes.service").write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
+        (user_dir / "stoa.service").write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
         gateway_cli.print_legacy_unit_warning()
         out = capsys.readouterr().out
 
         assert "Legacy" in out
-        assert "hermes.service" in out
-        assert "hermes gateway migrate-legacy" in out
+        assert "stoa.service" in out
+        assert "stoa gateway migrate-legacy" in out
 
     def test_handles_unreadable_unit_file_gracefully(self, tmp_path, monkeypatch):
         """A permission error reading a unit file must not crash detection."""
         user_dir, _ = self._setup_search_paths(tmp_path, monkeypatch)
-        unreadable = user_dir / "hermes.service"
+        unreadable = user_dir / "stoa.service"
         unreadable.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
         # Simulate a read failure — monkeypatch Path.read_text to raise
         original_read_text = gateway_cli.Path.read_text
@@ -1984,11 +1984,11 @@ class TestLegacyHermesUnitDetection:
         assert results == []
 
 
-class TestRemoveLegacyHermesUnits:
+class TestRemoveLegacySTOAUnits:
     """Tests for remove_legacy_stoa_units (the migration action)."""
 
     _OUR_UNIT_TEXT = (
-        "[Unit]\nDescription=Hermes Gateway\n[Service]\n"
+        "[Unit]\nDescription=STOA Gateway\n[Service]\n"
         "ExecStart=/usr/bin/python -m stoa_cli.main gateway run --replace\n"
     )
 
@@ -2025,7 +2025,7 @@ class TestRemoveLegacyHermesUnits:
 
     def test_dry_run_lists_without_removing(self, tmp_path, monkeypatch, capsys):
         user_dir, _, calls = self._setup(tmp_path, monkeypatch)
-        legacy = user_dir / "hermes.service"
+        legacy = user_dir / "stoa.service"
         legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
         removed, remaining = gateway_cli.remove_legacy_stoa_units(
@@ -2041,7 +2041,7 @@ class TestRemoveLegacyHermesUnits:
 
     def test_removes_user_scope_legacy_unit(self, tmp_path, monkeypatch, capsys):
         user_dir, _, calls = self._setup(tmp_path, monkeypatch)
-        legacy = user_dir / "hermes.service"
+        legacy = user_dir / "stoa.service"
         legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
         removed, remaining = gateway_cli.remove_legacy_stoa_units(interactive=False)
@@ -2051,13 +2051,13 @@ class TestRemoveLegacyHermesUnits:
         assert not legacy.exists()
         # Must have invoked stop → disable → daemon-reload on user scope
         cmds_joined = [" ".join(c) for c in calls]
-        assert any("--user stop hermes.service" in c for c in cmds_joined)
-        assert any("--user disable hermes.service" in c for c in cmds_joined)
+        assert any("--user stop stoa.service" in c for c in cmds_joined)
+        assert any("--user disable stoa.service" in c for c in cmds_joined)
         assert any("--user daemon-reload" in c for c in cmds_joined)
 
     def test_system_scope_without_root_defers_removal(self, tmp_path, monkeypatch, capsys):
         _, system_dir, calls = self._setup(tmp_path, monkeypatch, as_root=False)
-        legacy = system_dir / "hermes.service"
+        legacy = system_dir / "stoa.service"
         legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
         removed, remaining = gateway_cli.remove_legacy_stoa_units(interactive=False)
@@ -2066,11 +2066,11 @@ class TestRemoveLegacyHermesUnits:
         assert remaining == [legacy]
         assert legacy.exists()  # Not removed — requires sudo
         out = capsys.readouterr().out
-        assert "sudo hermes gateway migrate-legacy" in out
+        assert "sudo stoa gateway migrate-legacy" in out
 
     def test_system_scope_with_root_removes(self, tmp_path, monkeypatch, capsys):
         _, system_dir, calls = self._setup(tmp_path, monkeypatch, as_root=True)
-        legacy = system_dir / "hermes.service"
+        legacy = system_dir / "stoa.service"
         legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
         removed, remaining = gateway_cli.remove_legacy_stoa_units(interactive=False)
@@ -2081,16 +2081,16 @@ class TestRemoveLegacyHermesUnits:
         cmds_joined = [" ".join(c) for c in calls]
         # System-scope uses plain "systemctl" (no --user)
         assert any(
-            c.startswith("systemctl stop hermes.service") for c in cmds_joined
+            c.startswith("systemctl stop stoa.service") for c in cmds_joined
         )
         assert any(
-            c.startswith("systemctl disable hermes.service") for c in cmds_joined
+            c.startswith("systemctl disable stoa.service") for c in cmds_joined
         )
 
     def test_removes_both_scopes_with_root(self, tmp_path, monkeypatch, capsys):
         user_dir, system_dir, _ = self._setup(tmp_path, monkeypatch, as_root=True)
-        user_legacy = user_dir / "hermes.service"
-        system_legacy = system_dir / "hermes.service"
+        user_legacy = user_dir / "stoa.service"
+        system_legacy = system_dir / "stoa.service"
         user_legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
         system_legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
@@ -2124,7 +2124,7 @@ class TestRemoveLegacyHermesUnits:
     def test_interactive_prompt_no_skips_removal(self, tmp_path, monkeypatch, capsys):
         """When interactive=True and user answers no, no removal happens."""
         user_dir, _, _ = self._setup(tmp_path, monkeypatch)
-        legacy = user_dir / "hermes.service"
+        legacy = user_dir / "stoa.service"
         legacy.write_text(self._OUR_UNIT_TEXT, encoding="utf-8")
 
         monkeypatch.setattr(gateway_cli, "prompt_yes_no", lambda *a, **k: False)
@@ -2137,7 +2137,7 @@ class TestRemoveLegacyHermesUnits:
 
 
 class TestMigrateLegacyCommand:
-    """Tests for the `hermes gateway migrate-legacy` subcommand dispatch."""
+    """Tests for the `stoa gateway migrate-legacy` subcommand dispatch."""
 
     def test_migrate_legacy_subparser_accepts_dry_run_and_yes(self):
         """Verify the argparse subparser is registered and parses flags."""
@@ -2147,7 +2147,7 @@ class TestMigrateLegacyCommand:
         # Fall back to calling main's setup helper if direct access isn't exposed
         # The key thing: the subparser must exist. We verify by constructing
         # a namespace through argparse directly — but if build_parser isn't
-        # public, just confirm that `hermes gateway --help` shows it.
+        # public, just confirm that `stoa gateway --help` shows it.
         import subprocess
         import sys
 
@@ -2457,7 +2457,7 @@ class TestSystemScopeWizardPreCheck:
         assert gateway_cli._system_scope_wizard_would_need_root() is False
 
     def test_non_root_with_explicit_system_arg_returns_true(self, tmp_path, monkeypatch):
-        # Caller passed system=True explicitly (e.g. ``hermes gateway start --system``).
+        # Caller passed system=True explicitly (e.g. ``stoa gateway start --system``).
         self._setup_units(tmp_path, monkeypatch, system_present=False, user_present=False)
         monkeypatch.setattr(gateway_cli.os, "geteuid", lambda: 1000)
 
@@ -2478,8 +2478,8 @@ class TestSystemScopeRemediationOutput:
         assert "system-wide service" in out
         assert "start requires root" in out
         assert "sudo systemctl start stoa-gateway" in out
-        assert "sudo hermes gateway uninstall --system" in out
-        assert "hermes gateway install" in out
+        assert "sudo stoa gateway uninstall --system" in out
+        assert "stoa gateway install" in out
 
     def test_restart_remediation_uses_systemctl_restart(self, capsys, monkeypatch):
         monkeypatch.setattr(gateway_cli, "get_service_name", lambda: "stoa-gateway")
@@ -2501,7 +2501,7 @@ class TestSystemScopeRemediationOutput:
 
 
 class TestGatewayCommandCatchesSystemScopeError:
-    """The direct CLI path (``hermes gateway start --system`` etc.) must
+    """The direct CLI path (``stoa gateway start --system`` etc.) must
     still exit 1 with a clean message when non-root. The top-level
     ``gateway_command`` catches ``SystemScopeRequiresRootError`` and
     converts it back to ``sys.exit(1)``, preserving existing CLI behavior.

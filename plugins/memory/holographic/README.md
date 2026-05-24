@@ -9,17 +9,17 @@ None — uses SQLite (always available). NumPy optional for HRR algebra.
 ## Setup
 
 ```bash
-hermes memory setup    # select "holographic"
+stoa memory setup    # select "holographic"
 ```
 
 Or manually:
 ```bash
-hermes config set memory.provider holographic
+stoa config set memory.provider holographic
 ```
 
 ## Config
 
-Config in `config.yaml` under `plugins.hermes-memory-store`:
+Config in `config.yaml` under `plugins.stoa-memory-store`:
 
 | Key | Default | Description |
 |-----|---------|-------------|

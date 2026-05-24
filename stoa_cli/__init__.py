@@ -1,14 +1,14 @@
 """
-Hermes CLI - Unified command-line interface for STOA Agent.
+STOA CLI - Unified command-line interface for STOA Agent.
 
 Provides subcommands for:
-- hermes chat          - Interactive chat (same as ./hermes)
-- hermes gateway       - Run gateway in foreground
-- hermes gateway start - Start gateway service
-- hermes gateway stop  - Stop gateway service
-- hermes setup         - Interactive setup wizard
-- hermes status        - Show status of all components
-- hermes cron          - Manage cron jobs
+- stoa chat          - Interactive chat (same as ./stoa)
+- stoa gateway       - Run gateway in foreground
+- stoa gateway start - Start gateway service
+- stoa gateway stop  - Stop gateway service
+- stoa setup         - Interactive setup wizard
+- stoa status        - Show status of all components
+- stoa cron          - Manage cron jobs
 """
 
 import os

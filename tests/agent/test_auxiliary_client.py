@@ -96,7 +96,7 @@ class TestNormalizeAuxProvider:
 
 class TestReadCodexAccessToken:
     def test_valid_auth_store(self, tmp_path, monkeypatch):
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         (stoa_home / "auth.json").write_text(json.dumps({
             "version": 1,
@@ -111,7 +111,7 @@ class TestReadCodexAccessToken:
         assert result == "tok-123"
 
     def test_pool_without_selected_entry_falls_back_to_auth_store(self, tmp_path, monkeypatch):
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -125,7 +125,7 @@ class TestReadCodexAccessToken:
         assert result == valid_jwt
 
     def test_missing_returns_none(self, tmp_path, monkeypatch):
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         (stoa_home / "auth.json").write_text(json.dumps({"version": 1, "providers": {}}))
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -134,7 +134,7 @@ class TestReadCodexAccessToken:
         assert result is None
 
     def test_empty_token_returns_none(self, tmp_path, monkeypatch):
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         (stoa_home / "auth.json").write_text(json.dumps({
             "version": 1,
@@ -176,7 +176,7 @@ class TestReadCodexAccessToken:
         payload = base64.urlsafe_b64encode(payload_data).rstrip(b"=").decode()
         expired_jwt = f"{header}.{payload}.fakesig"
 
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         (stoa_home / "auth.json").write_text(json.dumps({
             "version": 1,
@@ -201,7 +201,7 @@ class TestReadCodexAccessToken:
         payload = base64.urlsafe_b64encode(payload_data).rstrip(b"=").decode()
         valid_jwt = f"{header}.{payload}.fakesig"
 
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         (stoa_home / "auth.json").write_text(json.dumps({
             "version": 1,
@@ -217,7 +217,7 @@ class TestReadCodexAccessToken:
 
     def test_non_jwt_token_passes_through(self, tmp_path, monkeypatch):
         """Non-JWT tokens (no dots) should be returned as-is."""
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         (stoa_home / "auth.json").write_text(json.dumps({
             "version": 1,
@@ -236,14 +236,14 @@ class TestResolveXaiOAuthForAux:
     def test_uses_pool_backed_credentials_without_singleton(self, tmp_path, monkeypatch):
         """Auxiliary xAI OAuth must see pool-only credentials.
 
-        ``hermes auth status`` already reports these as logged in; compression
+        ``stoa auth status`` already reports these as logged in; compression
         should not fall through to "no auxiliary provider configured" just
         because the singleton auth-store entry is absent.
         """
         from agent.credential_pool import AUTH_TYPE_OAUTH, PooledCredential, load_pool
         from stoa_cli.auth import DEFAULT_XAI_OAUTH_BASE_URL
 
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         (stoa_home / "auth.json").write_text(json.dumps({
             "version": 1,
@@ -275,7 +275,7 @@ class TestResolveXaiOAuthForAux:
         from agent.credential_pool import AUTH_TYPE_OAUTH, PooledCredential, load_pool
         from stoa_cli.auth import DEFAULT_XAI_OAUTH_BASE_URL
 
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         (stoa_home / "auth.json").write_text(json.dumps({
             "version": 1,
@@ -444,7 +444,7 @@ class TestExpiredCodexFallback:
         payload = base64.urlsafe_b64encode(payload_data).rstrip(b"=").decode()
         expired_jwt = f"{header}.{payload}.fakesig"
 
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         (stoa_home / "auth.json").write_text(json.dumps({
             "version": 1,
@@ -487,7 +487,7 @@ class TestExpiredCodexFallback:
         payload = base64.urlsafe_b64encode(payload_data).rstrip(b"=").decode()
         expired_jwt = f"{header}.{payload}.fakesig"
 
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         (stoa_home / "auth.json").write_text(json.dumps({
             "version": 1,
@@ -518,7 +518,7 @@ class TestExpiredCodexFallback:
         payload = base64.urlsafe_b64encode(payload_data).rstrip(b"=").decode()
         expired_jwt = f"{header}.{payload}.fakesig"
 
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         (stoa_home / "auth.json").write_text(json.dumps({
             "version": 1,
@@ -543,7 +543,7 @@ class TestExpiredCodexFallback:
     def test_stoa_oauth_file_sets_oauth_flag(self, monkeypatch):
         """OAuth-style tokens should get is_oauth=*** (token is not sk-ant-api-*)."""
         # Mock resolve_anthropic_token to return an OAuth-style token
-        with patch("agent.anthropic_adapter.resolve_anthropic_token", return_value="sk-ant-oat-hermes-token"), \
+        with patch("agent.anthropic_adapter.resolve_anthropic_token", return_value="sk-ant-oat-stoa-token"), \
              patch("agent.anthropic_adapter.build_anthropic_client") as mock_build, \
              patch("agent.auxiliary_client._select_pool_entry", return_value=(False, None)):
             mock_build.return_value = MagicMock()
@@ -561,7 +561,7 @@ class TestExpiredCodexFallback:
         payload = base64.urlsafe_b64encode(payload_data).rstrip(b"=").decode()
         no_exp_jwt = f"{header}.{payload}.fakesig"
 
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         (stoa_home / "auth.json").write_text(json.dumps({
             "version": 1,
@@ -582,7 +582,7 @@ class TestExpiredCodexFallback:
         payload = base64.urlsafe_b64encode(b"not-json-content").rstrip(b"=").decode()
         bad_jwt = f"{header}.{payload}.fakesig"
 
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir(parents=True, exist_ok=True)
         (stoa_home / "auth.json").write_text(json.dumps({
             "version": 1,
@@ -2729,7 +2729,7 @@ class TestNvidiaBillingHeaders:
         assert model == "nvidia/test-model"
         call_kwargs = mock_openai.call_args[1]
         headers = call_kwargs["default_headers"]
-        assert headers["X-BILLING-INVOKE-ORIGIN"] == "HermesAgent"
+        assert headers["X-BILLING-INVOKE-ORIGIN"] == "STOAAgent"
 
     def test_resolve_provider_client_local_nim_skips_billing_origin_header(self, monkeypatch):
         monkeypatch.setenv("NVIDIA_API_KEY", "nvidia-key")

@@ -181,7 +181,7 @@ _stdio_transport = StdioTransport(lambda: _real_stdout, _stdout_lock)
 
 
 class _SlashWorker:
-    """Persistent HermesCLI subprocess for slash commands."""
+    """Persistent STOACLI subprocess for slash commands."""
 
     def __init__(self, session_key: str, model: str):
         self._lock = threading.Lock()
@@ -525,7 +525,7 @@ def _wait_agent(session: dict, rid: str, timeout: float = 30.0) -> dict | None:
 def _start_agent_build(sid: str, session: dict) -> None:
     """Start building the real AIAgent for a TUI session, once.
 
-    Classic `hermes` shows the prompt before constructing AIAgent; the TUI used
+    Classic `stoa` shows the prompt before constructing AIAgent; the TUI used
     to eagerly build it during session.create, making startup feel blocked on
     tool discovery/model metadata even though the composer was visible.  Keep
     the shell responsive by deferring this work until the first prompt (or any
@@ -2580,7 +2580,7 @@ def _(rid, params: dict) -> dict:
     provider = getattr(agent, "provider", None) or "unknown"
     model = getattr(agent, "model", None) or "(unknown)"
     lines = [
-        "Hermes TUI Status",
+        "STOA TUI Status",
         "",
         f"Session ID: {key}",
         f"Path: {display_stoa_home()}",
@@ -4649,16 +4649,16 @@ def _(rid, params: dict) -> dict:
 def _cli_exec_blocked(argv: list[str]) -> str | None:
     """Return user hint if this argv must not run headless in the gateway process."""
     if not argv:
-        return "bare `hermes` is interactive — use `/hermes chat -q …` or run `hermes` in another terminal"
+        return "bare `stoa` is interactive — use `/stoa chat -q …` or run `stoa` in another terminal"
     a0 = argv[0].lower()
     if a0 == "setup":
-        return "`hermes setup` needs a full terminal — run it outside the TUI"
+        return "`stoa setup` needs a full terminal — run it outside the TUI"
     if a0 == "gateway":
-        return "`hermes gateway` is long-running — run it in another terminal"
+        return "`stoa gateway` is long-running — run it in another terminal"
     if a0 == "sessions" and len(argv) > 1 and argv[1].lower() == "browse":
-        return "`hermes sessions browse` is interactive — use /resume here, or run browse in another terminal"
+        return "`stoa sessions browse` is interactive — use /resume here, or run browse in another terminal"
     if a0 == "config" and len(argv) > 1 and argv[1].lower() == "edit":
-        return "`hermes config edit` needs $EDITOR in a real terminal"
+        return "`stoa config edit` needs $EDITOR in a real terminal"
     return None
 
 
@@ -5502,7 +5502,7 @@ def _(rid, params: dict) -> dict:
                 rid,
                 4003,
                 f"{pconfig.name} uses {pconfig.auth_type} auth — "
-                f"run `hermes model` to configure",
+                f"run `stoa model` to configure",
             )
         if not pconfig.api_key_env_vars:
             return _err(rid, 4004, f"no env var defined for {pconfig.name}")

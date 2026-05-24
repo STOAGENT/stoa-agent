@@ -1,4 +1,4 @@
-"""Tests for `hermes fallback` — chain reading, add/remove/clear, legacy migration."""
+"""Tests for `stoa fallback` — chain reading, add/remove/clear, legacy migration."""
 from __future__ import annotations
 
 import io
@@ -47,12 +47,12 @@ class TestReadChain:
         cfg = {
             "fallback_providers": [
                 {"provider": "openrouter", "model": "anthropic/claude-sonnet-4.6"},
-                {"provider": "nous", "model": "Hermes-4-Llama-3.1-405B"},
+                {"provider": "nous", "model": "STOA-4-Llama-3.1-405B"},
             ]
         }
         assert _read_chain(cfg) == [
             {"provider": "openrouter", "model": "anthropic/claude-sonnet-4.6"},
-            {"provider": "nous", "model": "Hermes-4-Llama-3.1-405B"},
+            {"provider": "nous", "model": "STOA-4-Llama-3.1-405B"},
         ]
 
     def test_merges_new_and_legacy_formats(self):
@@ -61,11 +61,11 @@ class TestReadChain:
             "fallback_providers": [
                 {"provider": "openrouter", "model": "anthropic/claude-sonnet-4.6"},
             ],
-            "fallback_model": {"provider": "nous", "model": "Hermes-4"},
+            "fallback_model": {"provider": "nous", "model": "STOA-4"},
         }
         assert _read_chain(cfg) == [
             {"provider": "openrouter", "model": "anthropic/claude-sonnet-4.6"},
-            {"provider": "nous", "model": "Hermes-4"},
+            {"provider": "nous", "model": "STOA-4"},
         ]
 
     def test_legacy_duplicate_is_deduplicated_after_merge(self):
@@ -158,14 +158,14 @@ class TestListCommand:
         cmd_fallback_list(types.SimpleNamespace())
         out = capsys.readouterr().out
         assert "No fallback providers configured" in out
-        assert "hermes fallback add" in out
+        assert "stoa fallback add" in out
 
     def test_list_with_entries(self, isolated_home, capsys):
         _write_config(isolated_home, {
             "model": {"provider": "anthropic", "default": "claude-sonnet-4-6"},
             "fallback_providers": [
                 {"provider": "openrouter", "model": "anthropic/claude-sonnet-4.6"},
-                {"provider": "nous", "model": "Hermes-4"},
+                {"provider": "nous", "model": "STOA-4"},
             ],
         })
         from stoa_cli.fallback_cmd import cmd_fallback_list
@@ -173,7 +173,7 @@ class TestListCommand:
         out = capsys.readouterr().out
         assert "Fallback chain (2 entries)" in out
         assert "anthropic/claude-sonnet-4.6" in out
-        assert "Hermes-4" in out
+        assert "STOA-4" in out
         # Primary should be shown too
         assert "claude-sonnet-4-6" in out
 
@@ -373,12 +373,12 @@ class TestRemoveCommand:
         _write_config(isolated_home, {
             "fallback_providers": [
                 {"provider": "openrouter", "model": "gpt-5.4"},
-                {"provider": "nous", "model": "Hermes-4"},
+                {"provider": "nous", "model": "STOA-4"},
                 {"provider": "anthropic", "model": "claude-sonnet-4-6"},
             ],
         })
 
-        # Picker returns index 1 (the middle entry, "nous / Hermes-4")
+        # Picker returns index 1 (the middle entry, "nous / STOA-4")
         with patch("stoa_cli.setup._curses_prompt_choice", return_value=1):
             from stoa_cli.fallback_cmd import cmd_fallback_remove
             cmd_fallback_remove(types.SimpleNamespace())
@@ -390,7 +390,7 @@ class TestRemoveCommand:
         ]
         out = capsys.readouterr().out
         assert "Removed fallback" in out
-        assert "Hermes-4" in out
+        assert "STOA-4" in out
 
     def test_remove_cancel_keeps_chain(self, isolated_home):
         _write_config(isolated_home, {
@@ -424,7 +424,7 @@ class TestClearCommand:
         _write_config(isolated_home, {
             "fallback_providers": [
                 {"provider": "openrouter", "model": "gpt-5.4"},
-                {"provider": "nous", "model": "Hermes-4"},
+                {"provider": "nous", "model": "STOA-4"},
             ],
         })
         monkeypatch.setattr("builtins.input", lambda *a, **kw: "y")
@@ -486,7 +486,7 @@ class TestDispatcher:
 # ---------------------------------------------------------------------------
 
 class TestArgparseWiring:
-    """Verify `hermes fallback` is wired into main.py's argparse tree.
+    """Verify `stoa fallback` is wired into main.py's argparse tree.
 
     main() builds the parser inline, so we invoke main([...]) via subprocess
     with --help to introspect registered subcommands without side effects.

@@ -120,8 +120,8 @@ export const pt: Translations = {
     starting: "A iniciar",
     startedInBackground: "Iniciado em segundo plano — verifique os registos para acompanhar",
     stopped: "Parado",
-    updateHermes: "Atualizar Hermes",
-    updatingHermes: "A atualizar Hermes…",
+    updateSTOA: "Atualizar STOA",
+    updatingSTOA: "A atualizar STOA…",
     waitingForOutput: "À espera de saída…",
   },
 
@@ -267,7 +267,7 @@ export const pt: Translations = {
     enableRuntime: "Ativar",
     forceReinstall: "Forçar reinstalação (eliminar pasta existente primeiro)",
     headline:
-      "Descobrir, instalar, ativar e atualizar plugins Hermes (paridade com `hermes plugins`).",
+      "Descobrir, instalar, ativar e atualizar plugins STOA (paridade com `stoa plugins`).",
     identifierLabel: "URL Git ou owner/repo",
     inactive: "inativo",
     installBtn: "Instalar",
@@ -433,11 +433,11 @@ export const pt: Translations = {
   achievements: {
     hero: {
       kicker: "Agentic Gamerscore",
-      title: "Hermes Achievements",
+      title: "STOA Achievements",
       subtitle:
-        "Distintivos colecionáveis do Hermes obtidos a partir do histórico real de sessões. Conquistas conhecidas mas ainda não obtidas aparecem como Descobertas; conquistas Secretas permanecem ocultas até surgir o primeiro comportamento correspondente.",
+        "Distintivos colecionáveis do STOA obtidos a partir do histórico real de sessões. Conquistas conhecidas mas ainda não obtidas aparecem como Descobertas; conquistas Secretas permanecem ocultas até surgir o primeiro comportamento correspondente.",
       scan_subtitle:
-        "A analisar o histórico de sessões do Hermes. A primeira análise pode demorar 5–10 segundos em históricos extensos.",
+        "A analisar o histórico de sessões do STOA. A primeira análise pode demorar 5–10 segundos em históricos extensos.",
     },
     actions: {
       rescan: "Voltar a analisar",
@@ -452,7 +452,7 @@ export const pt: Translations = {
       highest_tier: "Nível mais alto",
       highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
       latest: "Mais recente",
-      latest_hint_empty: "execute mais o Hermes",
+      latest_hint_empty: "execute mais o STOA",
       none_yet: "Ainda nenhuma",
     },
     state: {
@@ -483,10 +483,10 @@ export const pt: Translations = {
       tiers_header: "Níveis",
       secret_header: "Conquistas secretas",
       secret_body:
-        "As secretas escondem o seu acionador exato. Assim que o Hermes detetar um sinal relacionado, o cartão passa a Descoberta e mostra o requisito.",
+        "As secretas escondem o seu acionador exato. Assim que o STOA detetar um sinal relacionado, o cartão passa a Descoberta e mostra o requisito.",
       scan_status_header: "Estado da análise",
       scan_status_body:
-        "O Hermes analisa o histórico local uma vez e depois os cartões aparecem automaticamente. Nada está bloqueado se isto demorar alguns segundos.",
+        "O STOA analisa o histórico local uma vez e depois os cartões aparecem automaticamente. Nada está bloqueado se isto demorar alguns segundos.",
       what_scanned_header: "O que é analisado",
       what_scanned_body:
         "Sessões, chamadas de ferramentas, metadados de modelos, erros, conquistas e estado de desbloqueio local.",

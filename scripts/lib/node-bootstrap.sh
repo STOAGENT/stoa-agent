@@ -7,7 +7,7 @@
 #
 # Strategy (first hit wins — respects the user's existing tooling):
 #   1. modern `node` already on PATH
-#   2. ~/.stoa/node/ from a prior Hermes-managed install
+#   2. ~/.stoa/node/ from a prior STOA-managed install
 #   3. fnm, proto, nvm (in that order) if the user already uses a version manager
 #   4. Termux `pkg`, macOS Homebrew
 #   5. pinned nodejs.org tarball into ~/.stoa/node/ (always works, zero shell rc edits)
@@ -214,7 +214,7 @@ ensure_node() {
     if [ -x "$STOA_HOME/node/bin/node" ]; then
         export PATH="$STOA_HOME/node/bin:$PATH"
         if _nb_have_modern_node; then
-            _nb_ok "Node $(node --version) found (Hermes-managed)"
+            _nb_ok "Node $(node --version) found (STOA-managed)"
             STOA_NODE_AVAILABLE=true
             return 0
         fi

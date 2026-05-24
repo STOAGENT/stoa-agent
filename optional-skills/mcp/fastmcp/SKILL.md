@@ -6,7 +6,7 @@ author: STOA Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  hermes:
+  stoa:
     tags: [MCP, FastMCP, Python, Tools, Resources, Prompts, Deployment]
     homepage: https://gofastmcp.com
     related_skills: [native-mcp, mcporter]
@@ -25,11 +25,11 @@ Use this skill when the task is to:
 - create a new MCP server in Python
 - wrap an API, database, CLI, or file-processing workflow as MCP tools
 - expose resources or prompts in addition to tools
-- smoke-test a server with the FastMCP CLI before wiring it into Hermes or another client
+- smoke-test a server with the FastMCP CLI before wiring it into STOA or another client
 - install a server into Claude Code, Claude Desktop, Cursor, or a similar MCP client
 - prepare a FastMCP server repo for HTTP deployment
 
-Use `native-mcp` when the server already exists and only needs to be connected to Hermes. Use `mcporter` when the goal is ad-hoc CLI access to an existing MCP server instead of building one.
+Use `native-mcp` when the server already exists and only needs to be connected to STOA. Use `mcporter` when the goal is ad-hoc CLI access to an existing MCP server instead of building one.
 
 ## Prerequisites
 
@@ -170,7 +170,7 @@ fastmcp install cursor acme_server.py -e .
 
 Use `fastmcp discover` to inspect named MCP servers already configured on the machine.
 
-When the goal is Hermes integration, either:
+When the goal is STOA integration, either:
 
 - configure the server in `~/.stoa/config.yaml` using the `native-mcp` skill, or
 - keep using FastMCP CLI commands during development until the interface stabilizes
@@ -291,9 +291,9 @@ fastmcp call server.py your_tool_name --json
 
 This usually exposes naming mismatches, missing required arguments, or non-serializable return values.
 
-### Hermes cannot see the deployed server
+### STOA cannot see the deployed server
 
-The server-building part may be correct while the Hermes config is not. Load the `native-mcp` skill and configure the server in `~/.stoa/config.yaml`, then restart Hermes.
+The server-building part may be correct while the STOA config is not. Load the `native-mcp` skill and configure the server in `~/.stoa/config.yaml`, then restart STOA.
 
 ## References
 

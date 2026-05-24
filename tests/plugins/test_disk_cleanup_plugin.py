@@ -88,7 +88,7 @@ class TestIsSafePath:
 
     def test_accepts_tmp_stoa_prefix(self, _isolate_env, tmp_path):
         dg = _load_lib()
-        assert dg.is_safe_path(Path("/tmp/hermes-abc/x.log")) is True
+        assert dg.is_safe_path(Path("/tmp/stoa-abc/x.log")) is True
 
     def test_rejects_plain_tmp(self, _isolate_env):
         dg = _load_lib()

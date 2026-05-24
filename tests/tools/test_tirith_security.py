@@ -1070,7 +1070,7 @@ class TestDiskFailureMarker:
 # STOA_HOME isolation
 # ---------------------------------------------------------------------------
 
-class TestHermesHomeIsolation:
+class TestSTOAHomeIsolation:
     def test_stoa_bin_dir_respects_stoa_home(self):
         """_stoa_bin_dir must use STOA_HOME, not hardcoded ~/.stoa."""
         from tools.tirith_security import _stoa_bin_dir
@@ -1084,9 +1084,9 @@ class TestHermesHomeIsolation:
     def test_failure_marker_respects_stoa_home(self):
         """_failure_marker_path must use STOA_HOME, not hardcoded ~/.stoa."""
         from tools.tirith_security import _failure_marker_path
-        with patch.dict(os.environ, {"STOA_HOME": "/custom/hermes"}):
+        with patch.dict(os.environ, {"STOA_HOME": "/custom/stoa"}):
             result = _failure_marker_path()
-        assert result == "/custom/hermes/.tirith-install-failed"
+        assert result == "/custom/stoa/.tirith-install-failed"
 
     def test_conftest_isolation_prevents_real_home_writes(self):
         """The conftest autouse fixture sets STOA_HOME; verify it's active."""

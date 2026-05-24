@@ -8,8 +8,8 @@ description: "Running STOA Agent in Docker and using Docker as a terminal backen
 
 There are two distinct ways Docker intersects with STOA Agent:
 
-1. **Running Hermes IN Docker** — the agent itself runs inside a container (this page's primary focus)
-2. **Docker as a terminal backend** — the agent runs on your host but executes every command inside a single, persistent Docker sandbox container that survives across tool calls, `/new`, and subagents for the life of the Hermes process (see [Configuration → Docker Backend](./configuration.md#docker-backend))
+1. **Running STOA IN Docker** — the agent itself runs inside a container (this page's primary focus)
+2. **Docker as a terminal backend** — the agent runs on your host but executes every command inside a single, persistent Docker sandbox container that survives across tool calls, `/new`, and subagents for the life of the STOA process (see [Configuration → Docker Backend](./configuration.md#docker-backend))
 
 This page covers option 1. The container stores all user data (config, API keys, sessions, skills, memories) in a single directory mounted from the host at `/opt/data`. The image itself is stateless and can be upgraded by pulling a new version without losing any configuration.
 
@@ -32,7 +32,7 @@ Once configured, run the container in the background as a persistent gateway (Te
 
 ```sh
 docker run -d \
-  --name hermes \
+  --name stoa \
   --restart unless-stopped \
   -v ~/.stoa:/opt/data \
   -p 8642:8642 \
@@ -45,7 +45,7 @@ Note: the API server is gated on `API_SERVER_ENABLED=true`. To expose it beyond 
 
 ```sh
 docker run -d \
-  --name hermes \
+  --name stoa \
   --restart unless-stopped \
   -v ~/.stoa:/opt/data \
   -p 8642:8642 \
@@ -64,7 +64,7 @@ The built-in web dashboard runs as an optional side-process inside the same cont
 
 ```sh
 docker run -d \
-  --name hermes \
+  --name stoa \
   --restart unless-stopped \
   -v ~/.stoa:/opt/data \
   -p 8642:8642 \
@@ -73,16 +73,16 @@ docker run -d \
   nousresearch/stoa-agent gateway run
 ```
 
-The entrypoint starts `hermes dashboard` in the background (running as the non-root `hermes` user) before `exec`-ing the main command. Dashboard output is prefixed with `[dashboard]` in `docker logs` so it's easy to separate from gateway logs.
+The entrypoint starts `stoa dashboard` in the background (running as the non-root `stoa` user) before `exec`-ing the main command. Dashboard output is prefixed with `[dashboard]` in `docker logs` so it's easy to separate from gateway logs.
 
 | Environment variable | Description | Default |
 |---------------------|-------------|---------|
 | `STOA_DASHBOARD` | Set to `1` (or `true` / `yes`) to launch the dashboard alongside the main command | *(unset — dashboard not started)* |
 | `STOA_DASHBOARD_HOST` | Bind address for the dashboard HTTP server | `0.0.0.0` |
 | `STOA_DASHBOARD_PORT` | Port for the dashboard HTTP server | `9119` |
-| `STOA_DASHBOARD_TUI` | Set to `1` to expose the in-browser Chat tab (embedded `hermes --tui` via PTY/WebSocket) | *(unset)* |
+| `STOA_DASHBOARD_TUI` | Set to `1` to expose the in-browser Chat tab (embedded `stoa --tui` via PTY/WebSocket) | *(unset)* |
 
-The default `STOA_DASHBOARD_HOST=0.0.0.0` is required for the host to reach the dashboard through the published port; the entrypoint automatically passes `--insecure` to `hermes dashboard` in that case. Override to `127.0.0.1` if you want to restrict the dashboard to in-container access only (e.g. behind a reverse proxy in a sidecar).
+The default `STOA_DASHBOARD_HOST=0.0.0.0` is required for the host to reach the dashboard through the published port; the entrypoint automatically passes `--insecure` to `stoa dashboard` in that case. Override to `127.0.0.1` if you want to restrict the dashboard to in-container access only (e.g. behind a reverse proxy in a sidecar).
 
 :::note
 The dashboard side-process is **not supervised** — if it crashes, it stays down until the container restarts. Running it as a separate container is not supported: the dashboard's gateway-liveness detection requires a shared PID namespace with the gateway process.
@@ -101,17 +101,17 @@ docker run -it --rm \
 Or if you have already opened a terminal in your running container (via Docker Desktop for instance), just run:
 
 ```sh
-/opt/hermes/.venv/bin/hermes
+/opt/stoa/.venv/bin/stoa
 ```
 
 ## Persistent volumes
 
-The `/opt/data` volume is the single source of truth for all Hermes state. It maps to your host's `~/.stoa/` directory and contains:
+The `/opt/data` volume is the single source of truth for all STOA state. It maps to your host's `~/.stoa/` directory and contains:
 
 | Path | Contents |
 |------|----------|
 | `.env` | API keys and secrets |
-| `config.yaml` | All Hermes configuration |
+| `config.yaml` | All STOA configuration |
 | `SOUL.md` | Agent personality/identity |
 | `sessions/` | Conversation history |
 | `memories/` | Persistent memory store |
@@ -122,19 +122,19 @@ The `/opt/data` volume is the single source of truth for all Hermes state. It ma
 | `skins/` | Custom CLI skins |
 
 :::warning
-Never run two Hermes **gateway** containers against the same data directory simultaneously — session files and memory stores are not designed for concurrent write access.
+Never run two STOA **gateway** containers against the same data directory simultaneously — session files and memory stores are not designed for concurrent write access.
 :::
 
 ## Multi-profile support
 
-Hermes supports [multiple profiles](../reference/profile-commands.md) — separate `~/.stoa/` directories that let you run independent agents (different SOUL, skills, memory, sessions, credentials) from a single installation. **When running under Docker, using Hermes' built-in multi-profile feature is not recommended.**
+STOA supports [multiple profiles](../reference/profile-commands.md) — separate `~/.stoa/` directories that let you run independent agents (different SOUL, skills, memory, sessions, credentials) from a single installation. **When running under Docker, using STOA' built-in multi-profile feature is not recommended.**
 
 Instead, the recommended pattern is **one container per profile**, with each container bind-mounting its own host directory as `/opt/data`:
 
 ```sh
 # Work profile
 docker run -d \
-  --name hermes-work \
+  --name stoa-work \
   --restart unless-stopped \
   -v ~/.stoa-work:/opt/data \
   -p 8642:8642 \
@@ -142,7 +142,7 @@ docker run -d \
 
 # Personal profile
 docker run -d \
-  --name hermes-personal \
+  --name stoa-personal \
   --restart unless-stopped \
   -v ~/.stoa-personal:/opt/data \
   -p 8643:8642 \
@@ -152,7 +152,7 @@ docker run -d \
 Why separate containers over profiles in Docker:
 
 - **Isolation** — each container has its own filesystem, process table, and resource limits. A crash, dependency change, or runaway session in one profile can't affect another.
-- **Independent lifecycle** — upgrade, restart, pause, or roll back each agent separately (`docker restart hermes-work` leaves `hermes-personal` untouched).
+- **Independent lifecycle** — upgrade, restart, pause, or roll back each agent separately (`docker restart stoa-work` leaves `stoa-personal` untouched).
 - **Clean port and network separation** — each gateway binds its own host port; there's no risk of cross-talk between chat platforms or API servers.
 - **Simpler mental model** — the container *is* the profile. Backups, migrations, and permissions all follow the bind-mounted directory, with no extra `--profile` flags to remember.
 - **Avoids concurrent-write risk** — the warning above about never running two gateways against the same data directory still applies to profiles within a single container.
@@ -161,9 +161,9 @@ In Docker Compose, this just means declaring one service per profile with distin
 
 ```yaml
 services:
-  hermes-work:
+  stoa-work:
     image: nousresearch/stoa-agent:latest
-    container_name: hermes-work
+    container_name: stoa-work
     restart: unless-stopped
     command: gateway run
     ports:
@@ -171,9 +171,9 @@ services:
     volumes:
       - ~/.stoa-work:/opt/data
 
-  hermes-personal:
+  stoa-personal:
     image: nousresearch/stoa-agent:latest
-    container_name: hermes-personal
+    container_name: stoa-personal
     restart: unless-stopped
     command: gateway run
     ports:
@@ -197,7 +197,7 @@ docker run -it --rm \
 Direct `-e` flags override values from `.env`. This is useful for CI/CD or secrets-manager integrations where you don't want keys on disk.
 
 :::note Looking for Docker as the **terminal backend**?
-This page covers running Hermes itself inside Docker. If you want Hermes to execute the agent's `terminal` / `execute_code` calls inside a Docker sandbox container (one persistent container per Hermes process), that's a separate config block — `terminal.backend: docker` plus `terminal.docker_image`, `terminal.docker_volumes`, `terminal.docker_forward_env`, `terminal.docker_run_as_host_user`, and `terminal.docker_extra_args`. See [Configuration → Docker Backend](configuration.md#docker-backend) for the full set.
+This page covers running STOA itself inside Docker. If you want STOA to execute the agent's `terminal` / `execute_code` calls inside a Docker sandbox container (one persistent container per STOA process), that's a separate config block — `terminal.backend: docker` plus `terminal.docker_image`, `terminal.docker_volumes`, `terminal.docker_forward_env`, `terminal.docker_run_as_host_user`, and `terminal.docker_extra_args`. See [Configuration → Docker Backend](configuration.md#docker-backend) for the full set.
 :::
 
 ## Docker Compose example
@@ -206,9 +206,9 @@ For persistent deployment with both the gateway and dashboard, a `docker-compose
 
 ```yaml
 services:
-  hermes:
+  stoa:
     image: nousresearch/stoa-agent:latest
-    container_name: hermes
+    container_name: stoa
     restart: unless-stopped
     command: gateway run
     ports:
@@ -233,7 +233,7 @@ Start with `docker compose up -d` and view logs with `docker compose logs -f`. D
 
 ## Resource limits
 
-The Hermes container needs moderate resources. Recommended minimums:
+The STOA container needs moderate resources. Recommended minimums:
 
 | Resource | Minimum | Recommended |
 |----------|---------|-------------|
@@ -247,7 +247,7 @@ Set limits in Docker:
 
 ```sh
 docker run -d \
-  --name hermes \
+  --name stoa \
   --restart unless-stopped \
   --memory=4g --cpus=2 \
   -v ~/.stoa:/opt/data \
@@ -258,7 +258,7 @@ docker run -d \
 
 The official image is based on `debian:13.4` and includes:
 
-- Python 3 with all Hermes dependencies (`uv pip install -e ".[all]"`)
+- Python 3 with all STOA dependencies (`uv pip install -e ".[all]"`)
 - Node.js + npm (for browser automation and WhatsApp bridge)
 - Playwright with Chromium (`npx playwright install --with-deps chromium --only-shell`)
 - ripgrep, ffmpeg, git, and tini as system utilities
@@ -272,11 +272,11 @@ The entrypoint script (`docker/entrypoint.sh`) bootstraps the data volume on fir
 - Copies default `config.yaml` if missing
 - Copies default `SOUL.md` if missing
 - Syncs bundled skills using a manifest-based approach (preserves user edits)
-- Optionally launches `hermes dashboard` as a background side-process when `STOA_DASHBOARD=1` (see [Running the dashboard](#running-the-dashboard))
-- Then runs `hermes` with whatever arguments you pass
+- Optionally launches `stoa dashboard` as a background side-process when `STOA_DASHBOARD=1` (see [Running the dashboard](#running-the-dashboard))
+- Then runs `stoa` with whatever arguments you pass
 
 :::warning
-Do not override the image entrypoint unless you keep `/opt/hermes/docker/entrypoint.sh` in the command chain. The entrypoint drops root privileges to the `hermes` user before gateway state files are created. Starting `hermes gateway run` as root inside the official image is refused by default because it can leave root-owned files in `/opt/data` and break later dashboard or gateway starts. Set `STOA_ALLOW_ROOT_GATEWAY=1` only when you intentionally accept that risk.
+Do not override the image entrypoint unless you keep `/opt/stoa/docker/entrypoint.sh` in the command chain. The entrypoint drops root privileges to the `stoa` user before gateway state files are created. Starting `stoa gateway run` as root inside the official image is refused by default because it can leave root-owned files in `/opt/data` and break later dashboard or gateway starts. Set `STOA_ALLOW_ROOT_GATEWAY=1` only when you intentionally accept that risk.
 :::
 
 ## Upgrading
@@ -285,9 +285,9 @@ Pull the latest image and recreate the container. Your data directory is untouch
 
 ```sh
 docker pull nousresearch/stoa-agent:latest
-docker rm -f hermes
+docker rm -f stoa
 docker run -d \
-  --name hermes \
+  --name stoa \
   --restart unless-stopped \
   -v ~/.stoa:/opt/data \
   nousresearch/stoa-agent gateway run
@@ -302,13 +302,13 @@ docker compose up -d
 
 ## Skills and credential files
 
-When using Docker as the execution environment (not the methods above, but when the agent runs commands inside a Docker sandbox — see [Configuration → Docker Backend](./configuration.md#docker-backend)), Hermes reuses a single long-lived container for all tool calls and automatically bind-mounts the skills directory (`~/.stoa/skills/`) and any credential files declared by skills into that container as read-only volumes. Skill scripts, templates, and references are available inside the sandbox without manual configuration, and because the container persists for the life of the Hermes process, any dependencies you install or files you write stay around for the next tool call.
+When using Docker as the execution environment (not the methods above, but when the agent runs commands inside a Docker sandbox — see [Configuration → Docker Backend](./configuration.md#docker-backend)), STOA reuses a single long-lived container for all tool calls and automatically bind-mounts the skills directory (`~/.stoa/skills/`) and any credential files declared by skills into that container as read-only volumes. Skill scripts, templates, and references are available inside the sandbox without manual configuration, and because the container persists for the life of the STOA process, any dependencies you install or files you write stay around for the next tool call.
 
 The same syncing happens for SSH and Modal backends — skills and credential files are uploaded via rsync or the Modal mount API before each command.
 
 ## Connecting to local inference servers (vLLM, Ollama, etc.)
 
-When running Hermes in Docker and your inference server (vLLM, Ollama, text-generation-inference, etc.) is also running on the host or in another container, networking requires extra attention.
+When running STOA in Docker and your inference server (vLLM, Ollama, text-generation-inference, etc.) is also running on the host or in another container, networking requires extra attention.
 
 ### Docker Compose (recommended)
 
@@ -327,16 +327,16 @@ services:
     ports:
       - "8000:8000"
     networks:
-      - hermes-net
+      - stoa-net
     deploy:
       resources:
         reservations:
           devices:
             - capabilities: [gpu]
 
-  hermes:
+  stoa:
     image: nousresearch/stoa-agent:latest
-    container_name: hermes
+    container_name: stoa
     restart: unless-stopped
     command: gateway run
     ports:
@@ -344,10 +344,10 @@ services:
     volumes:
       - ~/.stoa:/opt/data
     networks:
-      - hermes-net
+      - stoa-net
 
 networks:
-  hermes-net:
+  stoa-net:
     driver: bridge
 ```
 
@@ -362,7 +362,7 @@ model:
 ```
 
 :::tip Key points
-- Use the **container name** (`vllm`) as the hostname — not `localhost` or `127.0.0.1`, which refer to the Hermes container itself.
+- Use the **container name** (`vllm`) as the hostname — not `localhost` or `127.0.0.1`, which refer to the STOA container itself.
 - The `model` value must match the `--served-model-name` you passed to vLLM.
 - Set `api_key` to any non-empty string (vLLM requires the header but doesn't validate it by default).
 - Do **not** include a trailing slash in `base_url`.
@@ -376,7 +376,7 @@ If your inference server runs directly on the host (not in Docker), use `host.do
 
 ```sh
 docker run -d \
-  --name hermes \
+  --name stoa \
   -v ~/.stoa:/opt/data \
   -p 8642:8642 \
   nousresearch/stoa-agent gateway run
@@ -395,7 +395,7 @@ model:
 
 ```sh
 docker run -d \
-  --name hermes \
+  --name stoa \
   --network host \
   -v ~/.stoa:/opt/data \
   nousresearch/stoa-agent gateway run
@@ -415,15 +415,15 @@ model:
 
 ### Verifying connectivity
 
-From inside the Hermes container, confirm the inference server is reachable:
+From inside the STOA container, confirm the inference server is reachable:
 
 ```sh
-docker exec hermes curl -s http://vllm:8000/v1/models
+docker exec stoa curl -s http://vllm:8000/v1/models
 ```
 
 You should see a JSON response listing your served model. If this fails, check:
 
-1. Both containers are on the same Docker network (`docker network inspect hermes-net`)
+1. Both containers are on the same Docker network (`docker network inspect stoa-net`)
 2. The inference server is listening on `0.0.0.0`, not `127.0.0.1`
 3. The port number matches
 
@@ -443,13 +443,13 @@ model:
 
 ### Container exits immediately
 
-Check logs: `docker logs hermes`. Common causes:
+Check logs: `docker logs stoa`. Common causes:
 - Missing or invalid `.env` file — run interactively first to complete setup
 - Port conflicts if running with exposed ports
 
 ### "Permission denied" errors
 
-The container's entrypoint drops privileges to the non-root `hermes` user (UID 10000) via `gosu`. If your host `~/.stoa/` is owned by a different UID, set `STOA_UID`/`STOA_GID` to match your host user, or ensure the data directory is writable:
+The container's entrypoint drops privileges to the non-root `stoa` user (UID 10000) via `gosu`. If your host `~/.stoa/` is owned by a different UID, set `STOA_UID`/`STOA_GID` to match your host user, or ensure the data directory is writable:
 
 ```sh
 chmod -R 755 ~/.stoa
@@ -461,7 +461,7 @@ Playwright needs shared memory. Add `--shm-size=1g` to your Docker run command:
 
 ```sh
 docker run -d \
-  --name hermes \
+  --name stoa \
   --shm-size=1g \
   -v ~/.stoa:/opt/data \
   nousresearch/stoa-agent gateway run
@@ -472,13 +472,13 @@ docker run -d \
 The `--restart unless-stopped` flag handles most transient failures. If the gateway is stuck, restart the container:
 
 ```sh
-docker restart hermes
+docker restart stoa
 ```
 
 ### Checking container health
 
 ```sh
-docker logs --tail 50 hermes          # Recent logs
+docker logs --tail 50 stoa          # Recent logs
 docker run -it --rm nousresearch/stoa-agent:latest version     # Verify version
-docker stats hermes                    # Resource usage
+docker stats stoa                    # Resource usage
 ```

@@ -1,4 +1,4 @@
-"""Tests for the Hermes plugin system (stoa_cli.plugins)."""
+"""Tests for the STOA plugin system (stoa_cli.plugins)."""
 
 import logging
 import os

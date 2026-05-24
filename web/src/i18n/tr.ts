@@ -120,8 +120,8 @@ export const tr: Translations = {
     starting: "Başlatılıyor",
     startedInBackground: "Arka planda başlatıldı — ilerleme için günlüklere bakın",
     stopped: "Durduruldu",
-    updateHermes: "Hermes'i Güncelle",
-    updatingHermes: "Hermes güncelleniyor…",
+    updateSTOA: "STOA'i Güncelle",
+    updatingSTOA: "STOA güncelleniyor…",
     waitingForOutput: "Çıktı bekleniyor…",
   },
 
@@ -267,7 +267,7 @@ export const tr: Translations = {
     enableRuntime: "Etkinleştir",
     forceReinstall: "Yeniden yüklemeyi zorla (önce mevcut klasörü sil)",
     headline:
-      "Hermes eklentilerini keşfedin, yükleyin, etkinleştirin ve güncelleyin (`hermes plugins` ile eşdeğer).",
+      "STOA eklentilerini keşfedin, yükleyin, etkinleştirin ve güncelleyin (`stoa plugins` ile eşdeğer).",
     identifierLabel: "Git URL veya owner/repo",
     inactive: "pasif",
     installBtn: "Yükle",
@@ -433,11 +433,11 @@ export const tr: Translations = {
   achievements: {
     hero: {
       kicker: "Agentic Gamerscore",
-      title: "Hermes Achievements",
+      title: "STOA Achievements",
       subtitle:
-        "Gerçek oturum geçmişinden kazanılan, koleksiyonluk Hermes rozetleri. Bilinen ama henüz tamamlanmamış başarılar Keşfedildi olarak gösterilir; Gizli başarılar ilk eşleşen davranış görünene kadar saklı kalır.",
+        "Gerçek oturum geçmişinden kazanılan, koleksiyonluk STOA rozetleri. Bilinen ama henüz tamamlanmamış başarılar Keşfedildi olarak gösterilir; Gizli başarılar ilk eşleşen davranış görünene kadar saklı kalır.",
       scan_subtitle:
-        "Hermes oturum geçmişi taranıyor. Büyük geçmişlerde ilk tarama 5–10 saniye sürebilir.",
+        "STOA oturum geçmişi taranıyor. Büyük geçmişlerde ilk tarama 5–10 saniye sürebilir.",
     },
     actions: {
       rescan: "Yeniden tara",
@@ -452,7 +452,7 @@ export const tr: Translations = {
       highest_tier: "En yüksek kademe",
       highest_tier_hint: "Copper → Silver → Gold → Diamond → Olympian",
       latest: "En son",
-      latest_hint_empty: "Hermes'i daha çok çalıştır",
+      latest_hint_empty: "STOA'i daha çok çalıştır",
       none_yet: "Henüz yok",
     },
     state: {
@@ -483,10 +483,10 @@ export const tr: Translations = {
       tiers_header: "Kademeler",
       secret_header: "Gizli başarılar",
       secret_body:
-        "Sırlar, tetikleyicilerini saklı tutar. Hermes ilgili bir sinyal gördüğünde kart Keşfedildi durumuna geçer ve gereksinimini gösterir.",
+        "Sırlar, tetikleyicilerini saklı tutar. STOA ilgili bir sinyal gördüğünde kart Keşfedildi durumuna geçer ve gereksinimini gösterir.",
       scan_status_header: "Tarama durumu",
       scan_status_body:
-        "Hermes yerel geçmişi bir kez tarıyor; sonra kartlar otomatik olarak görünür. Birkaç saniye sürmesi normaldir, hiçbir şey takılmadı.",
+        "STOA yerel geçmişi bir kez tarıyor; sonra kartlar otomatik olarak görünür. Birkaç saniye sürmesi normaldir, hiçbir şey takılmadı.",
       what_scanned_header: "Neler taranır",
       what_scanned_body:
         "Oturumlar, araç çağrıları, model meta verileri, hatalar, başarılar ve yerel açılma durumu.",

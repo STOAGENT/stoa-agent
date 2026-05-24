@@ -2,11 +2,11 @@
 
 from unittest.mock import MagicMock, patch
 
-from cli import HermesCLI
+from cli import STOACLI
 
 
-def _make_cli() -> HermesCLI:
-    cli_obj = HermesCLI.__new__(HermesCLI)
+def _make_cli() -> STOACLI:
+    cli_obj = STOACLI.__new__(STOACLI)
     cli_obj.config = {}
     cli_obj.console = MagicMock()
     cli_obj.agent = None

@@ -114,9 +114,9 @@ class TestValidateProfileName:
         with pytest.raises(ValueError):
             validate_profile_name("")
 
-    @pytest.mark.parametrize("name", ["hermes", "test", "tmp", "root", "sudo"])
+    @pytest.mark.parametrize("name", ["stoa", "test", "tmp", "root", "sudo"])
     def test_reserved_names_rejected(self, name):
-        """Reserved names collide with the Hermes install itself or with
+        """Reserved names collide with the STOA install itself or with
         common system binaries — reject them at validate time so
         create/install/rename all share one gate."""
         with pytest.raises(ValueError, match="reserved"):
@@ -315,7 +315,7 @@ class TestCreateProfile:
 # ===================================================================
 
 class TestNoSkillsOptOut:
-    """Tests for `hermes profile create --no-skills` and the opt-out marker."""
+    """Tests for `stoa profile create --no-skills` and the opt-out marker."""
 
     def test_no_skills_writes_marker_and_skips_seeding(self, profile_env):
         profile_dir = create_profile("orchestrator", no_alias=True, no_skills=True)
@@ -353,7 +353,7 @@ class TestNoSkillsOptOut:
 
     def test_seed_profile_skills_respects_marker(self, profile_env):
         """seed_profile_skills() must no-op on opted-out profiles even when
-        called directly (e.g. by `hermes update`'s all-profile sync loop)."""
+        called directly (e.g. by `stoa update`'s all-profile sync loop)."""
         profile_dir = create_profile("orchestrator", no_alias=True, no_skills=True)
 
         # Call seed_profile_skills() directly — it should NOT invoke subprocess,
@@ -587,7 +587,7 @@ class TestAliasCollision:
         assert result is None
 
     def test_reserved_name_returns_message(self, profile_env):
-        result = check_alias_collision("hermes")
+        result = check_alias_collision("stoa")
         assert result is not None
         assert "reserved" in result.lower()
 
@@ -629,14 +629,14 @@ class TestRenameProfile:
         honcho_path = tmp_path / ".stoa" / "honcho.json"
         honcho_path.write_text(json.dumps({
             "hosts": {
-                "hermes.ssi_health": {
+                "stoa.ssi_health": {
                     "recallMode": "hybrid",
                     "writeFrequency": "async",
                     "sessionStrategy": "per-session",
                     "saveMessages": True,
                     "peerName": "user-peer",
                     "aiPeer": "ssi_health",
-                    "workspace": "hermes",
+                    "workspace": "stoa",
                     "enabled": True,
                 }
             }
@@ -646,9 +646,9 @@ class TestRenameProfile:
             rename_profile("ssi_health", "heimdall")
 
         cfg = json.loads(honcho_path.read_text())
-        assert "hermes.ssi_health" not in cfg["hosts"]
-        assert cfg["hosts"]["hermes.heimdall"]["aiPeer"] == "ssi_health"
-        assert cfg["hosts"]["hermes.heimdall"]["peerName"] == "user-peer"
+        assert "stoa.ssi_health" not in cfg["hosts"]
+        assert cfg["hosts"]["stoa.heimdall"]["aiPeer"] == "ssi_health"
+        assert cfg["hosts"]["stoa.heimdall"]["peerName"] == "user-peer"
 
     def test_pins_ai_peer_when_absent_on_honcho_host_rename(self, profile_env):
         tmp_path = profile_env
@@ -656,7 +656,7 @@ class TestRenameProfile:
         honcho_path = tmp_path / ".stoa" / "honcho.json"
         honcho_path.write_text(json.dumps({
             "hosts": {
-                "hermes.ssi_health": {"workspace": "hermes", "enabled": True}
+                "stoa.ssi_health": {"workspace": "stoa", "enabled": True}
             }
         }))
 
@@ -664,9 +664,9 @@ class TestRenameProfile:
             rename_profile("ssi_health", "heimdall")
 
         cfg = json.loads(honcho_path.read_text())
-        assert "hermes.ssi_health" not in cfg["hosts"]
-        assert cfg["hosts"]["hermes.heimdall"]["aiPeer"] == "ssi_health"
-        assert cfg["hosts"]["hermes.heimdall"]["workspace"] == "hermes"
+        assert "stoa.ssi_health" not in cfg["hosts"]
+        assert cfg["hosts"]["stoa.heimdall"]["aiPeer"] == "ssi_health"
+        assert cfg["hosts"]["stoa.heimdall"]["workspace"] == "stoa"
 
     def test_does_not_overwrite_existing_honcho_host_on_rename(self, profile_env):
         tmp_path = profile_env
@@ -674,8 +674,8 @@ class TestRenameProfile:
         honcho_path = tmp_path / ".stoa" / "honcho.json"
         honcho_path.write_text(json.dumps({
             "hosts": {
-                "hermes.ssi_health": {"aiPeer": "ssi_health"},
-                "hermes.heimdall": {"aiPeer": "heimdall"},
+                "stoa.ssi_health": {"aiPeer": "ssi_health"},
+                "stoa.heimdall": {"aiPeer": "heimdall"},
             }
         }))
 
@@ -683,8 +683,8 @@ class TestRenameProfile:
             rename_profile("ssi_health", "heimdall")
 
         cfg = json.loads(honcho_path.read_text())
-        assert cfg["hosts"]["hermes.ssi_health"]["aiPeer"] == "ssi_health"
-        assert cfg["hosts"]["hermes.heimdall"]["aiPeer"] == "heimdall"
+        assert cfg["hosts"]["stoa.ssi_health"]["aiPeer"] == "ssi_health"
+        assert cfg["hosts"]["stoa.heimdall"]["aiPeer"] == "heimdall"
 
     def test_default_raises_value_error(self, profile_env):
         with pytest.raises(ValueError, match="default"):
@@ -1012,7 +1012,7 @@ class TestProfileIsolation:
 
 
 # ===================================================================
-# TestGetProfilesRoot / TestGetDefaultHermesHome (internal helpers)
+# TestGetProfilesRoot / TestGetDefaultSTOAHome (internal helpers)
 # ===================================================================
 
 class TestInternalHelpers:

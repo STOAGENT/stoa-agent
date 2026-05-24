@@ -1,4 +1,4 @@
-# Hermes Achievements Performance Spec (Post-Hackathon)
+# STOA Achievements Performance Spec (Post-Hackathon)
 
 Status: Draft (no code changes yet)
 Owner: stoa-achievements plugin

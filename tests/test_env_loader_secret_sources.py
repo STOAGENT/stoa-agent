@@ -1,6 +1,6 @@
 """Tests for the secret-source tracking in ``stoa_cli.env_loader``.
 
-These cover the small public surface that lets `hermes model` / `hermes setup`
+These cover the small public surface that lets `stoa model` / `stoa setup`
 label detected credentials with their origin ("from Bitwarden") so users
 don't see an unexplained "credentials ✓" line when their .env is empty.
 """

@@ -6,7 +6,7 @@ author: STOA Agent + Teknium
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  hermes:
+  stoa:
     tags: [gitnexus, code-intelligence, knowledge-graph, visualization]
     related_skills: [native-mcp, codebase-inspection]
 ---

@@ -91,7 +91,7 @@ class TestSSHBulkUpload:
         assert "/home/testuser/.stoa/credentials" in mkdir_str
 
     def test_staging_symlinks_mirror_remote_layout(self, mock_env, tmp_path):
-        """Symlinks in staging dir should mirror the .hermes-relative layout."""
+        """Symlinks in staging dir should mirror the .stoa-relative layout."""
         f1 = tmp_path / "local_a.txt"
         f1.write_text("content a")
 

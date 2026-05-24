@@ -8,9 +8,9 @@ Usage::
 
     python -m acp_adapter.entry
     # or
-    hermes acp
+    stoa acp
     # or
-    hermes-acp
+    stoa-acp
 """
 
 # IMPORTANT: stoa_bootstrap must be the very first import — UTF-8 stdio
@@ -19,7 +19,7 @@ try:
     import stoa_bootstrap  # noqa: F401
 except ModuleNotFoundError:
     # Graceful fallback when stoa_bootstrap isn't registered in the venv
-    # yet — happens during partial ``hermes update`` where git-reset landed
+    # yet — happens during partial ``stoa update`` where git-reset landed
     # new code but ``uv pip install -e .`` didn't finish.  Missing bootstrap
     # means UTF-8 stdio setup is skipped on Windows; POSIX is unaffected.
     pass
@@ -110,10 +110,10 @@ def _load_env() -> None:
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="hermes-acp",
+        prog="stoa-acp",
         description="Run STOA Agent as an ACP stdio server.",
     )
-    parser.add_argument("--version", action="store_true", help="Print Hermes version and exit")
+    parser.add_argument("--version", action="store_true", help="Print STOA version and exit")
     parser.add_argument(
         "--check",
         action="store_true",
@@ -122,7 +122,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--setup",
         action="store_true",
-        help="Run interactive Hermes provider/model setup for ACP terminal auth",
+        help="Run interactive STOA provider/model setup for ACP terminal auth",
     )
     parser.add_argument(
         "--setup-browser",
@@ -149,7 +149,7 @@ def _print_version() -> None:
 
 def _run_check() -> None:
     import acp  # noqa: F401
-    from acp_adapter.server import HermesACPAgent  # noqa: F401
+    from acp_adapter.server import STOAACPAgent  # noqa: F401
 
     print("STOA ACP check OK")
 
@@ -159,7 +159,7 @@ def _run_setup() -> None:
 
     old_argv = sys.argv[:]
     try:
-        sys.argv = [old_argv[0] if old_argv else "hermes", "model"]
+        sys.argv = [old_argv[0] if old_argv else "stoa", "model"]
         stoa_main()
     finally:
         sys.argv = old_argv
@@ -185,7 +185,7 @@ def _run_setup_browser(assume_yes: bool = False) -> int:
     """Bootstrap agent-browser + Chromium.
 
     Routes through dep_ensure -> install.{sh,ps1} --ensure, sharing code
-    with ``hermes postinstall`` and the runtime lazy installer.
+    with ``stoa postinstall`` and the runtime lazy installer.
 
     Returns 0 on success, 1 on failure.
     """
@@ -239,7 +239,7 @@ def main(argv: list[str] | None = None) -> None:
         sys.path.insert(0, project_root)
 
     import acp
-    from .server import HermesACPAgent
+    from .server import STOAACPAgent
 
     # MCP tool discovery from config.yaml — run before asyncio.run() so
     # it's safe to use blocking waits.  (ACP also registers per-session
@@ -252,7 +252,7 @@ def main(argv: list[str] | None = None) -> None:
     except Exception:
         logger.debug("MCP tool discovery failed at ACP startup", exc_info=True)
 
-    agent = HermesACPAgent()
+    agent = STOAACPAgent()
     try:
         asyncio.run(acp.run_agent(agent, use_unstable_protocol=True))
     except KeyboardInterrupt:

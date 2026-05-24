@@ -1,7 +1,7 @@
 """
-Gateway subcommand for hermes CLI.
+Gateway subcommand for stoa CLI.
 
-Handles: hermes gateway [run|start|stop|restart|status|install|uninstall|setup]
+Handles: stoa gateway [run|start|stop|restart|status|install|uninstall|setup]
 """
 
 import asyncio
@@ -32,7 +32,7 @@ from stoa_cli.config import (
     save_env_value,
 )
 # display_stoa_home is imported lazily at call sites to avoid ImportError
-# when stoa_constants is cached from a pre-update version during `hermes update`.
+# when stoa_constants is cached from a pre-update version during `stoa update`.
 from stoa_cli.setup import (
     print_header, print_info, print_success, print_warning, print_error,
     prompt, prompt_choice, prompt_yes_no,
@@ -139,7 +139,7 @@ def _get_parent_pid(pid: int) -> int | None:
     older implementation shelled out to ``ps -o ppid= -p <pid>``, which
     silently fails on Windows (no ``ps``) so the ancestor walk terminated
     at self — the caller's dedup / exclude logic then couldn't distinguish
-    "hermes CLI that invoked this scan" from "real gateway process".
+    "stoa CLI that invoked this scan" from "real gateway process".
     """
     if pid <= 1:
         return None
@@ -262,7 +262,7 @@ def _get_ancestor_pids() -> set[int]:
 
     Walks from the current PID up to PID 1 (init) so that process-table scans
     never match the calling CLI process or any of its parents.  This prevents
-    ``hermes gateway status`` from falsely counting the ``hermes`` CLI that
+    ``stoa gateway status`` from falsely counting the ``stoa`` CLI that
     invoked it as a running gateway instance (see #13242).
     """
     ancestors: set[int] = set()
@@ -293,7 +293,7 @@ def _scan_gateway_pids(exclude_pids: set[int], all_profiles: bool = False) -> li
     discover gateways outside the current profile.
     """
     # Exclude the entire ancestor chain so the CLI process that invoked this
-    # scan (e.g. ``hermes gateway status``) is never mistaken for a running
+    # scan (e.g. ``stoa gateway status``) is never mistaken for a running
     # gateway.  See #13242.
     exclude_pids = exclude_pids | _get_ancestor_pids()
     pids: list[int] = []
@@ -304,7 +304,7 @@ def _scan_gateway_pids(exclude_pids: set[int], all_profiles: bool = False) -> li
         "stoa_cli/main.py gateway",
         "stoa_cli/main.py --profile",
         "stoa_cli/main.py -p",
-        "hermes gateway",
+        "stoa gateway",
         "gateway/run.py",
     ]
     current_home = str(get_stoa_home().resolve())
@@ -515,10 +515,10 @@ def find_gateway_pids(exclude_pids: set | None = None, all_profiles: bool = Fals
         exclude_pids: PIDs to exclude from the result (e.g. service-managed
             PIDs that should not be killed during a stale-process sweep).
         all_profiles: When ``True``, return gateway PIDs across **all**
-            profiles (the pre-7923 global behaviour).  ``hermes update``
+            profiles (the pre-7923 global behaviour).  ``stoa update``
             needs this because a code update affects every profile.
             When ``False`` (default), only PIDs belonging to the current
-            Hermes profile are returned.
+            STOA profile are returned.
     """
     _exclude = set(exclude_pids or set())
     pids: list[int] = []
@@ -539,7 +539,7 @@ def find_gateway_pids(exclude_pids: set | None = None, all_profiles: bool = Fals
 def find_profile_gateway_processes(
     exclude_pids: set | None = None,
 ) -> list[ProfileGatewayProcess]:
-    """Return running gateway PIDs mapped to Hermes profiles via PID files."""
+    """Return running gateway PIDs mapped to STOA profiles via PID files."""
     _exclude = set(exclude_pids or set())
     processes: list[ProfileGatewayProcess] = []
     try:
@@ -584,8 +584,8 @@ def launch_detached_profile_gateway_restart(profile: str, old_pid: int) -> bool:
     #
     # Windows — ``start_new_session`` is silently accepted but does NOT
     # detach.  The watcher stays attached to the CLI's console and dies
-    # when the user closes the terminal, leaving ``hermes update`` users
-    # with no running gateway until they re-invoke ``hermes gateway``
+    # when the user closes the terminal, leaving ``stoa update`` users
+    # with no running gateway until they re-invoke ``stoa gateway``
     # manually.  The Win32 equivalent is the ``CREATE_NEW_PROCESS_GROUP |
     # DETACHED_PROCESS | CREATE_NO_WINDOW`` creationflags bundle.
     #
@@ -854,7 +854,7 @@ def _wait_for_systemd_service_restart(
 
     print(
         f"⚠ {scope_label} service did not become active within {int(timeout)}s.\n"
-        f"  Check status: {'sudo ' if system else ''}hermes gateway status\n"
+        f"  Check status: {'sudo ' if system else ''}stoa gateway status\n"
         f"  Check logs:   journalctl {'--user ' if not system else ''}-u {svc} -l --since '2 min ago'"
     )
     return False
@@ -895,7 +895,7 @@ def _print_systemd_start_limit_wait(system: bool = False) -> None:
     journal_prefix = "journalctl " if system else "journalctl --user "
     print(f"⏳ {scope_label} service is temporarily rate-limited by systemd.")
     print("  systemd is refusing another immediate start after repeated exits.")
-    print(f"  Wait for the start-limit window to expire, then run: {'sudo ' if system else ''}hermes gateway restart{scope_flag}")
+    print(f"  Wait for the start-limit window to expire, then run: {'sudo ' if system else ''}stoa gateway restart{scope_flag}")
     print(f"  Or clear the failed state manually: {systemctl_prefix}reset-failed {svc}")
     print(f"  Check logs: {journal_prefix}-u {svc} -l --since '5 min ago'")
 
@@ -1025,14 +1025,14 @@ def _print_gateway_process_mismatch(snapshot: GatewayRuntimeSnapshot) -> None:
     print()
     print("⚠ Gateway process is running for this profile, but the service is not active")
     print(f"  PID(s): {_format_gateway_pids(snapshot.gateway_pids, limit=None)}")
-    print("  This is usually a manual foreground/tmux/nohup run, so `hermes gateway`")
+    print("  This is usually a manual foreground/tmux/nohup run, so `stoa gateway`")
     print("  can refuse to start another copy until this process stops.")
 
 
 def _print_other_profiles_gateway_status() -> None:
     """Print a summary of gateway status across all profiles.
 
-    Shown at the bottom of ``hermes gateway status`` output so users with
+    Shown at the bottom of ``stoa gateway status`` output so users with
     multiple profiles can tell at a glance which gateways are running and
     avoid confusing another profile's process with the current one.
     """
@@ -1232,7 +1232,7 @@ def is_windows() -> bool:
 def _windows_gateway_should_absorb_console_controls() -> bool:
     """Return True for detached Windows gateway runs that should ignore Ctrl+C.
 
-    Foreground ``hermes gateway run`` must remain interruptible from
+    Foreground ``stoa gateway run`` must remain interruptible from
     PowerShell/CMD. Detached service-style launches opt in via
     ``STOA_GATEWAY_DETACHED=1``; older wrappers without the env marker are
     treated as detached when no interactive stdin is attached.
@@ -1523,7 +1523,7 @@ def _raise_user_systemd_unavailable(username: str, *, reason: str, fix_hint: str
         "\n"
         "  Alternative: run the gateway in the foreground (stays up until\n"
         "  you exit / close the terminal):\n"
-        "    hermes gateway run"
+        "    stoa gateway run"
     )
     raise UserSystemdUnavailableError(msg)
 
@@ -1574,11 +1574,11 @@ def has_conflicting_systemd_units() -> bool:
     return len(get_installed_systemd_scopes()) > 1
 
 
-# Legacy service names from older Hermes installs that predate the
+# Legacy service names from older STOA installs that predate the
 # stoa-gateway rename. Kept as an explicit allowlist (NOT a glob) so
 # profile units (stoa-gateway-*.service) and unrelated third-party
-# "hermes" units are never matched.
-_LEGACY_SERVICE_NAMES: tuple[str, ...] = ("hermes.service",)
+# "stoa" units are never matched.
+_LEGACY_SERVICE_NAMES: tuple[str, ...] = ("stoa.service",)
 
 # ExecStart content markers that identify a unit as running our gateway.
 # A legacy unit is only flagged when its file contains one of these.
@@ -1586,8 +1586,8 @@ _LEGACY_UNIT_EXECSTART_MARKERS: tuple[str, ...] = (
     "stoa_cli.main gateway",
     "stoa_cli/main.py gateway",
     "gateway/run.py",
-    " hermes gateway ",
-    "/hermes gateway ",
+    " stoa gateway ",
+    "/stoa gateway ",
 )
 
 
@@ -1604,10 +1604,10 @@ def _legacy_unit_search_paths() -> list[tuple[bool, Path]]:
 
 
 def _find_legacy_stoa_units() -> list[tuple[str, Path, bool]]:
-    """Return ``[(unit_name, unit_path, is_system)]`` for legacy Hermes gateway units.
+    """Return ``[(unit_name, unit_path, is_system)]`` for legacy STOA gateway units.
 
-    Detects unit files installed by older Hermes versions that used a
-    different service name (e.g. ``hermes.service`` before the rename to
+    Detects unit files installed by older STOA versions that used a
+    different service name (e.g. ``stoa.service`` before the rename to
     ``stoa-gateway.service``). When both a legacy unit and the current
     ``stoa-gateway.service`` are active, they fight over the same bot
     token — the PR #5646 signal-recovery change turns this into a 30-second
@@ -1617,9 +1617,9 @@ def _find_legacy_stoa_units() -> list[tuple[str, Path, bool]]:
 
     * Explicit allowlist of legacy names (no globbing). Profile units such
       as ``stoa-gateway-coder.service`` and unrelated third-party
-      ``hermes-*`` services are never matched.
+      ``stoa-*`` services are never matched.
     * ExecStart content check — only flag units that invoke our gateway
-      entrypoint. A user-created ``hermes.service`` running an unrelated
+      entrypoint. A user-created ``stoa.service`` running an unrelated
       binary is left untouched.
     * Results are returned purely for caller inspection; this function
       never mutates or removes anything.
@@ -1642,12 +1642,12 @@ def _find_legacy_stoa_units() -> list[tuple[str, Path, bool]]:
 
 
 def has_legacy_stoa_units() -> bool:
-    """Return True when any legacy Hermes gateway unit files exist."""
+    """Return True when any legacy STOA gateway unit files exist."""
     return bool(_find_legacy_stoa_units())
 
 
 def print_legacy_unit_warning() -> None:
-    """Warn about legacy Hermes gateway unit files if any are installed.
+    """Warn about legacy STOA gateway unit files if any are installed.
 
     Idempotent: prints nothing when no legacy units are detected. Safe to
     call from any status/install/setup path.
@@ -1655,21 +1655,21 @@ def print_legacy_unit_warning() -> None:
     legacy = _find_legacy_stoa_units()
     if not legacy:
         return
-    print_warning("Legacy Hermes gateway unit(s) detected from an older install:")
+    print_warning("Legacy STOA gateway unit(s) detected from an older install:")
     for name, path, is_system in legacy:
         scope = "system" if is_system else "user"
         print_info(f"    {path}  ({scope} scope)")
     print_info("  These run alongside the current stoa-gateway service and")
     print_info("  cause SIGTERM flap loops — both try to use the same bot token.")
     print_info("  Remove them with:")
-    print_info("    hermes gateway migrate-legacy")
+    print_info("    stoa gateway migrate-legacy")
 
 
 def remove_legacy_stoa_units(
     interactive: bool = True,
     dry_run: bool = False,
 ) -> tuple[int, list[Path]]:
-    """Stop, disable, and remove legacy Hermes gateway unit files.
+    """Stop, disable, and remove legacy STOA gateway unit files.
 
     Iterates over whatever ``_find_legacy_stoa_units()`` returns — which is
     an explicit allowlist of legacy names (not a glob). Profile units and
@@ -1687,14 +1687,14 @@ def remove_legacy_stoa_units(
     """
     legacy = _find_legacy_stoa_units()
     if not legacy:
-        print("No legacy Hermes gateway units found.")
+        print("No legacy STOA gateway units found.")
         return 0, []
 
     user_units = [(n, p) for n, p, is_sys in legacy if not is_sys]
     system_units = [(n, p) for n, p, is_sys in legacy if is_sys]
 
     print()
-    print("Legacy Hermes gateway unit(s) found:")
+    print("Legacy STOA gateway unit(s) found:")
     for name, path, is_system in legacy:
         scope = "system" if is_system else "user"
         print(f"  {path}  ({scope} scope)")
@@ -1705,7 +1705,7 @@ def remove_legacy_stoa_units(
         return 0, [p for _, p, _ in legacy]
 
     if interactive and not prompt_yes_no("Remove these legacy units?", True):
-        print("Skipped. Run again with: hermes gateway migrate-legacy")
+        print("Skipped. Run again with: stoa gateway migrate-legacy")
         return 0, [p for _, p, _ in legacy]
 
     removed = 0
@@ -1734,7 +1734,7 @@ def remove_legacy_stoa_units(
         if os.geteuid() != 0:  # windows-footgun: ok — Linux systemd removal path, guarded by `if system == "Linux"` / systemd-only branch
             print()
             print_warning("System-scope legacy units require root to remove.")
-            print_info("  Re-run with: sudo hermes gateway migrate-legacy")
+            print_info("  Re-run with: sudo stoa gateway migrate-legacy")
             for _, path in system_units:
                 remaining.append(path)
         else:
@@ -1773,8 +1773,8 @@ def print_systemd_scope_conflict_warning() -> None:
     print_info("  This is confusing and can make start/stop/status behavior ambiguous.")
     print_info("  Default gateway commands target the user service unless you pass --system.")
     print_info("  Keep one of these:")
-    print_info("    hermes gateway uninstall")
-    print_info("    sudo hermes gateway uninstall --system")
+    print_info("    stoa gateway uninstall")
+    print_info("    sudo stoa gateway uninstall --system")
 
 
 def _require_root_for_system_service(action: str) -> None:
@@ -1847,12 +1847,12 @@ def install_linux_gateway_from_setup(force: bool = False, enable_on_startup: boo
     if scope == "system":
         run_as_user = _default_system_service_user()
         if os.geteuid() != 0:  # windows-footgun: ok — Linux systemd install wizard, never invoked on Windows
-            print_warning("  System service install requires sudo, so Hermes can't create it from this user session.")
+            print_warning("  System service install requires sudo, so STOA can't create it from this user session.")
             if run_as_user:
-                print_info(f"  After setup, run: sudo hermes gateway install --system --run-as-user {run_as_user}")
+                print_info(f"  After setup, run: sudo stoa gateway install --system --run-as-user {run_as_user}")
             else:
-                print_info("  After setup, run: sudo hermes gateway install --system --run-as-user <your-user>")
-            print_info("  Then start it with: sudo hermes gateway start --system")
+                print_info("  After setup, run: sudo stoa gateway install --system --run-as-user <your-user>")
+            print_info("  Then start it with: sudo stoa gateway start --system")
             return scope, False
 
         if not run_as_user:
@@ -1935,7 +1935,7 @@ def print_systemd_linger_guidance() -> None:
 def _launchd_user_home() -> Path:
     """Return the real macOS user home for launchd artifacts.
 
-    Profile-mode Hermes often sets ``HOME`` to a profile-scoped directory, but
+    Profile-mode STOA often sets ``HOME`` to a profile-scoped directory, but
     launchd user agents still live under the actual account home.
     """
     import pwd
@@ -1946,11 +1946,11 @@ def _launchd_user_home() -> Path:
 def get_launchd_plist_path() -> Path:
     """Return the launchd plist path, scoped per profile.
 
-    Default ``~/.stoa`` → ``ai.hermes.gateway.plist`` (backward compatible).
-    Profile ``~/.stoa/profiles/coder`` → ``ai.hermes.gateway-coder.plist``.
+    Default ``~/.stoa`` → ``ai.stoa.gateway.plist`` (backward compatible).
+    Profile ``~/.stoa/profiles/coder`` → ``ai.stoa.gateway-coder.plist``.
     """
     suffix = _profile_suffix()
-    name = f"ai.hermes.gateway-{suffix}" if suffix else "ai.hermes.gateway"
+    name = f"ai.stoa.gateway-{suffix}" if suffix else "ai.stoa.gateway"
     return _launchd_user_home() / "Library" / "LaunchAgents" / f"{name}.plist"
 
 def _detect_venv_dir() -> Path | None:
@@ -2060,7 +2060,7 @@ def _remap_path_for_user(path: str, target_home_dir: str) -> str:
     to *target_home_dir*; otherwise the path is returned unchanged.
 
       /root/.stoa/stoa-agent  -> /home/alice/.stoa/stoa-agent
-      /opt/hermes                 -> /opt/hermes  (kept as-is)
+      /opt/stoa                 -> /opt/stoa  (kept as-is)
 
     Note: this function intentionally does NOT resolve symlinks. A venv's
     ``bin/python`` is typically a symlink to the base interpreter (e.g. a
@@ -2086,23 +2086,23 @@ def _stoa_home_for_target_user(target_home_dir: str) -> str:
     root's home.  This translates it to the target user's equivalent path:
       /root/.stoa                    → /home/alice/.stoa
       /root/.stoa/profiles/coder     → /home/alice/.stoa/profiles/coder
-      /opt/custom-hermes               → /opt/custom-hermes  (kept as-is)
+      /opt/custom-stoa               → /opt/custom-stoa  (kept as-is)
     """
-    current_hermes = get_stoa_home().resolve()
+    current_stoa = get_stoa_home().resolve()
     current_default = (Path.home() / ".stoa").resolve()
     target_default = Path(target_home_dir) / ".stoa"
 
     # Default ~/.stoa → remap to target user's default
-    if current_hermes == current_default:
+    if current_stoa == current_default:
         return str(target_default)
 
     # Profile or subdir of ~/.stoa → preserve the relative structure
     try:
-        relative = current_hermes.relative_to(current_default)
+        relative = current_stoa.relative_to(current_default)
         return str(target_default / relative)
     except ValueError:
         # Completely custom path (not under ~/.stoa) — keep as-is
-        return str(current_hermes)
+        return str(current_stoa)
 
 
 def _build_service_path_dirs(project_root: Path | None = None) -> list[str]:
@@ -2313,7 +2313,7 @@ def refresh_systemd_unit_if_needed(system: bool = False) -> bool:
 
     unit_path.write_text(new_unit, encoding="utf-8")
     _run_systemctl(["daemon-reload"], system=system, check=True, timeout=30)
-    print(f"↻ Updated gateway {_service_scope_label(system)} service definition to match the current Hermes install")
+    print(f"↻ Updated gateway {_service_scope_label(system)} service definition to match the current STOA install")
     return True
 
 
@@ -2418,9 +2418,9 @@ def _print_system_scope_remediation(action: str) -> None:
     else:
         print_info(f"         sudo systemctl {action} {svc}")
     print_info("    2. Switch to a per-user service (recommended for personal use):")
-    print_info("         sudo hermes gateway uninstall --system")
-    print_info("         hermes gateway install")
-    print_info("         hermes gateway start")
+    print_info("         sudo stoa gateway uninstall --system")
+    print_info("         stoa gateway install")
+    print_info("         stoa gateway start")
 
 
 def _get_restart_drain_timeout() -> float:
@@ -2446,7 +2446,7 @@ def systemd_install(
     if system:
         _require_root_for_system_service("install")
 
-    # Offer to remove legacy units (hermes.service from pre-rename installs)
+    # Offer to remove legacy units (stoa.service from pre-rename installs)
     # before installing the new stoa-gateway.service. If both remain, they
     # flap-fight for the Telegram bot token on every gateway startup.
     # Only removes units matching _LEGACY_SERVICE_NAMES + our ExecStart
@@ -2487,8 +2487,8 @@ def systemd_install(
     print(f"✓ {_service_scope_label(system).capitalize()} service {enable_label}!")
     print()
     print("Next steps:")
-    print(f"  {'sudo ' if system else ''}hermes gateway start{scope_flag}              # Start the service")
-    print(f"  {'sudo ' if system else ''}hermes gateway status{scope_flag}             # Check status")
+    print(f"  {'sudo ' if system else ''}stoa gateway start{scope_flag}              # Start the service")
+    print(f"  {'sudo ' if system else ''}stoa gateway status{scope_flag}             # Check status")
     print(f"  {'journalctl' if system else 'journalctl --user'} -u {get_service_name()} -f  # View logs")
     print()
 
@@ -2525,7 +2525,7 @@ def _require_service_installed(action: str, system: bool = False) -> None:
     if not unit_path.exists():
         scope_flag = " --system" if system else ""
         print(f"✗ Gateway service is not installed")
-        print(f"  Run: {'sudo ' if system else ''}hermes gateway install{scope_flag}")
+        print(f"  Run: {'sudo ' if system else ''}stoa gateway install{scope_flag}")
         sys.exit(1)
 
 
@@ -2564,7 +2564,7 @@ def systemd_stop(system: bool = False):
         label = _service_scope_label(system)
         print(
             f"Gateway {label} service is still stopping after 90s; "
-            "check `hermes gateway status` or logs for final shutdown state."
+            "check `stoa gateway status` or logs for final shutdown state."
         )
         return
     print(f"✓ {_service_scope_label(system).capitalize()} service stopped")
@@ -2632,7 +2632,7 @@ def systemd_restart(system: bool = False):
             label = _service_scope_label(system)
             print(
                 f"Gateway {label} service is still restarting after 90s; "
-                "check `hermes gateway status` or logs for final state."
+                "check `stoa gateway status` or logs for final state."
             )
             return
         _wait_for_systemd_service_restart(system=system, previous_pid=pid)
@@ -2658,7 +2658,7 @@ def systemd_restart(system: bool = False):
         label = _service_scope_label(system)
         print(
             f"Gateway {label} service is still restarting after 90s; "
-            "check `hermes gateway status` or logs for final state."
+            "check `stoa gateway status` or logs for final state."
         )
         return
     _wait_for_systemd_service_restart(system=system, previous_pid=pid)
@@ -2672,7 +2672,7 @@ def systemd_status(deep: bool = False, system: bool = False, full: bool = False)
 
     if not unit_path.exists():
         print("✗ Gateway service is not installed")
-        print(f"  Run: {'sudo ' if system else ''}hermes gateway install{scope_flag}")
+        print(f"  Run: {'sudo ' if system else ''}stoa gateway install{scope_flag}")
         return
 
     _sync_stoa_home_from_systemd_unit(system=system)
@@ -2687,7 +2687,7 @@ def systemd_status(deep: bool = False, system: bool = False, full: bool = False)
 
     if not systemd_unit_is_current(system=system):
         print("⚠ Installed gateway service definition is outdated")
-        print(f"  Run: {'sudo ' if system else ''}hermes gateway restart{scope_flag}  # auto-refreshes the unit")
+        print(f"  Run: {'sudo ' if system else ''}stoa gateway restart{scope_flag}  # auto-refreshes the unit")
         print()
 
     status_cmd = ["status", get_service_name(), "--no-pager"]
@@ -2715,7 +2715,7 @@ def systemd_status(deep: bool = False, system: bool = False, full: bool = False)
         print(f"✓ {_service_scope_label(system).capitalize()} gateway service is running")
     else:
         print(f"✗ {_service_scope_label(system).capitalize()} gateway service is stopped")
-        print(f"  Run: {'sudo ' if system else ''}hermes gateway start{scope_flag}")
+        print(f"  Run: {'sudo ' if system else ''}stoa gateway start{scope_flag}")
 
     configured_user = _read_systemd_user_from_unit(unit_path) if system else None
     if configured_user:
@@ -2737,11 +2737,11 @@ def systemd_status(deep: bool = False, system: bool = False, full: bool = False)
         print("  ⏳ Restart pending: systemd is waiting to relaunch the gateway")
     elif _systemd_unit_is_start_limited(unit_props):
         print("  ⏳ Restart pending: systemd is temporarily rate-limiting starts")
-        print(f"  Run after the start-limit window expires: {'sudo ' if system else ''}hermes gateway restart{scope_flag}")
+        print(f"  Run after the start-limit window expires: {'sudo ' if system else ''}stoa gateway restart{scope_flag}")
         print(f"  Or clear it manually: systemctl {'--user ' if not system else ''}reset-failed {get_service_name()}")
     elif active_state == "failed" and exec_main_status == str(GATEWAY_SERVICE_RESTART_EXIT_CODE):
         print("  ⚠ Planned restart is stuck in systemd failed state (exit 75)")
-        print(f"  Run: systemctl {'--user ' if not system else ''}reset-failed {get_service_name()} && {'sudo ' if system else ''}hermes gateway start{scope_flag}")
+        print(f"  Run: systemctl {'--user ' if not system else ''}reset-failed {get_service_name()} && {'sudo ' if system else ''}stoa gateway start{scope_flag}")
     elif active_state == "failed" and result_code:
         print(f"  ⚠ Systemd unit result: {result_code}")
 
@@ -2773,7 +2773,7 @@ def systemd_status(deep: bool = False, system: bool = False, full: bool = False)
 def get_launchd_label() -> str:
     """Return the launchd service label, scoped per profile."""
     suffix = _profile_suffix()
-    return f"ai.hermes.gateway-{suffix}" if suffix else "ai.hermes.gateway"
+    return f"ai.stoa.gateway-{suffix}" if suffix else "ai.stoa.gateway"
 
 
 def _launchd_domain() -> str:
@@ -2893,7 +2893,7 @@ def refresh_launchd_plist_if_needed() -> bool:
     # Bootout/bootstrap so launchd picks up the new definition
     subprocess.run(["launchctl", "bootout", f"{_launchd_domain()}/{label}"], check=False, timeout=90)
     subprocess.run(["launchctl", "bootstrap", _launchd_domain(), str(plist_path)], check=False, timeout=30)
-    print("↻ Updated gateway launchd service definition to match the current Hermes install")
+    print("↻ Updated gateway launchd service definition to match the current STOA install")
     return True
 
 
@@ -2920,7 +2920,7 @@ def launchd_install(force: bool = False):
     print("✓ Service installed and loaded!")
     print()
     print("Next steps:")
-    print("  hermes gateway status             # Check status")
+    print("  stoa gateway status             # Check status")
     from stoa_constants import display_stoa_home as _dhh
     print(f"  tail -f {_dhh()}/logs/gateway.log  # View logs")
 
@@ -2973,7 +2973,7 @@ def launchd_stop():
     # bootout unloads the service definition so KeepAlive doesn't respawn
     # the process.  A plain `kill SIGTERM` only signals the process — launchd
     # immediately restarts it because KeepAlive.SuccessfulExit = false.
-    # `hermes gateway start` re-bootstraps when it detects the job is unloaded.
+    # `stoa gateway start` re-bootstraps when it detects the job is unloaded.
     try:
         subprocess.run(["launchctl", "bootout", target], check=True, timeout=90)
     except subprocess.CalledProcessError as e:
@@ -3076,10 +3076,10 @@ def launchd_status(deep: bool = False):
 
     print(f"Launchd plist: {plist_path}")
     if launchd_plist_is_current():
-        print("✓ Service definition matches the current Hermes install")
+        print("✓ Service definition matches the current STOA install")
     else:
-        print("⚠ Service definition is stale relative to the current Hermes install")
-        print("  Run: hermes gateway start")
+        print("⚠ Service definition is stale relative to the current STOA install")
+        print("  Run: stoa gateway start")
 
     if loaded:
         print("✓ Gateway service is loaded")
@@ -3087,7 +3087,7 @@ def launchd_status(deep: bool = False):
     else:
         print("✗ Gateway service is not loaded")
         print("  Service definition exists locally but launchd has not loaded it.")
-        print("  Run: hermes gateway start")
+        print("  Run: stoa gateway start")
     
     if deep:
         log_file = get_stoa_home() / "logs" / "gateway.log"
@@ -3107,7 +3107,7 @@ def _truthy_env(value: str | None) -> bool:
 
 def _is_official_docker_checkout() -> bool:
     return (
-        str(PROJECT_ROOT) == "/opt/hermes"
+        str(PROJECT_ROOT) == "/opt/stoa"
         and (PROJECT_ROOT / "docker" / "entrypoint.sh").is_file()
     )
 
@@ -3122,12 +3122,12 @@ def _guard_official_docker_root_gateway() -> None:
         return
 
     print_error(
-        "Refusing to run the Hermes gateway as root inside the official Docker image."
+        "Refusing to run the STOA gateway as root inside the official Docker image."
     )
     print(
-        "  The image entrypoint normally drops privileges to the 'hermes' user. "
+        "  The image entrypoint normally drops privileges to the 'stoa' user. "
         "If you override entrypoint in Docker Compose, include "
-        "/opt/hermes/docker/entrypoint.sh before the Hermes command."
+        "/opt/stoa/docker/entrypoint.sh before the STOA command."
     )
     print(
         "  Running the gateway as root can leave root-owned files in "
@@ -3151,7 +3151,7 @@ def run_gateway(verbose: int = 0, quiet: bool = False, replace: bool = False):
     sys.path.insert(0, str(PROJECT_ROOT))
 
     # Detached Windows gateway runs must ignore console-control broadcasts
-    # from sibling CLI processes, but foreground `hermes gateway run` still
+    # from sibling CLI processes, but foreground `stoa gateway run` still
     # needs to obey the banner's "Press Ctrl+C to stop" contract.
     # Service-style launchers set STOA_GATEWAY_DETACHED=1; older wrappers
     # without the marker are handled by the non-TTY fallback.
@@ -3192,10 +3192,10 @@ def run_gateway(verbose: int = 0, quiet: bool = False, replace: bool = False):
     # Refresh the systemd unit definition on every boot so that restart
     # settings (RestartSec, StartLimitIntervalSec, etc.) stay current even
     # when the process was respawned via exit-code-75 (stale-code or
-    # /restart) rather than through `hermes gateway restart` which already
+    # /restart) rather than through `stoa gateway restart` which already
     # calls refresh_systemd_unit_if_needed().  Without this, a code update
     # that ships new unit settings won't take effect until the next manual
-    # `hermes gateway start/restart` — leaving the gateway vulnerable to
+    # `stoa gateway start/restart` — leaving the gateway vulnerable to
     # the exact failure mode the new settings were meant to prevent.
     if supports_systemd_services():
         try:
@@ -3206,7 +3206,7 @@ def run_gateway(verbose: int = 0, quiet: bool = False, replace: bool = False):
     from gateway.run import start_gateway
     
     print("┌─────────────────────────────────────────────────────────┐")
-    print("│           ⚕ Hermes Gateway Starting...                 │")
+    print("│           ⚕ STOA Gateway Starting...                 │")
     print("├─────────────────────────────────────────────────────────┤")
     print("│  Messaging platforms + cron scheduler                    │")
     print("│  Press Ctrl+C to stop                                   │")
@@ -3372,7 +3372,7 @@ _PLATFORMS = [
             "3. Get an access token: Element → Settings → Help & About → Access Token",
             "   Or via API: curl -X POST https://your-server/_matrix/client/v3/login \\",
             "     -d '{\"type\":\"m.login.password\",\"user\":\"@bot:server\",\"password\":\"...\"}'",
-            "4. Alternatively, provide user ID + password and Hermes will log in directly",
+            "4. Alternatively, provide user ID + password and STOA will log in directly",
             "5. For E2EE: set MATRIX_ENCRYPTION=true (requires pip install 'mautrix[encryption]')",
             "6. To find your user ID: it's @username:your-server (shown in Element profile)",
         ],
@@ -3382,7 +3382,7 @@ _PLATFORMS = [
             {"name": "MATRIX_ACCESS_TOKEN", "prompt": "Access token (leave empty to use password login instead)", "password": True,
              "help": "Paste your access token, or leave empty and provide user ID + password below."},
             {"name": "MATRIX_USER_ID", "prompt": "User ID (@bot:server — required for password login)", "password": False,
-             "help": "Full Matrix user ID, e.g. @hermes:matrix.example.org"},
+             "help": "Full Matrix user ID, e.g. @stoa:matrix.example.org"},
             {"name": "MATRIX_ALLOWED_USERS", "prompt": "Allowed user IDs (comma-separated, e.g. @you:server)", "password": False,
              "is_allowlist": True,
              "help": "Matrix user IDs who can interact with the bot."},
@@ -3398,7 +3398,7 @@ _PLATFORMS = [
         "setup_instructions": [
             "1. In Mattermost: Integrations → Bot Accounts → Add Bot Account",
             "   (System Console → Integrations → Bot Accounts must be enabled)",
-            "2. Give it a username (e.g. hermes) and copy the bot token",
+            "2. Give it a username (e.g. stoa) and copy the bot token",
             "3. Works with any self-hosted Mattermost instance — enter your server URL",
             "4. To find your user ID: click your avatar (top-left) → Profile",
             "   Your user ID is displayed there — click it to copy.",
@@ -3414,7 +3414,7 @@ _PLATFORMS = [
              "is_allowlist": True,
              "help": "Your Mattermost user ID from step 4 above."},
             {"name": "MATTERMOST_HOME_CHANNEL", "prompt": "Home channel ID (for cron/notification delivery, or empty to set later with /set-home)", "password": False,
-             "help": "Channel ID where Hermes delivers cron results and notifications."},
+             "help": "Channel ID where STOA delivers cron results and notifications."},
             {"name": "MATTERMOST_REPLY_MODE", "prompt": "Reply mode — 'off' for flat messages, 'thread' for threaded replies (default: off)", "password": False,
              "help": "off = flat channel messages, thread = replies nest under your message."},
         ],
@@ -3437,7 +3437,7 @@ _PLATFORMS = [
         "emoji": "📧",
         "token_var": "EMAIL_ADDRESS",
         "setup_instructions": [
-            "1. Use a dedicated email account for your Hermes agent",
+            "1. Use a dedicated email account for your STOA agent",
             "2. For Gmail: enable 2FA, then create an App Password at",
             "   https://myaccount.google.com/apppasswords",
             "3. For other providers: use your email password or app-specific password",
@@ -3445,7 +3445,7 @@ _PLATFORMS = [
         ],
         "vars": [
             {"name": "EMAIL_ADDRESS", "prompt": "Email address", "password": False,
-             "help": "The email address Hermes will use (e.g., hermes@gmail.com)."},
+             "help": "The email address STOA will use (e.g., stoa@gmail.com)."},
             {"name": "EMAIL_PASSWORD", "prompt": "Email password (or app password)", "password": True,
              "help": "For Gmail, use an App Password (not your regular password)."},
             {"name": "EMAIL_IMAP_HOST", "prompt": "IMAP host", "password": False,
@@ -3603,9 +3603,9 @@ _PLATFORMS = [
             "2. Complete the BlueBubbles setup wizard — sign in with your Apple ID",
             "3. In BlueBubbles Settings → API, note the Server URL and password",
             "4. The server URL is typically http://<your-mac-ip>:1234",
-            "5. Hermes connects via the BlueBubbles REST API and receives",
+            "5. STOA connects via the BlueBubbles REST API and receives",
             "   incoming messages via a local webhook",
-            "6. To authorize users, use DM pairing: hermes pairing generate bluebubbles",
+            "6. To authorize users, use DM pairing: stoa pairing generate bluebubbles",
             "   Share the code — the user sends it via iMessage to get approved",
         ],
         "vars": [
@@ -3652,7 +3652,7 @@ _PLATFORMS = [
             "1. Download the Yuanbao app from https://yuanbao.tencent.com/",
             "2. In the app, go to PAI → My Bot and create a new bot",
             "3. After the bot is created, copy the App ID and App Secret",
-            "4. Enter them below and Hermes will connect automatically over WebSocket",
+            "4. Enter them below and STOA will connect automatically over WebSocket",
         ],
         "vars": [
             {"name": "YUANBAO_APP_ID", "prompt": "App ID", "password": False,
@@ -3668,7 +3668,7 @@ def _all_platforms() -> list[dict]:
     Combines the built-in ``_PLATFORMS`` with plugin platforms registered via
     ``platform_registry``. Plugins are discovered on first call so bundled
     platforms (like IRC, which auto-load via ``kind: platform``) appear in
-    ``hermes setup gateway`` without needing the gateway to be running.
+    ``stoa setup gateway`` without needing the gateway to be running.
     Built-ins keep their dict shape; plugin entries are adapted to the same
     shape with ``_registry_entry`` holding the source.
 
@@ -3678,7 +3678,7 @@ def _all_platforms() -> list[dict]:
         ``mautrix[encryption]`` -> ``python-olm``, which has no Windows
         wheel and needs ``make`` + libolm to build from sdist. There's
         no native Windows path that works, so we don't offer it in the
-        picker. Users who want Matrix on Windows can run hermes under
+        picker. Users who want Matrix on Windows can run stoa under
         WSL.
     """
     # Populate the registry so plugin platforms are visible. Idempotent.
@@ -3893,7 +3893,7 @@ def _setup_standard_platform(platform: dict):
                 print()
                 access_choices = [
                     "Enable open access (anyone can message the bot)",
-                    "Use DM pairing (unknown users request access, you approve with 'hermes pairing approve')",
+                    "Use DM pairing (unknown users request access, you approve with 'stoa pairing approve')",
                     "Skip for now (bot will deny all users until configured)",
                 ]
                 access_idx = prompt_choice("  How should unauthorized users be handled?", access_choices, 1)
@@ -3902,9 +3902,9 @@ def _setup_standard_platform(platform: dict):
                     print_warning("  Open access enabled — anyone can use your bot!")
                 elif access_idx == 1:
                     print_success("  DM pairing mode — users will receive a code to request access.")
-                    print_info("  Approve with: hermes pairing approve <platform> <code>")
+                    print_info("  Approve with: stoa pairing approve <platform> <code>")
                 else:
-                    print_info("  Skipped — configure later with 'hermes gateway setup'")
+                    print_info("  Skipped — configure later with 'stoa gateway setup'")
             continue
 
         value = prompt(f"  {var['prompt']}", password=var.get("password", False))
@@ -4095,7 +4095,7 @@ def _setup_wecom():
         print()
         access_choices = [
             "Enable open access (anyone can message the bot)",
-            "Use DM pairing (unknown users request access, you approve with 'hermes pairing approve')",
+            "Use DM pairing (unknown users request access, you approve with 'stoa pairing approve')",
             "Disable direct messages",
             "Skip for now (bot will deny all users until configured)",
         ]
@@ -4107,12 +4107,12 @@ def _setup_wecom():
         elif access_idx == 1:
             save_env_value("WECOM_DM_POLICY", "pairing")
             print_success("  DM pairing mode — users will receive a code to request access.")
-            print_info("  Approve with: hermes pairing approve <platform> <code>")
+            print_info("  Approve with: stoa pairing approve <platform> <code>")
         elif access_idx == 2:
             save_env_value("WECOM_DM_POLICY", "disabled")
             print_warning("  Direct messages disabled.")
         else:
-            print_info("  Skipped — configure later with 'hermes gateway setup'")
+            print_info("  Skipped — configure later with 'stoa gateway setup'")
 
     # ── Home channel (optional) ──
     print()
@@ -4197,9 +4197,9 @@ def _setup_weixin():
     print()
     print(color("  ─── 💬 Weixin / WeChat Setup ───", Colors.CYAN))
     print()
-    print_info("  1. Hermes will open Tencent iLink QR login in this terminal.")
+    print_info("  1. STOA will open Tencent iLink QR login in this terminal.")
     print_info("  2. Use WeChat to scan and confirm the QR code.")
-    print_info("  3. Hermes will store the returned account_id/token in ~/.stoa/.env.")
+    print_info("  3. STOA will store the returned account_id/token in ~/.stoa/.env.")
     print_info("  4. This adapter supports native text, image, video, and document delivery.")
 
     existing_account = get_env_value("WEIXIN_ACCOUNT_ID")
@@ -4219,7 +4219,7 @@ def _setup_weixin():
 
     if not check_weixin_requirements():
         print_error("  Missing dependencies: Weixin needs aiohttp and cryptography.")
-        print_info("  Install them, then rerun `hermes gateway setup`.")
+        print_info("  Install them, then rerun `stoa gateway setup`.")
         return
 
     print()
@@ -4266,7 +4266,7 @@ def _setup_weixin():
         save_env_value("WEIXIN_ALLOW_ALL_USERS", "false")
         save_env_value("WEIXIN_ALLOWED_USERS", "")
         print_success("  DM pairing enabled.")
-        print_info("  Unknown DM users can request access and you approve them with `hermes pairing approve`.")
+        print_info("  Unknown DM users can request access and you approve them with `stoa pairing approve`.")
     elif access_idx == 1:
         save_env_value("WEIXIN_DM_POLICY", "open")
         save_env_value("WEIXIN_ALLOW_ALL_USERS", "true")
@@ -4456,7 +4456,7 @@ def _setup_feishu():
         save_env_value("FEISHU_ALLOW_ALL_USERS", "false")
         save_env_value("FEISHU_ALLOWED_USERS", "")
         print_success("  DM pairing enabled.")
-        print_info("  Unknown users can request access; approve with `hermes pairing approve`.")
+        print_info("  Unknown users can request access; approve with `stoa pairing approve`.")
     elif access_idx == 1:
         save_env_value("FEISHU_ALLOW_ALL_USERS", "true")
         save_env_value("FEISHU_ALLOWED_USERS", "")
@@ -4574,7 +4574,7 @@ def _setup_qqbot():
         else:
             save_env_value("QQ_ALLOWED_USERS", "")
         print_success("  DM pairing enabled.")
-        print_info("  Unknown users can request access; approve with `hermes pairing approve`.")
+        print_info("  Unknown users can request access; approve with `stoa pairing approve`.")
     elif access_idx == 1:
         save_env_value("QQ_ALLOW_ALL_USERS", "true")
         save_env_value("QQ_ALLOWED_USERS", "")
@@ -4632,7 +4632,7 @@ def _setup_signal():
         print_info("    Docker: bbernhard/signal-cli-rest-api")
         print()
         print_info("  After installing, link your account and start the daemon:")
-        print_info("    signal-cli link -n \"HermesAgent\"")
+        print_info("    signal-cli link -n \"STOAAgent\"")
         print_info("    signal-cli --account +YOURNUMBER daemon --http 127.0.0.1:8080")
         print()
 
@@ -4896,7 +4896,7 @@ def gateway_setup():
                         gateway_windows.restart()
                     else:
                         stop_profile_gateway()
-                        print_info("Start manually: hermes gateway")
+                        print_info("Start manually: stoa gateway")
                 except UserSystemdUnavailableError as e:
                     print_error("  Restart failed — user systemd not reachable:")
                     for line in str(e).splitlines():
@@ -4976,29 +4976,29 @@ def gateway_setup():
                                 print_error(f"  Start failed: {e}")
                     except subprocess.CalledProcessError as e:
                         print_error(f"  Install failed: {e}")
-                        print_info("  You can try manually: hermes gateway install")
+                        print_info("  You can try manually: stoa gateway install")
                 else:
                     print_info("  Skipped start and auto-start setup.")
-                    print_info("  You can install later: hermes gateway install")
+                    print_info("  You can install later: stoa gateway install")
                     if supports_systemd_services():
-                        print_info("  Or as a boot-time service: sudo hermes gateway install --system")
-                    print_info("  Or run in foreground:  hermes gateway run")
+                        print_info("  Or as a boot-time service: sudo stoa gateway install --system")
+                    print_info("  Or run in foreground:  stoa gateway run")
             elif is_wsl():
                 print_info("  WSL detected but systemd is not running.")
-                print_info("  Run in foreground: hermes gateway run")
-                print_info("  For persistence:   tmux new -s hermes 'hermes gateway run'")
+                print_info("  Run in foreground: stoa gateway run")
+                print_info("  For persistence:   tmux new -s stoa 'stoa gateway run'")
                 print_info("  To enable systemd: add systemd=true to /etc/wsl.conf, then 'wsl --shutdown'")
             elif is_termux():
                 from stoa_constants import display_stoa_home as _dhh
                 print_info("  Termux does not use systemd/launchd services.")
-                print_info("  Run in foreground: hermes gateway run")
-                print_info(f"  Or start it manually in the background (best effort): nohup hermes gateway run >{_dhh()}/logs/gateway.log 2>&1 &")
+                print_info("  Run in foreground: stoa gateway run")
+                print_info(f"  Or start it manually in the background (best effort): nohup stoa gateway run >{_dhh()}/logs/gateway.log 2>&1 &")
             else:
                 print_info("  Service install not supported on this platform.")
-                print_info("  Run in foreground: hermes gateway run")
+                print_info("  Run in foreground: stoa gateway run")
     else:
         print()
-        print_info("No platforms configured. Run 'hermes gateway setup' when ready.")
+        print_info("No platforms configured. Run 'stoa gateway setup' when ready.")
 
     print()
 
@@ -5019,7 +5019,7 @@ def gateway_command(args):
             print(f"  {line}")
         sys.exit(1)
     except SystemScopeRequiresRootError as e:
-        # The direct ``hermes gateway install|uninstall|start|stop|restart``
+        # The direct ``stoa gateway install|uninstall|start|stop|restart``
         # path lands here when the user typed a system-scope action without
         # sudo. Same exit code as before — just gives the wizard a way to
         # intercept the same condition with friendlier guidance before the
@@ -5053,13 +5053,13 @@ def _gateway_command_inner(args):
         run_as_user = getattr(args, 'run_as_user', None)
         if is_termux():
             print("Gateway service installation is not supported on Termux.")
-            print("Run manually: hermes gateway")
+            print("Run manually: stoa gateway")
             sys.exit(1)
         if supports_systemd_services():
             if is_wsl():
                 print_warning("WSL detected — systemd services may not survive WSL restarts.")
-                print_info("  Consider running in foreground instead: hermes gateway run")
-                print_info("  Or use tmux/screen for persistence: tmux new -s hermes 'hermes gateway run'")
+                print_info("  Consider running in foreground instead: stoa gateway run")
+                print_info("  Or use tmux/screen for persistence: tmux new -s stoa 'stoa gateway run'")
                 print()
             start_now = prompt_yes_no("Start the gateway now after installing the service?", True)
             start_on_login = prompt_yes_no("Start the gateway automatically on login/boot with systemd?", True)
@@ -5086,9 +5086,9 @@ def _gateway_command_inner(args):
             print("Either enable systemd (add systemd=true to /etc/wsl.conf and restart WSL)")
             print("or run the gateway in foreground mode:")
             print()
-            print("  hermes gateway run                              # direct foreground")
-            print("  tmux new -s hermes 'hermes gateway run'         # persistent via tmux")
-            print("  nohup hermes gateway run > ~/.stoa/logs/gateway.log 2>&1 &  # background")
+            print("  stoa gateway run                              # direct foreground")
+            print("  tmux new -s stoa 'stoa gateway run'         # persistent via tmux")
+            print("  nohup stoa gateway run > ~/.stoa/logs/gateway.log 2>&1 &  # background")
             sys.exit(1)
         elif is_container():
             print("Service installation is not needed inside a Docker container.")
@@ -5097,11 +5097,11 @@ def _gateway_command_inner(args):
             print("  docker run --restart unless-stopped ...   # auto-restart on crash/reboot")
             print("  docker restart <container>                # manual restart")
             print()
-            print("To run the gateway: hermes gateway run")
+            print("To run the gateway: stoa gateway run")
             sys.exit(0)
         else:
             print("Service installation not supported on this platform.")
-            print("Run manually: hermes gateway run")
+            print("Run manually: stoa gateway run")
             sys.exit(1)
     
     elif subcmd == "uninstall":
@@ -5111,7 +5111,7 @@ def _gateway_command_inner(args):
         system = getattr(args, 'system', False)
         if is_termux():
             print("Gateway service uninstall is not supported on Termux because there is no managed service to remove.")
-            print("Stop manual runs with: hermes gateway stop")
+            print("Stop manual runs with: stoa gateway stop")
             sys.exit(1)
         if supports_systemd_services():
             systemd_uninstall(system=system)
@@ -5144,7 +5144,7 @@ def _gateway_command_inner(args):
 
         if is_termux():
             print("Gateway service start is not supported on Termux because there is no system service manager.")
-            print("Run manually: hermes gateway")
+            print("Run manually: stoa gateway")
             sys.exit(1)
         if supports_systemd_services():
             systemd_start(system=system)
@@ -5157,9 +5157,9 @@ def _gateway_command_inner(args):
             print("WSL detected but systemd is not available.")
             print("Run the gateway in foreground mode instead:")
             print()
-            print("  hermes gateway run                              # direct foreground")
-            print("  tmux new -s hermes 'hermes gateway run'         # persistent via tmux")
-            print("  nohup hermes gateway run > ~/.stoa/logs/gateway.log 2>&1 &  # background")
+            print("  stoa gateway run                              # direct foreground")
+            print("  tmux new -s stoa 'stoa gateway run'         # persistent via tmux")
+            print("  nohup stoa gateway run > ~/.stoa/logs/gateway.log 2>&1 &  # background")
             print()
             print("To enable systemd: add systemd=true to /etc/wsl.conf and run 'wsl --shutdown' from PowerShell.")
             sys.exit(1)
@@ -5170,7 +5170,7 @@ def _gateway_command_inner(args):
             print("  docker start <container>     # start a stopped container")
             print("  docker restart <container>   # restart a running container")
             print()
-            print("Or run the gateway directly: hermes gateway run")
+            print("Or run the gateway directly: stoa gateway run")
             sys.exit(0)
         else:
             print("Not supported on this platform.")
@@ -5341,14 +5341,14 @@ def _gateway_command_inner(args):
                     print(f"  Run:  sudo loginctl enable-linger {_username}")
                     print()
                     print("  Then restart the gateway:")
-                    print("    hermes gateway restart")
+                    print("    stoa gateway restart")
                     return
 
             if service_configured:
                 print()
                 print("✗ Gateway service restart failed.")
                 print("  The service definition exists, but the service manager did not recover it.")
-                print("  Fix the service, then retry: hermes gateway start")
+                print("  Fix the service, then retry: stoa gateway start")
                 sys.exit(1)
 
             # Manual restart: stop only this profile's gateway
@@ -5404,11 +5404,11 @@ def _gateway_command_inner(args):
                     print("  Use tmux or screen for persistence across terminal closes.")
                 elif is_windows():
                     print("To install as a Windows Scheduled Task (auto-start on login):")
-                    print("  hermes gateway install")
+                    print("  stoa gateway install")
                 else:
                     print("To install as a service:")
-                    print("  hermes gateway install")
-                    print("  sudo hermes gateway install --system")
+                    print("  stoa gateway install")
+                    print("  sudo stoa gateway install --system")
             else:
                 print("✗ Gateway is not running")
                 runtime_lines = _runtime_health_lines()
@@ -5419,17 +5419,17 @@ def _gateway_command_inner(args):
                         print(f"  {line}")
                 print()
                 print("To start:")
-                print("  hermes gateway run      # Run in foreground")
+                print("  stoa gateway run      # Run in foreground")
                 if is_termux():
-                    print("  nohup hermes gateway run > ~/.stoa/logs/gateway.log 2>&1 &  # Best-effort background start")
+                    print("  nohup stoa gateway run > ~/.stoa/logs/gateway.log 2>&1 &  # Best-effort background start")
                 elif is_wsl():
-                    print("  tmux new -s hermes 'hermes gateway run'         # persistent via tmux")
-                    print("  nohup hermes gateway run > ~/.stoa/logs/gateway.log 2>&1 &  # background")
+                    print("  tmux new -s stoa 'stoa gateway run'         # persistent via tmux")
+                    print("  nohup stoa gateway run > ~/.stoa/logs/gateway.log 2>&1 &  # background")
                 elif is_windows():
-                    print("  hermes gateway install  # Install as Windows Scheduled Task (auto-start on login)")
+                    print("  stoa gateway install  # Install as Windows Scheduled Task (auto-start on login)")
                 else:
-                    print("  hermes gateway install  # Install as user service")
-                    print("  sudo hermes gateway install --system  # Install as boot-time system service")
+                    print("  stoa gateway install  # Install as user service")
+                    print("  sudo stoa gateway install --system  # Install as boot-time system service")
 
         # Show other profiles' gateway status for multi-profile awareness
         _print_other_profiles_gateway_status()
@@ -5438,8 +5438,8 @@ def _gateway_command_inner(args):
         _gateway_list()
 
     elif subcmd == "migrate-legacy":
-        # Stop, disable, and remove legacy Hermes gateway unit files from
-        # pre-rename installs (e.g. hermes.service). Profile units and
+        # Stop, disable, and remove legacy STOA gateway unit files from
+        # pre-rename installs (e.g. stoa.service). Profile units and
         # unrelated third-party services are never touched.
         dry_run = getattr(args, 'dry_run', False)
         yes = getattr(args, 'yes', False)

@@ -6,7 +6,7 @@ author: STOA Agent
 license: MIT
 platforms: [linux, macos, windows]
 metadata:
-  hermes:
+  stoa:
     tags: [GitHub, Repositories, Git, Releases, Secrets, Configuration]
     related_skills: [github-auth, github-pr-workflow, github-issues]
 ---

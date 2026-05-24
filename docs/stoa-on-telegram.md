@@ -1,6 +1,6 @@
 # STOA Agent on Telegram (and 20 other platforms)
 
-The STOA Agent fork inherits Hermes's full 21-platform gateway —
+The STOA Agent fork inherits STOA's full 21-platform gateway —
 Telegram, Discord, Slack, WhatsApp, Signal, Matrix, Mattermost, Email,
 SMS, BlueBubbles, MSGraph (Outlook), HomeAssistant, DingTalk, Feishu,
 WeCom, QQ, Webhook, plus a generic API server. The council follows you
@@ -44,7 +44,7 @@ stoa gateway
 | `/attest` | Stamp the most recent response_hash on-chain (Monad AuditAttestationV2). |
 | `/verdict` | Re-display the most recent council verdict (no LLM call, free). |
 
-The plain Hermes commands (`/skills`, `/model`, `/help`, `/clear`, etc.)
+The plain STOA commands (`/skills`, `/model`, `/help`, `/clear`, etc.)
 all continue to work unchanged — STOA is additive.
 
 ## Token gating on Telegram
@@ -79,7 +79,7 @@ appropriately:
 
 ## Multi-instance deployments
 
-If you run the gateway on a VPS (Hermes ships a `$5 VPS` flow that we
+If you run the gateway on a VPS (STOA ships a `$5 VPS` flow that we
 inherit), each platform adapter shares the same `~/.stoa/sessions.db`
 SQLite file. The council remembers your conversations across Telegram,
 Discord, and the local CLI — `stoa /verdict` on your laptop will pull

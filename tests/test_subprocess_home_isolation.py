@@ -122,7 +122,7 @@ class TestMakeRunEnvHomeInjection:
     """Verify _make_run_env() injects HOME into subprocess envs."""
 
     def test_injects_home_when_profile_home_exists(self, tmp_path, monkeypatch):
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir()
         (stoa_home / "home").mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -135,7 +135,7 @@ class TestMakeRunEnvHomeInjection:
         assert result["HOME"] == str(stoa_home / "home")
 
     def test_no_injection_when_home_dir_missing(self, tmp_path, monkeypatch):
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir()
         # No home/ subdirectory
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -188,7 +188,7 @@ class TestSanitizeSubprocessEnvHomeInjection:
     """Verify _sanitize_subprocess_env() injects HOME for background procs."""
 
     def test_injects_home_when_profile_home_exists(self, tmp_path, monkeypatch):
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir()
         (stoa_home / "home").mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
@@ -200,7 +200,7 @@ class TestSanitizeSubprocessEnvHomeInjection:
         assert result["HOME"] == str(stoa_home / "home")
 
     def test_no_injection_when_home_dir_missing(self, tmp_path, monkeypatch):
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))
 
@@ -265,7 +265,7 @@ class TestPythonProcessUnchanged:
     def test_path_home_unchanged_after_subprocess_home_resolved(
         self, tmp_path, monkeypatch
     ):
-        stoa_home = tmp_path / "hermes"
+        stoa_home = tmp_path / "stoa"
         stoa_home.mkdir()
         (stoa_home / "home").mkdir()
         monkeypatch.setenv("STOA_HOME", str(stoa_home))

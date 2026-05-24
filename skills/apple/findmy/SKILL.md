@@ -6,7 +6,7 @@ author: STOA Agent
 license: MIT
 platforms: [macos]
 metadata:
-  hermes:
+  stoa:
     tags: [FindMy, AirTag, location, tracking, macOS, Apple]
 ---
 

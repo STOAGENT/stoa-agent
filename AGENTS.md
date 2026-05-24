@@ -24,7 +24,7 @@ stoa-agent/
 ├── run_agent.py          # AIAgent class — core conversation loop (~12k LOC)
 ├── model_tools.py        # Tool orchestration, discover_builtin_tools(), handle_function_call()
 ├── toolsets.py           # Toolset definitions, _STOA_CORE_TOOLS list
-├── cli.py                # HermesCLI class — interactive CLI orchestrator (~11k LOC)
+├── cli.py                # STOACLI class — interactive CLI orchestrator (~11k LOC)
 ├── stoa_state.py       # SessionDB — SQLite session store (FTS5 search)
 ├── stoa_constants.py   # get_stoa_home(), display_stoa_home() — profile-aware paths
 ├── stoa_logging.py     # setup_logging() — agent.log / errors.log / gateway.log (profile-aware)
@@ -51,7 +51,7 @@ stoa-agent/
 │                         #   spotify, strike-freedom-cockpit, ...
 ├── optional-skills/      # Heavier/niche skills shipped but NOT active by default
 ├── skills/               # Built-in skills bundled with the repo
-├── ui-tui/               # Ink (React) terminal UI — `hermes --tui`
+├── ui-tui/               # Ink (React) terminal UI — `stoa --tui`
 │   └── src/              # entry.tsx, app.tsx, gatewayClient.ts + app/components/hooks/lib
 ├── tui_gateway/          # Python JSON-RPC backend for the TUI
 ├── acp_adapter/          # ACP server (VS Code / Zed / JetBrains integration)
@@ -64,7 +64,7 @@ stoa-agent/
 **User config:** `~/.stoa/config.yaml` (settings), `~/.stoa/.env` (API keys only).
 **Logs:** `~/.stoa/logs/` — `agent.log` (INFO+), `errors.log` (WARNING+),
 `gateway.log` when running the gateway. Profile-aware via `get_stoa_home()`.
-Browse with `hermes logs [--follow] [--level ...] [--session ...]`.
+Browse with `stoa logs [--follow] [--level ...] [--session ...]`.
 
 ## File Dependency Chain
 
@@ -146,7 +146,7 @@ Reasoning content is stored in `assistant_msg["reasoning"]`.
 - **KawaiiSpinner** (`agent/display.py`) — animated faces during API calls, `┊` activity feed for tool results
 - `load_cli_config()` in cli.py merges hardcoded defaults + user config YAML
 - **Skin engine** (`stoa_cli/skin_engine.py`) — data-driven CLI theming; initialized from `display.skin` config key at startup; skins customize banner colors, spinner faces/verbs/wings, tool prefix, response box, branding text
-- `process_command()` is a method on `HermesCLI` — dispatches on canonical command name resolved via `resolve_command()` from the central registry
+- `process_command()` is a method on `STOACLI` — dispatches on canonical command name resolved via `resolve_command()` from the central registry
 - Skill slash commands: `agent/skill_commands.py` scans `~/.stoa/skills/`, injects as **user message** (not system prompt) to preserve prompt caching
 
 ### Slash Command Registry (`stoa_cli/commands.py`)
@@ -157,7 +157,7 @@ All slash commands are defined in a central `COMMAND_REGISTRY` list of `CommandD
 - **Gateway** — `GATEWAY_KNOWN_COMMANDS` frozenset for hook emission, `resolve_command()` for dispatch
 - **Gateway help** — `gateway_help_lines()` generates `/help` output
 - **Telegram** — `telegram_bot_commands()` generates the BotCommand menu
-- **Slack** — `slack_subcommand_map()` generates `/hermes` subcommand routing
+- **Slack** — `slack_subcommand_map()` generates `/stoa` subcommand routing
 - **Autocomplete** — `COMMANDS` flat dict feeds `SlashCommandCompleter`
 - **CLI help** — `COMMANDS_BY_CATEGORY` dict feeds `show_help()`
 
@@ -168,7 +168,7 @@ All slash commands are defined in a central `COMMAND_REGISTRY` list of `CommandD
 CommandDef("mycommand", "Description of what it does", "Session",
            aliases=("mc",), args_hint="[arg]"),
 ```
-2. Add handler in `HermesCLI.process_command()` in `cli.py`:
+2. Add handler in `STOACLI.process_command()` in `cli.py`:
 ```python
 elif canonical == "mycommand":
     self._handle_mycommand(cmd_original)
@@ -196,12 +196,12 @@ if canonical == "mycommand":
 
 ## TUI Architecture (ui-tui + tui_gateway)
 
-The TUI is a full replacement for the classic (prompt_toolkit) CLI, activated via `hermes --tui` or `STOA_TUI=1`.
+The TUI is a full replacement for the classic (prompt_toolkit) CLI, activated via `stoa --tui` or `STOA_TUI=1`.
 
 ### Process Model
 
 ```
-hermes --tui
+stoa --tui
   └─ Node (Ink)  ──stdio JSON-RPC──  Python (tui_gateway)
        │                                  └─ AIAgent + tools + sessions
        └─ renders transcript, composer, prompts, activity
@@ -245,16 +245,16 @@ npm run fmt       # prettier
 npm test          # vitest
 ```
 
-### TUI in the Dashboard (`hermes dashboard` → `/chat`)
+### TUI in the Dashboard (`stoa dashboard` → `/chat`)
 
-The dashboard embeds the real `hermes --tui` — **not** a rewrite.  See `stoa_cli/pty_bridge.py` + the `@app.websocket("/api/pty")` endpoint in `stoa_cli/web_server.py`.
+The dashboard embeds the real `stoa --tui` — **not** a rewrite.  See `stoa_cli/pty_bridge.py` + the `@app.websocket("/api/pty")` endpoint in `stoa_cli/web_server.py`.
 
 - Browser loads `web/src/pages/ChatPage.tsx`, which mounts xterm.js's `Terminal` with the WebGL renderer, `@xterm/addon-fit` for container-driven resize, and `@xterm/addon-unicode11` for modern wide-character widths.
 - `/api/pty?token=…` upgrades to a WebSocket; auth uses the same ephemeral `_SESSION_TOKEN` as REST, via query param (browsers can't set `Authorization` on WS upgrade).
-- The server spawns whatever `hermes --tui` would spawn, through `ptyprocess` (POSIX PTY — WSL works, native Windows does not).
+- The server spawns whatever `stoa --tui` would spawn, through `ptyprocess` (POSIX PTY — WSL works, native Windows does not).
 - Frames: raw PTY bytes each direction; resize via `\x1b[RESIZE:<cols>;<rows>]` intercepted on the server and applied with `TIOCSWINSZ`.
 
-**Do not re-implement the primary chat experience in React.** The main transcript, composer/input flow (including slash-command behavior), and PTY-backed terminal belong to the embedded `hermes --tui` — anything new you add to Ink shows up in the dashboard automatically. If you find yourself rebuilding the transcript or composer for the dashboard, stop and extend Ink instead.
+**Do not re-implement the primary chat experience in React.** The main transcript, composer/input flow (including slash-command behavior), and PTY-backed terminal belong to the embedded `stoa --tui` — anything new you add to Ink shows up in the dashboard automatically. If you find yourself rebuilding the transcript or composer for the dashboard, stop and extend Ink instead.
 
 **Structured React UI around the TUI is allowed when it is not a second chat surface.** Sidebar widgets, inspectors, summaries, status panels, and similar supporting views (e.g. `ChatSidebar`, `ModelPickerDialog`, `ToolCall`) are fine when they complement the embedded TUI rather than replacing the transcript / composer / terminal. Keep their state independent of the PTY child's session and surface their failures non-destructively so the terminal pane keeps working unimpaired.
 
@@ -262,14 +262,14 @@ The dashboard embeds the real `hermes --tui` — **not** a rewrite.  See `stoa_c
 
 ## Adding New Tools
 
-For most custom or local-only tools, do **not** edit Hermes core. Use the plugin
+For most custom or local-only tools, do **not** edit STOA core. Use the plugin
 route instead: create `~/.stoa/plugins/<name>/plugin.yaml` and
 `~/.stoa/plugins/<name>/__init__.py`, then register tools with
 `ctx.register_tool(...)`. Plugin toolsets are discovered automatically and can be
 enabled or disabled without touching `tools/` or `toolsets.py`.
 
 Use the built-in route below only when the user is explicitly contributing a new
-core Hermes tool that should ship in the base system.
+core STOA tool that should ship in the base system.
 
 Built-in/core tools require changes in **2 files**:
 
@@ -379,7 +379,7 @@ the env var in code (see `gateway_timeout`, `terminal.cwd` → `TERMINAL_CWD`).
 | Loader | Used by | Location |
 |--------|---------|----------|
 | `load_cli_config()` | CLI mode | `cli.py` — merges CLI-specific defaults + user YAML |
-| `load_config()` | `hermes tools`, `hermes setup`, most CLI subcommands | `stoa_cli/config.py` — merges `DEFAULT_CONFIG` + user YAML |
+| `load_config()` | `stoa tools`, `stoa setup`, most CLI subcommands | `stoa_cli/config.py` — merges `DEFAULT_CONFIG` + user YAML |
 | Direct YAML load | Gateway runtime | `gateway/run.py` + `gateway/config.py` — reads user YAML raw |
 
 If you add a new key and the CLI sees it but the gateway doesn't (or vice
@@ -435,7 +435,7 @@ stoa_cli/skin_engine.py    # SkinConfig dataclass, built-in skins, YAML loader
 
 ### Built-in skins
 
-- `default` — Classic Hermes gold/kawaii (the current look)
+- `default` — Classic STOA gold/kawaii (the current look)
 - `ares` — Crimson/bronze war-god theme with custom spinner wings
 - `mono` — Clean grayscale monochrome
 - `slate` — Cool blue developer-focused theme
@@ -486,7 +486,7 @@ Activate with `/skin cyberpunk` or `display.skin: cyberpunk` in config.yaml.
 
 ## Plugins
 
-Hermes has two plugin surfaces. Both live under `plugins/` in the repo so
+STOA has two plugin surfaces. Both live under `plugins/` in the repo so
 repo-shipped plugins can be discovered alongside user-installed ones in
 `~/.stoa/plugins/` and pip-installed entry points.
 
@@ -501,8 +501,8 @@ can:
   `on_session_start`, `on_session_end`
 - Register new tools via `ctx.register_tool(...)`
 - Register CLI subcommands via `ctx.register_cli_command(...)` — the
-  plugin's argparse tree is wired into `hermes` at startup so
-  `hermes <pluginname> <subcmd>` works with no change to `main.py`
+  plugin's argparse tree is wired into `stoa` at startup so
+  `stoa <pluginname> <subcmd>` works with no change to `main.py`
 
 Hooks are invoked from `model_tools.py` (pre/post tool) and `run_agent.py`
 (lifecycle). **Discovery timing pitfall:** `discover_plugins()` only runs
@@ -523,10 +523,10 @@ and is orchestrated by `agent/memory_manager.py`. Lifecycle hooks include
 
 **CLI commands via `plugins/memory/<name>/cli.py`:** if a memory plugin
 defines `register_cli(subparser)`, `discover_plugin_cli_commands()` finds
-it at argparse setup time and wires it into `hermes <plugin>`. The
+it at argparse setup time and wires it into `stoa <plugin>`. The
 framework only exposes CLI commands for the **currently active** memory
 provider (read from `memory.provider` in config.yaml), so disabled
-providers don't clutter `hermes --help`.
+providers don't clutter `stoa --help`.
 
 **Rule (Teknium, May 2026):** plugins MUST NOT modify core files
 (`run_agent.py`, `cli.py`, `gateway/run.py`, `stoa_cli/main.py`, etc.).
@@ -540,7 +540,7 @@ built-in memory providers under `plugins/memory/` is closed. New memory
 backends must ship as **standalone plugin repos** that users install
 into `~/.stoa/plugins/` (or via pip entry points) — they implement
 the same `MemoryProvider` ABC, register through the same discovery
-path, and integrate via `hermes memory setup` / `post_setup()` without
+path, and integrate via `stoa memory setup` / `post_setup()` without
 landing in this tree. PRs that add a new directory under
 `plugins/memory/` will be closed with a pointer to publish the
 provider as its own repo. Existing in-tree providers stay; bug fixes
@@ -579,7 +579,7 @@ plug into `agent/context_engine.py`; image-gen providers into
 `agent/image_gen_provider.py`. Reference / docs-companion plugins
 (`example-dashboard`, `strike-freedom-cockpit`, `plugin-llm-example`,
 `plugin-llm-async-example`) live in the
-[`hermes-example-plugins`](https://github.com/stoa-xyz/hermes-example-plugins)
+[`stoa-example-plugins`](https://github.com/STOAGENT/stoa-example-plugins)
 companion repo, not in this tree.
 
 ---
@@ -592,7 +592,7 @@ Two parallel surfaces:
   Organized by category directories (e.g. `skills/github/`, `skills/mlops/`).
 - **`optional-skills/`** — heavier or niche skills shipped with the repo but
   NOT active by default. Installed explicitly via
-  `hermes skills install official/<category>/<skill>`. Adapter lives in
+  `stoa skills install official/<category>/<skill>`. Adapter lives in
   `tools/skills_hub.py` (`OptionalSkillSource`). Categories include
   `autonomous-ai-agents`, `blockchain`, `communication`, `creative`,
   `devops`, `email`, `health`, `mcp`, `migration`, `mlops`, `productivity`,
@@ -605,13 +605,13 @@ niche skills belong in `optional-skills/`.
 
 Standard fields: `name`, `description`, `version`, `author`, `license`,
 `platforms` (OS-gating list: `[macos]`, `[linux, macos]`, ...),
-`metadata.hermes.tags`, `metadata.hermes.category`,
-`metadata.hermes.related_skills`, `metadata.hermes.config` (config.yaml
+`metadata.stoa.tags`, `metadata.stoa.category`,
+`metadata.stoa.related_skills`, `metadata.stoa.config` (config.yaml
 settings the skill needs — stored under `skills.config.<key>`, prompted
 during setup, injected at load time).
 
 Top-level `tags:` and `category:` are also accepted and mirrored from
-`metadata.hermes.*` by the loader.
+`metadata.stoa.*` by the loader.
 
 ### Skill authoring standards (HARDLINE)
 
@@ -633,7 +633,7 @@ violate them.
    assert len(m.group(1)) <= 60, len(m.group(1))
    ```
 
-2. **Tools referenced in SKILL.md prose must be native Hermes tools or
+2. **Tools referenced in SKILL.md prose must be native STOA tools or
    MCP servers the skill explicitly expects.** When the skill needs a
    capability, point at the proper tool by name in backticks
    (`` `terminal` ``, `` `web_extract` ``, `` `read_file` ``,
@@ -661,7 +661,7 @@ violate them.
    contributions, the contributor's real name + GitHub handle goes
    first; "STOA Agent" is the secondary collaborator. If the
    contributor's commit shows "STOA Agent" as author (because they
-   used Hermes to draft the skill), replace it with their actual name
+   used STOA to draft the skill), replace it with their actual name
    — credit the human, not the tool.
 
 5. **SKILL.md body uses the modern section order.** `# <Skill> Skill`
@@ -708,7 +708,7 @@ Current toolset keys: `browser`, `clarify`, `code_execution`, `cronjob`,
 `messaging`, `moa`, `rl`, `safe`, `search`, `session_search`, `skills`,
 `spotify`, `terminal`, `todo`, `tts`, `video`, `vision`, `web`, `yuanbao`.
 
-Enable/disable per platform via `hermes tools` (the curses UI) or the
+Enable/disable per platform via `stoa tools` (the curses UI) or the
 `tools.<platform>.enabled` / `tools.<platform>.disabled` lists in
 `config.yaml`.
 
@@ -755,7 +755,7 @@ go to `~/.stoa/skills/.archive/` and are restorable.
 
 - **Core:** `agent/curator.py` (review loop, auto-transitions, LLM review
   prompt) + `agent/curator_backup.py` (pre-run tar.gz snapshots).
-- **CLI:** `stoa_cli/curator.py` wires `hermes curator <verb>` where
+- **CLI:** `stoa_cli/curator.py` wires `stoa curator <verb>` where
   verbs are: `status`, `run`, `pause`, `resume`, `pin`, `unpin`,
   `archive`, `restore`, `prune`, `backup`, `rollback`.
 - **Telemetry:** `tools/skill_usage.py` owns the sidecar
@@ -784,7 +784,7 @@ Full user-facing docs: `website/docs/user-guide/features/curator.md`.
 ## Cron (scheduled jobs)
 
 `cron/jobs.py` (job store) + `cron/scheduler.py` (tick loop). Agents
-schedule jobs via the `cronjob` tool; users via `hermes cron <verb>`
+schedule jobs via the `cronjob` tool; users via `stoa cron <verb>`
 (`list`, `add`, `edit`, `pause`, `resume`, `run`, `remove`) or the
 `/cron` slash command.
 
@@ -820,12 +820,12 @@ main conversation's message-role alternation stays intact.
 ## Kanban (multi-agent work queue)
 
 Durable SQLite-backed board that lets multiple profiles / workers
-collaborate on shared tasks. Users drive it via `hermes kanban <verb>`;
+collaborate on shared tasks. Users drive it via `stoa kanban <verb>`;
 workers spawned by the dispatcher drive it via a dedicated `kanban_*`
 toolset so their schema footprint is zero when they're not inside a
 kanban task.
 
-- **CLI:** `stoa_cli/kanban.py` wires `hermes kanban` with verbs
+- **CLI:** `stoa_cli/kanban.py` wires `stoa kanban` with verbs
   `init`, `create`, `list` (alias `ls`), `show`, `assign`, `link`,
   `unlink`, `comment`, `complete`, `block`, `unblock`, `archive`,
   `tail`, plus less-commonly-used `watch`, `stats`, `runs`, `log`,
@@ -840,7 +840,7 @@ kanban task.
   assigned profiles. Runs **inside the gateway** by default via
   `kanban.dispatch_in_gateway: true`.
 - **Plugin assets:** `plugins/kanban/dashboard/` (web UI) +
-  `plugins/kanban/systemd/` (`hermes-kanban-dispatcher.service` for
+  `plugins/kanban/systemd/` (`stoa-kanban-dispatcher.service` for
   standalone dispatcher deployment).
 
 Isolation model:
@@ -890,7 +890,7 @@ in config.yaml (or `STOA_BACKGROUND_NOTIFICATIONS` env var):
 
 ## Profiles: Multi-Instance Support
 
-Hermes supports **profiles** — multiple fully isolated instances, each with its own
+STOA supports **profiles** — multiple fully isolated instances, each with its own
 `STOA_HOME` directory (config, API keys, memory, sessions, skills, gateway, etc.).
 
 The core mechanism: `_apply_profile_override()` in `stoa_cli/main.py` sets
@@ -941,7 +941,7 @@ automatically scope to the active profile.
 
 6. **Profile operations are HOME-anchored, not STOA_HOME-anchored** — `_get_profiles_root()`
    returns `Path.home() / ".stoa" / "profiles"`, NOT `get_stoa_home() / "profiles"`.
-   This is intentional — it lets `hermes -p coder profile list` see all profiles regardless
+   This is intentional — it lets `stoa -p coder profile list` see all profiles regardless
    of which one is active.
 
 ## Known Pitfalls

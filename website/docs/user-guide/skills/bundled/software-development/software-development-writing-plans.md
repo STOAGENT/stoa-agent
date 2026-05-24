@@ -26,7 +26,7 @@ Write implementation plans: bite-sized tasks, paths, code.
 ## Reference: full SKILL.md
 
 :::info
-The following is the complete skill definition that Hermes loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
+The following is the complete skill definition that STOA loads when this skill is triggered. This is what the agent sees as instructions when the skill is active.
 :::
 
 # Writing Implementation Plans
@@ -89,7 +89,7 @@ Every plan MUST start with:
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For Hermes:** Use subagent-driven-development skill to implement this plan task-by-task.
+> **For STOA:** Use subagent-driven-development skill to implement this plan task-by-task.
 
 **Goal:** [One sentence describing what this builds]
 
@@ -159,7 +159,7 @@ Read and understand:
 
 ### Step 2: Explore the Codebase
 
-Use Hermes tools to understand the project:
+Use STOA tools to understand the project:
 
 ```python
 # Understand project structure

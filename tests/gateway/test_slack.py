@@ -192,7 +192,7 @@ class TestAppMentionHandler:
         assert "assistant_thread_started" in registered_events
         assert "assistant_thread_context_changed" in registered_events
         # Slack slash commands are registered via a single regex matcher
-        # covering every COMMAND_REGISTRY entry (e.g. /hermes, /btw, /stop,
+        # covering every COMMAND_REGISTRY entry (e.g. /stoa, /btw, /stop,
         # /model, ...) so users get native-slash parity with Discord and
         # Telegram. Verify the regex matches the key expected slashes.
         assert len(registered_commands) == 1, (
@@ -201,7 +201,7 @@ class TestAppMentionHandler:
         slash_matcher = registered_commands[0]
         import re as _re
         assert isinstance(slash_matcher, _re.Pattern)
-        for expected in ("/hermes", "/btw", "/stop", "/model", "/help"):
+        for expected in ("/stoa", "/btw", "/stop", "/model", "/help"):
             assert slash_matcher.match(expected), (
                 f"Slack slash regex does not match {expected}"
             )
@@ -761,11 +761,11 @@ class TestBangPrefixCommands:
 
     @pytest.mark.asyncio
     async def test_bang_with_bot_suffix_resolves(self, adapter):
-        """``!stop@hermes`` matches the get_command() ``@suffix`` stripping."""
-        await adapter._handle_slack_message(self._make_event("!stop@hermes"))
+        """``!stop@stoa`` matches the get_command() ``@suffix`` stripping."""
+        await adapter._handle_slack_message(self._make_event("!stop@stoa"))
 
         msg_event = adapter.handle_message.call_args[0][0]
-        assert msg_event.text.startswith("/stop@hermes")
+        assert msg_event.text.startswith("/stop@stoa")
         assert msg_event.message_type == MessageType.COMMAND
 
     @pytest.mark.asyncio
@@ -2329,13 +2329,13 @@ class TestSlashCommands:
 
     # ------------------------------------------------------------------
     # Native slash commands — /btw, /stop, /model, ... dispatched directly
-    # instead of as /hermes subcommands. This is the Discord/Telegram parity
+    # instead of as /stoa subcommands. This is the Discord/Telegram parity
     # fix: the slash name itself becomes the command.
     # ------------------------------------------------------------------
 
     @pytest.mark.asyncio
     async def test_native_btw_slash(self, adapter):
-        """/btw with args must dispatch to /background, not /hermes btw."""
+        """/btw with args must dispatch to /background, not /stoa btw."""
         command = {
             "command": "/btw",
             "text": "fix the failing test",
@@ -2375,14 +2375,14 @@ class TestSlashCommands:
 
     @pytest.mark.asyncio
     async def test_legacy_stoa_prefix_still_works(self, adapter):
-        """Backward compat: /hermes btw foo must still route to /btw foo.
+        """Backward compat: /stoa btw foo must still route to /btw foo.
 
-        Old workspace manifests only declared /hermes as the single slash.
+        Old workspace manifests only declared /stoa as the single slash.
         After users refresh their manifest they get /btw natively, but the
         legacy form must keep working during the transition.
         """
         command = {
-            "command": "/hermes",
+            "command": "/stoa",
             "text": "btw run the tests",
             "user_id": "U1",
             "channel_id": "C1",
@@ -2393,9 +2393,9 @@ class TestSlashCommands:
 
     @pytest.mark.asyncio
     async def test_legacy_stoa_freeform_question(self, adapter):
-        """/hermes <free-form text> must stay as the raw text (non-command)."""
+        """/stoa <free-form text> must stay as the raw text (non-command)."""
         command = {
-            "command": "/hermes",
+            "command": "/stoa",
             "text": "what's the weather today?",
             "user_id": "U1",
             "channel_id": "C1",
@@ -3086,9 +3086,9 @@ class TestSlashEphemeralAck:
 
     @pytest.mark.asyncio
     async def test_legacy_stoa_slash_stashes_context(self, adapter):
-        """Legacy /hermes <subcommand> also stashes context."""
+        """Legacy /stoa <subcommand> also stashes context."""
         command = {
-            "command": "/hermes",
+            "command": "/stoa",
             "text": "help",
             "user_id": "U_H",
             "channel_id": "C_H",
@@ -3101,9 +3101,9 @@ class TestSlashEphemeralAck:
 
     @pytest.mark.asyncio
     async def test_freeform_stoa_question_does_not_stash_context(self, adapter):
-        """Free-form /hermes <question> must NOT route agent reply ephemeral."""
+        """Free-form /stoa <question> must NOT route agent reply ephemeral."""
         command = {
-            "command": "/hermes",
+            "command": "/stoa",
             "text": "what's the weather",
             "user_id": "U_FREE",
             "channel_id": "C_FREE",

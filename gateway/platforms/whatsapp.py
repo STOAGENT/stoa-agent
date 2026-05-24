@@ -495,7 +495,7 @@ class WhatsAppAdapter(BasePlatformAdapter):
             logger.warning("[%s] Node.js not found. WhatsApp requires Node.js.", self.name)
             self._set_fatal_error(
                 "whatsapp_node_missing",
-                "Node.js is not installed — install Node.js and re-run `hermes gateway`.",
+                "Node.js is not installed — install Node.js and re-run `stoa gateway`.",
                 retryable=False,
             )
             return False
@@ -515,19 +515,19 @@ class WhatsAppAdapter(BasePlatformAdapter):
         # QR codes to its log file and never reaches status:connected,
         # so every gateway restart paid the 30s timeout + queued WhatsApp
         # for indefinite retries.  Mark non-retryable so the user gets a
-        # clear "run hermes whatsapp" message instead of the watcher
+        # clear "run stoa whatsapp" message instead of the watcher
         # silently hammering an unconfigured platform.
         creds_path = self._session_path / "creds.json"
         if not creds_path.exists():
             logger.warning(
                 "[%s] WhatsApp is enabled but not paired (no creds.json at %s). "
-                "Run `hermes whatsapp` to pair, or remove WHATSAPP_ENABLED from "
+                "Run `stoa whatsapp` to pair, or remove WHATSAPP_ENABLED from "
                 "your .env to disable.",
                 self.name, creds_path,
             )
             self._set_fatal_error(
                 "whatsapp_not_paired",
-                "WhatsApp enabled but not paired — run `hermes whatsapp` to pair.",
+                "WhatsApp enabled but not paired — run `stoa whatsapp` to pair.",
                 retryable=False,
             )
             return False
@@ -695,7 +695,7 @@ class WhatsAppAdapter(BasePlatformAdapter):
                     # auto-reconnect later, e.g. after a code 515 restart).
                     print(f"[{self.name}] ⚠ WhatsApp not connected after 30s")
                     print(f"[{self.name}]   Bridge log: {self._bridge_log}")
-                    print(f"[{self.name}]   If session expired, re-pair: hermes whatsapp")
+                    print(f"[{self.name}]   If session expired, re-pair: stoa whatsapp")
             
             # Create a persistent HTTP session for all bridge communication
             self._http_session = aiohttp.ClientSession()

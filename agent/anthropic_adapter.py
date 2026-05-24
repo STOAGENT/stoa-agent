@@ -1,6 +1,6 @@
 """Anthropic Messages API adapter for STOA Agent.
 
-Translates between Hermes's internal OpenAI-style message format and
+Translates between STOA's internal OpenAI-style message format and
 Anthropic's Messages API. Follows the same pattern as the codex_responses
 adapter — all provider-specific logic is isolated here.
 
@@ -2116,7 +2116,7 @@ def build_anthropic_kwargs(
             if isinstance(block, dict) and block.get("type") == "text":
                 text = block.get("text", "")
                 text = text.replace("STOA Agent", "Claude Code")
-                text = text.replace("Hermes agent", "Claude Code")
+                text = text.replace("STOA agent", "Claude Code")
                 text = text.replace("stoa-agent", "claude-code")
                 text = text.replace("STOA", "Anthropic")
                 block["text"] = text
@@ -2182,7 +2182,7 @@ def build_anthropic_kwargs(
     # extra_body in the ChatCompletionsTransport — see #13503.)
     #
     # On 4.7+ the `thinking.display` field defaults to "omitted", which
-    # silently hides reasoning text that Hermes surfaces in its CLI. We
+    # silently hides reasoning text that STOA surfaces in its CLI. We
     # request "summarized" so the reasoning blocks stay populated — matching
     # 4.6 behavior and preserving the activity-feed UX during long tool runs.
     _is_kimi_coding = _is_kimi_family_endpoint(base_url, model)

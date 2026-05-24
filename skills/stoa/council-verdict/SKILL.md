@@ -40,7 +40,7 @@ single LLM.
 2. Six personas (Sokrates / Mira / Veritas / Drax / Lyra / Echo) each
    answer in parallel — every persona is bound to a different sovereign
    provider via `~/.stoa/cli-config.yaml`.
-3. Hermes (the seventh) reads all six and composes a verdict. Five of six
+3. STOA (the seventh) reads all six and composes a verdict. Five of six
    must agree on the core position for the verdict to claim `consensus`.
 4. The verdict carries a sha256 `response_hash` over canonical JSON of
    the inputs + outputs.

@@ -258,7 +258,7 @@ class TestExchangeAuthCode:
         assert not setup_module.PENDING_AUTH_PATH.exists()
 
 
-class TestHermesConstantsFallback:
+class TestSTOAConstantsFallback:
     """Tests for _stoa_home.py fallback when stoa_constants is unavailable."""
 
     HELPER_PATH = (
@@ -277,11 +277,11 @@ class TestHermesConstantsFallback:
 
     def test_fallback_uses_stoa_home_env_var(self, monkeypatch, tmp_path):
         """When stoa_constants is missing, STOA_HOME comes from env var."""
-        monkeypatch.setenv("STOA_HOME", str(tmp_path / "custom-hermes"))
+        monkeypatch.setenv("STOA_HOME", str(tmp_path / "custom-stoa"))
         module = self._load_helper(monkeypatch)
-        assert module.get_stoa_home() == tmp_path / "custom-hermes"
+        assert module.get_stoa_home() == tmp_path / "custom-stoa"
 
-    def test_fallback_defaults_to_dot_hermes(self, monkeypatch):
+    def test_fallback_defaults_to_dot_stoa(self, monkeypatch):
         """When stoa_constants is missing and STOA_HOME unset, default to ~/.stoa."""
         monkeypatch.delenv("STOA_HOME", raising=False)
         module = self._load_helper(monkeypatch)
@@ -307,9 +307,9 @@ class TestHermesConstantsFallback:
 
     def test_fallback_display_stoa_home_custom_path(self, monkeypatch):
         """Fallback display_stoa_home() returns full path for non-home locations."""
-        monkeypatch.setenv("STOA_HOME", "/opt/hermes-custom")
+        monkeypatch.setenv("STOA_HOME", "/opt/stoa-custom")
         module = self._load_helper(monkeypatch)
-        assert module.display_stoa_home() == "/opt/hermes-custom"
+        assert module.display_stoa_home() == "/opt/stoa-custom"
 
     def test_delegates_to_stoa_constants_when_available(self):
         """When stoa_constants IS importable, _stoa_home delegates to it."""
