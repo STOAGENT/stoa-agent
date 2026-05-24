@@ -1078,7 +1078,7 @@ Write only the summary, starting with "[CONTEXT SUMMARY]:" prefix."""
                         progress.advance(main_task)
                         progress.update(
                             status_task,
-                            description=f"[dim]✅ {compressed_count} compressed | ⏭️ {skipped_count} skipped | ⏱️ {timeout_count} timeout | 🔄 {api_calls} API calls | ⚡ {in_flight} in-flight[/dim]"
+                            description=f"[dim]✅ {compressed_count} compressed | ⏭️ {skipped_count} skipped | ◆ {timeout_count} timeout | 🔄 {api_calls} API calls | ⚡ {in_flight} in-flight[/dim]"
                         )
                 
                 except asyncio.TimeoutError:
@@ -1091,7 +1091,7 @@ Write only the summary, starting with "[CONTEXT SUMMARY]:" prefix."""
                         progress.advance(main_task)
                         progress.update(
                             status_task,
-                            description=f"[dim]✅ {compressed_count} compressed | ⏭️ {skipped_count} skipped | ⏱️ {timeout_count} timeout | 🔄 {api_calls} API calls | ⚡ {in_flight} in-flight[/dim]"
+                            description=f"[dim]✅ {compressed_count} compressed | ⏭️ {skipped_count} skipped | ◆ {timeout_count} timeout | 🔄 {api_calls} API calls | ⚡ {in_flight} in-flight[/dim]"
                         )
                     
                     # Skip this entry entirely (don't include in output)
@@ -1268,7 +1268,7 @@ Write only the summary, starting with "[CONTEXT SUMMARY]:" prefix."""
         
         throughput = total / max(duration, 0.001)
         
-        print(f"║{'':2}⏱️  PROCESSING TIME{' '*51}║")
+        print(f"║{'':2}◆  PROCESSING TIME{' '*51}║")
         print(f"║{'─'*70}║")
         print(f"║{'':4}Duration:               {time_str:>20}{' '*22}║")
         print(f"║{'':4}Throughput:             {throughput:>15.1f} traj/sec{' '*18}║")

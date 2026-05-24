@@ -2880,7 +2880,7 @@ def tools_command(args=None, first_install: bool = False, config: dict = None):
     # Non-interactive summary mode for CLI usage
     if getattr(args, "summary", False):
         total = len(_get_effective_configurable_toolsets())
-        print(color("⚕ Tool Summary", Colors.CYAN, Colors.BOLD))
+        print(color("⁂ Tool Summary", Colors.CYAN, Colors.BOLD))
         print()
         summary = _platform_toolset_summary(config, enabled_platforms)
         for pkey in enabled_platforms:
@@ -2896,7 +2896,7 @@ def tools_command(args=None, first_install: bool = False, config: dict = None):
                 print(color("    (none enabled)", Colors.DIM))
         print()
         return
-    print(color("⚕ STOA Tool Configuration", Colors.CYAN, Colors.BOLD))
+    print(color("⁂ STOA Tool Configuration", Colors.CYAN, Colors.BOLD))
     print(color("  Enable or disable tools per platform.", Colors.DIM))
     print(color("  Tools that need API keys will be configured when enabled.", Colors.DIM))
     print(color("  Guide: https://stoax.xyz/docs/user-guide/features/tools", Colors.DIM))

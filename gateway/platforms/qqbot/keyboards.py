@@ -316,7 +316,7 @@ def _build_exec_text(req: ApprovalRequest) -> str:
     if req.description:
         lines.append(f"📝 {req.description}")
     lines.append("")
-    lines.append(f"⏱️ 超时: {req.timeout_sec} 秒")
+    lines.append(f"◆ 超时: {req.timeout_sec} 秒")
     return "\n".join(lines)
 
 
@@ -333,7 +333,7 @@ def _build_plugin_text(req: ApprovalRequest) -> str:
     if req.tool_name:
         lines.append(f"🔧 工具: {req.tool_name}")
     lines.append("")
-    lines.append(f"⏱️ 超时: {req.timeout_sec} 秒")
+    lines.append(f"◆ 超时: {req.timeout_sec} 秒")
     return "\n".join(lines)
 
 

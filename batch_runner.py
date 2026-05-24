@@ -1093,7 +1093,7 @@ class BatchRunner:
         print(f"✅ Prompts processed this run: {sum(r.get('processed', 0) for r in results)}")
         print(f"✅ Total trajectories in merged file: {total_entries - filtered_entries}")
         print(f"✅ Total batch files merged: {batch_files_found}")
-        print(f"⏱️  Total duration: {round(time.time() - start_time, 2)}s")
+        print(f"◆  Total duration: {round(time.time() - start_time, 2)}s")
         print("\n📈 Tool Usage Statistics:")
         print("-" * 70)
         

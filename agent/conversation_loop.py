@@ -1155,7 +1155,7 @@ def run_conversation(
                     agent.thinking_callback("")
                 
                 if not agent.quiet_mode:
-                    agent._vprint(f"{agent.log_prefix}⏱️  API call completed in {api_duration:.2f}s")
+                    agent._vprint(f"{agent.log_prefix}◆  API call completed in {api_duration:.2f}s")
                 
                 if agent.verbose_logging:
                     # Log response with provider info if available
@@ -1324,7 +1324,7 @@ def run_conversation(
                     agent._vprint(f"{agent.log_prefix}   🏢 Provider: {provider_name}", force=True)
                     cleaned_provider_error = agent._clean_error_message(error_msg)
                     agent._vprint(f"{agent.log_prefix}   📝 Provider message: {cleaned_provider_error}", force=True)
-                    agent._vprint(f"{agent.log_prefix}   ⏱️  {_failure_hint}", force=True)
+                    agent._vprint(f"{agent.log_prefix}   ◆  {_failure_hint}", force=True)
                     
                     if retry_count >= max_retries:
                         # Try fallback before giving up
@@ -2306,7 +2306,7 @@ def run_conversation(
                     _err_body_str = str(_err_body)[:300] if _err_body else None
                     if _err_body_str:
                         agent._vprint(f"{agent.log_prefix}   📋 Details: {_err_body_str}", force=True)
-                agent._vprint(f"{agent.log_prefix}   ⏱️  Elapsed: {elapsed_time:.2f}s  Context: {len(api_messages)} msgs, ~{approx_tokens:,} tokens")
+                agent._vprint(f"{agent.log_prefix}   ◆  Elapsed: {elapsed_time:.2f}s  Context: {len(api_messages)} msgs, ~{approx_tokens:,} tokens")
 
                 # Actionable hint for OpenRouter "no tool endpoints" error.
                 # This fires regardless of whether fallback succeeds — the
@@ -2947,7 +2947,7 @@ def run_conversation(
                                 pass
                 wait_time = _retry_after if _retry_after else jittered_backoff(retry_count, base_delay=2.0, max_delay=60.0)
                 if is_rate_limited:
-                    agent._emit_status(f"⏱️ Rate limited. Waiting {wait_time:.1f}s (attempt {retry_count + 1}/{max_retries})...")
+                    agent._emit_status(f"◆ Rate limited. Waiting {wait_time:.1f}s (attempt {retry_count + 1}/{max_retries})...")
                 else:
                     agent._emit_status(f"⏳ Retrying in {wait_time:.1f}s (attempt {retry_count}/{max_retries})...")
                 logger.warning(

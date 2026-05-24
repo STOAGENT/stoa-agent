@@ -682,7 +682,7 @@ def run_debug_share(args):
 
     # Schedule auto-deletion after 6 hours
     _schedule_auto_delete(list(urls.values()))
-    print(f"\n⏱  Pastes will auto-delete in 6 hours.")
+    print(f"\n◆  Pastes will auto-delete in 6 hours.")
 
     # Manual delete fallback
     print(f"To delete now:  stoa debug delete <url>")

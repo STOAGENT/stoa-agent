@@ -571,7 +571,7 @@ def _format_delegate_result(result: Optional[str]) -> Optional[str]:
         return None
     total = data.get("total_duration_seconds")
     lines = [f"Delegation results: {len(results)} task{'s' if len(results) != 1 else ''}" + (f" in {total}s" if total is not None else "")]
-    icon = {"completed": "✅", "failed": "✗", "error": "✗", "timeout": "⏱", "interrupted": "⚠"}
+    icon = {"completed": "✅", "failed": "✗", "error": "✗", "timeout": "◆", "interrupted": "⚠"}
     for item in results:
         if not isinstance(item, dict):
             lines.append(f"- {item}")

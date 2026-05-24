@@ -486,7 +486,7 @@ def _prompt_for_sudo_password(timeout_seconds: int = 45) -> str:
             sys.stdout.flush()
             return password
         else:
-            print("\n  ⏱ Timeout - continuing without sudo")
+            print("\n  ◆ Timeout - continuing without sudo")
             print("    (Press Enter to dismiss)")
             print()
             sys.stdout.flush()

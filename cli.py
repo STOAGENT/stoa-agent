@@ -3353,7 +3353,7 @@ class STOACLI:
             23h 59m 59s → 1d → 1d 0h 1m → ...
 
         Glyph prefix: ◆ when turn is live, ◇ when frozen or fresh start
-        (STOA-specific replacement for the upstream ⏱/⏲ clock emoji —
+        (STOA-specific replacement for the upstream ◆/◇ clock emoji —
         both glyphs are width-1 unambiguous so the status bar stays
         aligned in monospace terminals).
         """
@@ -11058,7 +11058,7 @@ class STOACLI:
         self._sudo_deadline = 0
         self._restore_modal_input_snapshot()
         self._invalidate()
-        _cprint(f"\n{_DIM}  ⏱ Timeout — continuing without sudo{_RST}")
+        _cprint(f"\n{_DIM}  ◆ Timeout — continuing without sudo{_RST}")
         return ""
 
     def _approval_callback(self, command: str, description: str,
@@ -11113,7 +11113,7 @@ class STOACLI:
             self._approval_state = None
             self._approval_deadline = 0
             self._invalidate()
-            _cprint(f"\n{_DIM}  ⏱ Timeout — denying command{_RST}")
+            _cprint(f"\n{_DIM}  ◆ Timeout — denying command{_RST}")
             return "deny"
 
     def _approval_choices(self, command: str, *, allow_permanent: bool = True) -> list[str]:
