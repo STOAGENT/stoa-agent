@@ -2576,13 +2576,16 @@ class ChatConsole:
         """
         yield self
 
-# ASCII Art - STOA-AGENT logo (full width, single line - requires ~80 char terminal)
-STOA_AGENT_LOGO = """[bold #FFD700]███████╗████████╗ ██████╗  █████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
-[bold #FFD700]██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗     ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]
-[#FFBF00]███████╗   ██║   ██║   ██║███████║     ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   [/]
-[#FFBF00]╚════██║   ██║   ██║   ██║██╔══██║     ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   [/]
-[#CD7F32]███████║   ██║   ╚██████╔╝██║  ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   [/]
-[#CD7F32]╚══════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   [/]"""
+# ASCII Art - STOA logo (ansi_shadow figlet) + AGENT line + 6 dots + tagline
+STOA_AGENT_LOGO = """[bold #FFD700]███████╗████████╗ ██████╗  █████╗ [/]
+[bold #FFC800]██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗[/]
+[bold #FFB900]███████╗   ██║   ██║   ██║███████║[/]
+[bold #FFAA00]╚════██║   ██║   ██║   ██║██╔══██║[/]
+[bold #FF9B00]███████║   ██║   ╚██████╔╝██║  ██║[/]
+[bold #FF8C00]╚══════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝[/]
+[dim #DAA520]      A G E N T  ·  v0.14.0[/]
+[#FFBF00]  • • • • • •[/]
+[dim #B8860B]  SIX SOVEREIGN LLMS · ONE AGENT · ON-CHAIN VERIFIABLE[/]"""
 
 # ASCII Art - STOA Caduceus (compact, fits in left panel)
 STOA_CADUCEUS = """[#CD7F32]⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣀⡀⠀⣀⣀⠀⢀⣀⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀[/]
