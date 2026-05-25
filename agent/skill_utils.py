@@ -354,6 +354,65 @@ def get_all_skills_dirs() -> List[Path]:
     return dirs
 
 
+# Audit v5 CRIT B-01 (obliteratus default-enabled) + CRIT K-01
+# (skills_hub install bypasses STOA_ENABLE_REDTEAM): even though the
+# top-level optional-skills/ dir is opt-in, two attack paths leaked
+# red-teaming skills into the runtime by default:
+#
+#   1. The `skills/` tree itself contained `mlops/inference/obliteratus/`
+#      — a documented safety-guard-removal skill. Audit flagged it as
+#      "ships default-enabled" because get_skills_dir() returns the
+#      whole tree unconditionally.
+#   2. `tools/skills_hub.OptionalSkillSource.fetch()` exposed every
+#      `optional-skills/*` entry through `stoa skills install`,
+#      regardless of STOA_ENABLE_REDTEAM, so a user could land
+#      red-teaming/godmode under ~/.stoa/skills/ and the next agent
+#      start would auto-discover it.
+#
+# Fix: name-based gate applied at skill-enumeration time. Any skill
+# whose path contains a red-team marker is hidden unless the env opt-in
+# is set. This closes both leak paths in one place.
+_REDTEAM_PATH_MARKERS = (
+    "red-teaming",
+    "redteaming",
+    "red_team",
+    "/godmode",
+    "/obliteratus",
+    "/auto_jailbreak",
+    "jailbreak",
+)
+
+
+def is_redteam_enabled() -> bool:
+    import os
+    return (
+        os.getenv("STOA_ENABLE_REDTEAM", "0") == "1"
+        or os.getenv("STOA_ENABLE_OPTIONAL_SKILLS", "0") == "1"
+    )
+
+
+def is_redteam_skill_path(path: Path | str) -> bool:
+    """Return True if ``path`` looks like a red-teaming / safety-bypass skill.
+
+    Uses lower-cased forward-slash form for case- and platform-independent
+    matching.
+    """
+    norm = str(path).lower().replace("\\", "/")
+    return any(marker in norm for marker in _REDTEAM_PATH_MARKERS)
+
+
+def filter_redteam_skills(skill_paths: list[Path]) -> list[Path]:
+    """Drop red-teaming skill paths unless STOA_ENABLE_REDTEAM is set.
+
+    Apply to any skill enumeration result that may include red-team
+    content (bundled `skills/`, hub-installed `~/.stoa/skills/`,
+    external dirs). Idempotent.
+    """
+    if is_redteam_enabled():
+        return skill_paths
+    return [p for p in skill_paths if not is_redteam_skill_path(p)]
+
+
 # ── Condition extraction ──────────────────────────────────────────────────
 
 
@@ -553,13 +612,26 @@ def iter_skill_index_files(skills_dir: Path, filename: str):
 
     Excludes Hermes metadata, VCS, virtualenv/dependency, and cache
     directories so dependencies cannot register nested skills.
+
+    Audit v5 CRIT B-02 fix: ``followlinks=False`` — the previous default
+    of True let a symlink ``project/skills/safe → ~/.stoa/skills/evil``
+    inject out-of-tree SKILL.md content. We now refuse to descend through
+    symlinks; bundled skills live in real directories.
+
+    Audit v5 CRIT B-01 / K-01 fix: filter out any SKILL.md whose path
+    looks like a red-teaming / safety-bypass skill (obliteratus, godmode,
+    auto_jailbreak, anything under */red-teaming/*) unless the user has
+    opted in via STOA_ENABLE_REDTEAM or STOA_ENABLE_OPTIONAL_SKILLS.
     """
     matches = []
-    for root, dirs, files in os.walk(skills_dir, followlinks=True):
+    for root, dirs, files in os.walk(skills_dir, followlinks=False):
         dirs[:] = [d for d in dirs if d not in EXCLUDED_SKILL_DIRS]
         if filename in files:
             matches.append(Path(root) / filename)
+    redteam_on = is_redteam_enabled()
     for path in sorted(matches, key=lambda p: str(p.relative_to(skills_dir))):
+        if not redteam_on and is_redteam_skill_path(path):
+            continue
         yield path
 
 

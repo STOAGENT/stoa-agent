@@ -2575,6 +2575,26 @@ class OptionalSkillSource(SkillSource):
     def fetch(self, identifier: str) -> Optional[SkillBundle]:
         # identifier format: "official/category/skill" or "official/skill"
         rel = identifier.split("/", 1)[-1] if identifier.startswith("official/") else identifier
+
+        # Audit v4 CRIT K-01 fix: red-teaming skills must respect the same
+        # STOA_ENABLE_REDTEAM gate as the local enumeration path. The
+        # previous code happily installed `official/red-teaming/godmode`
+        # under ~/.stoa/skills/ regardless of env, and the next agent
+        # start would auto-discover it. Centralised check via
+        # agent.skill_utils so the marker list stays in one place.
+        try:
+            from agent.skill_utils import is_redteam_skill_path, is_redteam_enabled
+            if not is_redteam_enabled() and is_redteam_skill_path(rel):
+                logger.warning(
+                    "Refusing to install red-teaming skill %r: set "
+                    "STOA_ENABLE_REDTEAM=1 to opt in.", rel,
+                )
+                return None
+        except Exception:
+            # If the gate helpers can't import we fail closed — refuse.
+            if "red-teaming" in rel.lower() or "godmode" in rel.lower():
+                return None
+
         skill_dir = self._optional_dir / rel
 
         # Guard against path traversal (e.g. "official/../../etc")
