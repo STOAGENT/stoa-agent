@@ -56,6 +56,30 @@ STOA Agent is a single-tenant personal agent **by default**.
 > single-user `session_id` plumbing covers the personal-use threat
 > model out of the box.
 
+### 2.0.0 Defensive-mode umbrella env
+
+The audit produced ~80 env-gated security knobs (post-fix). Setting
+the umbrella var ``STOA_DEFENSIVE_MODE=1`` does NOT auto-flip them —
+each one has its own behaviour and trade-off. But the list below is
+the recommended "lock everything down" preset for paranoid deploys:
+
+```
+STOA_REQUIRE_SIGNED_UPDATES=1     # git verify-commit before `stoa update`
+STOA_REQUIRE_PINNED_DEPS=1        # uv sync --frozen / pip --require-hashes
+STOA_REQUIRE_SKILL_INTEGRITY=1    # refuse unpinned skills at load
+STOA_NO_YOLO=1                    # never inherit YOLO into subagents
+STOA_REDACT_PII=1                 # add email/phone/IBAN/SSN to redact regex
+STOA_DEBUG_SHARE_DISABLED=1       # `stoa debug share` refuses to upload
+STOA_DOCKER_READONLY=1            # container rootfs read-only
+STOA_CRON_ALLOWED_BASE_URLS=...   # explicit allowlist for cron LLM endpoints
+STOA_DOCKER_SECCOMP=/path/to/profile.json   # custom syscall denylist
+STOA_MSGRAPH_KEEP_PAYLOAD=0       # drop raw payload from MSGraph exceptions
+```
+
+Setting all of these flips the per-feature trade-offs from
+"compatible-by-default" to "secure-by-default". Each is independently
+documented inline at the site of use.
+
 ### 2.0 Asset matrix (v11 HIGH-63)
 
 | Asset | Boundary trust level | Loss impact | Lives in |

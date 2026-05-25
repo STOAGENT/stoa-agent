@@ -2078,9 +2078,20 @@ class APIServerAdapter(BasePlatformAdapter):
             _persist_incomplete_if_needed()
             agent_error = _tb.format_exc()
             try:
+                # Audit v5 HIGH L-03 fix: redact the exception message
+                # before shipping it to the API client. Provider errors
+                # routinely echo back fragments of the original request
+                # (system prompt slice, header values, occasionally
+                # bearer-token suffix). Without redact, those land in
+                # OpenAI-compat client logs + Sentry-style capture.
+                try:
+                    from agent.redact import redact_sensitive_text
+                    _safe_exc_msg = redact_sensitive_text(str(_exc)[:500], force=True)
+                except Exception:
+                    _safe_exc_msg = "<server error — redact unavailable>"
                 failed_env = _envelope("failed")
                 failed_env["output"] = list(emitted_items)
-                failed_env["error"] = {"message": str(_exc)[:500], "type": "server_error"}
+                failed_env["error"] = {"message": _safe_exc_msg, "type": "server_error"}
                 failed_env["usage"] = {
                     "input_tokens": usage.get("input_tokens", 0),
                     "output_tokens": usage.get("output_tokens", 0),

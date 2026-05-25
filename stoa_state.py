@@ -16,6 +16,7 @@ Key design decisions:
 
 import json
 import logging
+import os
 import random
 import re
 import sqlite3
@@ -1492,6 +1493,20 @@ class SessionDB:
         # Multimodal content (list of parts) must be JSON-encoded: sqlite3
         # cannot bind list/dict parameters directly.
         stored_content = self._encode_content(content)
+
+        # Audit v3 HIGH S-05 fix: FTS5 trigram index DoS guard. A 200 MB
+        # Telegram message explodes into ~200 M index entries + 1+ GB
+        # WAL; the gateway request blocks for minutes. Truncate the
+        # stored content + FTS-indexed copy to bounded size BEFORE
+        # INSERT. Default 8 MiB stored / 64 KiB FTS-indexed strikes the
+        # balance — long pasted code still preserved in messages.content
+        # but trigram index stays sane.
+        MAX_CONTENT_BYTES = int(os.environ.get("STOA_MAX_MESSAGE_CONTENT_BYTES", str(8 * 1024 * 1024)))
+        if isinstance(stored_content, str):
+            stored_bytes = stored_content.encode("utf-8", errors="replace")
+            if len(stored_bytes) > MAX_CONTENT_BYTES:
+                stored_content = stored_bytes[:MAX_CONTENT_BYTES].decode("utf-8", errors="replace") + \
+                    f"\n[truncated by stoa_state: {len(stored_bytes)} > {MAX_CONTENT_BYTES} bytes]"
 
         # Pre-compute tool call count
         num_tool_calls = 0
