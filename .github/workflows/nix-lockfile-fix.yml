@@ -2,7 +2,7 @@ name: Nix Lockfile Fix
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - 'ui-tui/package-lock.json'
       - 'ui-tui/package.json'
