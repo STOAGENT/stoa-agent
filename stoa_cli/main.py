@@ -6963,6 +6963,29 @@ def _update_via_zip(args):
         zip_path = os.path.join(tmp_dir, f"stoa-agent-{branch}.zip")
         urlretrieve(zip_url, zip_path)
 
+        # Audit v6 CRIT C-2 fix: opt-in SHA-256 verification on the
+        # downloaded ZIP. The ZIP route is the Windows fallback when git
+        # is unhappy, and previously trusted whatever GitHub served.
+        # Set STOA_UPDATE_ZIP_SHA256 to the expected hex digest to enable
+        # verification — operators in supply-chain-sensitive environments
+        # mirror the file out-of-band and pin the digest.
+        expected_sha = os.getenv("STOA_UPDATE_ZIP_SHA256", "").strip().lower()
+        if expected_sha:
+            import hashlib
+            import hmac as _hmac_pin
+            h = hashlib.sha256()
+            with open(zip_path, "rb") as fh:
+                for chunk in iter(lambda: fh.read(1 << 20), b""):
+                    h.update(chunk)
+            actual = h.hexdigest()
+            if not _hmac_pin.compare_digest(actual, expected_sha):
+                print()
+                print("✗ STOA_UPDATE_ZIP_SHA256 mismatch — refusing to extract.")
+                print(f"  expected: {expected_sha}")
+                print(f"  actual:   {actual}")
+                sys.exit(1)
+            print(f"  ✓ ZIP SHA-256 matches pin ({actual[:12]}…)")
+
         print("→ Extracting...")
         with zipfile.ZipFile(zip_path, "r") as zf:
             # Validate paths to prevent zip-slip (path traversal)
@@ -8841,6 +8864,33 @@ def _cmd_update_impl(args, gateway_mode: bool):
         # every user who ran ``stoa update`` for the 7 minutes between
         # the bad commit and the fix landing).
         pre_pull_sha = _capture_head_sha(git_cmd, PROJECT_ROOT)
+
+        # Audit v6 CRIT C-1 fix: opt-in signed-commit verification.
+        # Default behavior (STOA_REQUIRE_SIGNED_UPDATES unset) is unchanged
+        # so existing user flows don't break. Operators who care about
+        # supply-chain integrity set STOA_REQUIRE_SIGNED_UPDATES=1; we then
+        # `git verify-commit origin/main` before fast-forwarding. The user
+        # must have the upstream signing key in their GPG/SSH keyring.
+        if os.getenv("STOA_REQUIRE_SIGNED_UPDATES", "0") == "1":
+            verify_result = subprocess.run(
+                git_cmd + ["verify-commit", f"origin/{branch}"],
+                cwd=PROJECT_ROOT,
+                capture_output=True,
+                text=True,
+            )
+            if verify_result.returncode != 0:
+                print()
+                print("✗ STOA_REQUIRE_SIGNED_UPDATES=1 but origin/main commit signature")
+                print("  could not be verified. Refusing to pull untrusted code.")
+                err = (verify_result.stderr or verify_result.stdout).strip()
+                if err:
+                    print(f"  git verify-commit said: {err.splitlines()[0]}")
+                print()
+                print("  Either import the upstream signing key (gpg --recv-keys ...),")
+                print("  or unset STOA_REQUIRE_SIGNED_UPDATES to disable this gate.")
+                sys.exit(1)
+            print("  ✓ Signed-commit verification passed")
+
         try:
             pull_result = subprocess.run(
                 git_cmd + ["pull", "--ff-only", "origin", branch],
