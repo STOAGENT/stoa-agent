@@ -99,22 +99,29 @@ def force_enable_redaction() -> None:
 # for the credential regexes but still trip a privacy review when
 # they leak into an export / debug dump / Sentry capture.
 _PII_PATTERNS = [
-    # Email: RFC 5322-ish; we redact the local part only.
+    # Order matters: most-specific patterns first, otherwise the
+    # phone-number "any 10+ digit run" pattern eats IBAN / card prefix
+    # bytes. Email is unambiguous so it can stay at the top.
     (r"\b([A-Za-z0-9._%+-]{1,64})@([A-Za-z0-9.-]+\.[A-Za-z]{2,24})\b",
      lambda m: f"<email:{m.group(2)}>"),
-    # E.164-ish phone (10+ digits with optional +/spaces/dashes). Catches
-    # +905551234567, (415) 555-0100, etc. Avoids matching pure-digit IDs.
-    (r"\+?\d[\d\s().-]{8,16}\d",
-     lambda m: "<phone>"),
-    # IBAN: country + 2 check digits + 11-30 alphanumeric.
-    (r"\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b",
-     lambda m: "<iban>"),
-    # US SSN.
+    # US SSN — fixed 3-2-4 digit shape, very low false-positive rate.
     (r"\b\d{3}-\d{2}-\d{4}\b",
      lambda m: "<ssn>"),
-    # Credit card (Luhn-loose). 13–19 contiguous digits with optional separators.
+    # IBAN: country + 2 check digits + 11-30 alphanumeric. Must come
+    # BEFORE the phone pattern so a digit-heavy IBAN tail doesn't get
+    # caught as a phone first.
+    (r"\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b",
+     lambda m: "<iban>"),
+    # Credit card (Luhn-loose). 13–19 contiguous digits with optional
+    # separators. Also has to come before phone — a 16-digit card with
+    # no separators otherwise gets eaten by the phone pattern.
     (r"\b(?:\d[ -]?){13,19}\b",
      lambda m: "<card>"),
+    # E.164-ish phone (10+ digits with optional +/spaces/dashes). Catches
+    # +905551234567, (415) 555-0100, etc. Last because everything above
+    # is more specific.
+    (r"\+?\d[\d\s().-]{8,16}\d",
+     lambda m: "<phone>"),
 ]
 
 
