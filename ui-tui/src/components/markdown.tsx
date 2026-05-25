@@ -700,15 +700,28 @@ function MdImpl({ cols, compact, t, text }: MdProps) {
 
       if (media) {
         start('paragraph')
+        // Audit v6 HIGH-17 fix: MEDIA: links no longer become clickable
+        // file://... or javascript:... URLs. The previous behaviour
+        // wrapped any path in a <Link url=...> — a model-emitted line
+        // like `MEDIA: javascript:fetch('exfil')` rendered as a
+        // Cmd-clickable bookmarklet, and `MEDIA: /etc/passwd` opened
+        // the file in the operator's default handler. We now render
+        // MEDIA as plain text only; copy-paste still works for the
+        // operator who genuinely wants the path. http(s):// URLs are
+        // the one safe scheme we keep clickable since prompt-injection
+        // payloads that fetch are already MITM'd by the agent's own
+        // url_safety floor.
+        const isHttpUrl = /^https?:\/\//i.test(media)
         nodes.push(
           <Text color={t.color.muted} key={key} wrap="wrap-trim">
             {'▸ '}
-
-            <Link url={/^(?:\/|[a-z]:[\\/])/i.test(media) ? `file://${media}` : media}>
-              <Text color={t.color.accent} underline>
-                {media}
-              </Text>
-            </Link>
+            {isHttpUrl ? (
+              <Link url={media}>
+                <Text color={t.color.accent} underline>{media}</Text>
+              </Link>
+            ) : (
+              <Text color={t.color.accent}>{media}</Text>
+            )}
           </Text>
         )
         i++

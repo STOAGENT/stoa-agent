@@ -322,7 +322,36 @@ def upload_to_pastebin(content: str, expiry_days: int = 7) -> str:
     """Upload *content* to a paste service, trying paste.rs then dpaste.com.
 
     Returns the paste URL on success, raises on total failure.
+
+    Audit v6 HIGH-23 fix: pre-upload redact pass + opt-out gate.
+    The previous flow ran ONLY the per-log-line redactor on the captured
+    tails — but the assembled report also includes system info and log
+    HEADERS that the per-line pass didn't touch. We now route the
+    entire blob through `redact_sensitive_text(force=True)` so the
+    same patterns that scrub credentials in live logs also scrub
+    them from the upload, AND we honor STOA_DEBUG_SHARE_DISABLED=1
+    so privacy-strict environments can refuse the upload outright.
     """
+    import os as _os
+    if _os.environ.get("STOA_DEBUG_SHARE_DISABLED", "0") == "1":
+        raise RuntimeError(
+            "STOA_DEBUG_SHARE_DISABLED=1 — refusing to upload debug "
+            "report to a public paste service. Save the report locally "
+            "and share it through a private channel instead "
+            "(`stoa debug share --output debug-report.txt`)."
+        )
+    try:
+        from agent.redact import redact_sensitive_text
+        content = redact_sensitive_text(content, force=True)
+    except Exception:
+        # If redact fails, fail-closed — refuse the upload rather than
+        # ship potentially-credential-bearing content publicly.
+        raise RuntimeError(
+            "Redactor unavailable; refusing to upload debug report "
+            "without redaction. Re-run after ensuring `agent.redact` "
+            "imports cleanly, or save locally with --output."
+        )
+
     errors: list[str] = []
 
     # Try paste.rs first (simple, fast)

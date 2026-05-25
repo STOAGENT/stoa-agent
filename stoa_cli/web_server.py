@@ -2709,11 +2709,40 @@ async def create_cron_job(body: CronJobCreate, profile: str = "default"):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# Audit v6 HIGH-7 fix: explicit allowlist of fields that PUT /api/cron/jobs
+# can change. The previous code forwarded `body.updates` straight to
+# `update_job`, which let a client (or an XSS pivot) overwrite `prompt`,
+# `script`, `deliver`, `enabled_toolsets`, `origin`, `model`, `provider`,
+# `base_url` — none of which were re-validated at update time. Operators
+# expected the create-time validators to run again; they didn't.
+_CRON_UPDATABLE_FIELDS = {
+    "schedule",      # cron expression — re-validated by cron parser at next tick
+    "enabled",       # bool — already strict
+    "label",         # display string
+    "description",   # display string
+    "max_runs",      # int — already strict
+}
+
+
 @app.put("/api/cron/jobs/{job_id}")
 async def update_cron_job(job_id: str, body: CronJobUpdate, profile: Optional[str] = None):
     selected = profile or _find_cron_job_profile(job_id)
     if not selected:
         raise HTTPException(status_code=404, detail="Job not found")
+    # Audit v6 HIGH-7: strip any field outside the allowlist BEFORE
+    # forwarding to update_job. Reject (don't silently drop) so the
+    # caller knows they tried to change something the API doesn't
+    # support via PUT — they must DELETE + create the job.
+    bad = [k for k in (body.updates or {}).keys() if k not in _CRON_UPDATABLE_FIELDS]
+    if bad:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"PUT /api/cron/jobs only accepts updates to "
+                f"{sorted(_CRON_UPDATABLE_FIELDS)}. Refusing to mass-assign: "
+                f"{sorted(bad)}. DELETE + create a new job to change those."
+            ),
+        )
     job = _call_cron_for_profile(selected, "update_job", job_id, body.updates)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")

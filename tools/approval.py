@@ -1168,11 +1168,36 @@ def check_all_command_guards(command: str, env_type: str,
 
     session_key = get_current_session_key()
 
-    # Tirith block/warn → approvable warning with rich findings.
-    # Previously, tirith "block" was a hard block with no approval prompt.
-    # Now both block and warn go through the approval flow so users can
-    # inspect the explanation and approve if they understand the risk.
-    if tirith_result["action"] in {"block", "warn"}:
+    # Audit v8 HIGH-32-04 fix: Tirith "block" goes back to being a hard
+    # block. The earlier "block → approvable warning so users can inspect"
+    # downgrade traded a precise rules engine for human approval fatigue;
+    # users routinely click through tirith blocks without reading the
+    # rule_id, defeating the engine's job. "warn" still flows through
+    # approval (that's its purpose). "block" is now terminal except in
+    # session-yolo mode, which already bypasses everything by design.
+    if tirith_result["action"] == "block":
+        findings = tirith_result.get("findings") or []
+        rule_id = findings[0].get("rule_id", "unknown") if findings else "unknown"
+        tirith_desc = _format_tirith_description(tirith_result)
+        try:
+            from agent.audit_log import record as _audit_record
+            _audit_record(
+                kind="tirith-block", tool="terminal",
+                args_preview=command, approved=False, actor="tirith",
+                extra={"rule_id": rule_id},
+            )
+        except Exception:
+            pass
+        return {
+            "approved": False,
+            "message": (
+                f"BLOCKED by Tirith rule '{rule_id}': {tirith_desc}\n"
+                "Tirith blocks are terminal — if you genuinely need this "
+                "command, edit the rule or run under STOA_YOLO_MODE=1 "
+                "(NOT recommended for any non-interactive runtime)."
+            ),
+        }
+    if tirith_result["action"] == "warn":
         findings = tirith_result.get("findings") or []
         rule_id = findings[0].get("rule_id", "unknown") if findings else "unknown"
         tirith_key = f"tirith:{rule_id}"
