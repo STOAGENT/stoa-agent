@@ -316,12 +316,16 @@ def get_read_block_error(path: str) -> Optional[str]:
 
     # /proc/<pid>/environ leaks every env var of any process the user can
     # read — including STOA's own credentials. Block reads regardless of pid.
-    p_str = str(resolved).replace("\\", "/")
-    if p_str.startswith("/proc/") and p_str.endswith("/environ"):
-        return (
-            f"Access denied: {path} exposes process environment variables "
-            "which routinely contain credentials. (Defense-in-depth — not a "
-            "security boundary; the terminal tool can still bypass.)"
-        )
+    # On non-Linux hosts /proc/ doesn't exist as a real path, so we match
+    # against BOTH the resolved form and the original path string (the
+    # caller may pass /proc/1/environ verbatim on a Linux system without
+    # going through expanduser).
+    for candidate_str in (str(resolved).replace("\\", "/"), str(path).replace("\\", "/")):
+        if candidate_str.startswith("/proc/") and candidate_str.endswith("/environ"):
+            return (
+                f"Access denied: {path} exposes process environment variables "
+                "which routinely contain credentials. (Defense-in-depth — not a "
+                "security boundary; the terminal tool can still bypass.)"
+            )
 
     return None
