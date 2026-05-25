@@ -12,16 +12,32 @@ authors = [{ name = "STOA", email = "hi@stoax.xyz" }]
 license = { text = "MIT" }
 keywords = ["ai", "agent", "llm", "council", "monad", "erc-8004", "on-chain", "cli", "stoa"]
 classifiers = [
+  # Audit v7 HIGH-22 fix: expanded PyPI classifiers so license-detection
+  # tooling + supply-chain databases pick up the project correctly. The
+  # previous list omitted topic-specific tags (AI, security, terminals)
+  # and the Python 3.14 row that the lockfile now resolves against.
   "Development Status :: 4 - Beta",
   "Environment :: Console",
+  "Environment :: Console :: Curses",
   "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "Intended Audience :: System Administrators",
   "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS :: MacOS X",
+  "Operating System :: Microsoft :: Windows",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Communications :: Chat",
+  "Topic :: Security",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
   "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: System :: Shells",
+  "Typing :: Typed",
 ]
 
 [project.urls]
