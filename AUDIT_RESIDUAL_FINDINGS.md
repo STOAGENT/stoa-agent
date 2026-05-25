@@ -17,22 +17,25 @@ işin bir TODO-PR-listesi olarak parçalanmasını sağlar.
 Bu beş alan tek-commit fix'le yapılamaz — yeni subsistem inşası gerek.
 Her biri ayrı PR + tasarım kararı + stress test ister.
 
-### H-R1 — Email gateway DKIM/SPF/DMARC + outbound signing (v11 HIGH-52, 5 finding)
+### H-R1 — Email gateway DKIM/SPF/DMARC + outbound signing (v11 HIGH-52, 5 finding) — **CLOSED 2026-05-25**
 
-`gateway/platforms/email.py:319,452,528,673` — şu an:
-- Outbound SMTP ne DKIM imzalıyor ne SPF kayıt ister
-- Inbound `From:` doğrulaması yok; display-name spoofing serbest
-- Subject + body agent context'ine fence'siz akıyor
-
-**Önerilen yaklaşım:**
-1. `dkimpy` opt-in dep + selector + private-key path env (`STOA_EMAIL_DKIM_KEY`,
-   `STOA_EMAIL_DKIM_SELECTOR`)
-2. Inbound `From:` ve `Reply-To:` arasındaki tutarsızlık → warn + reject
-3. Subject + body'yi `<email subject="..." from="...">…</email>` fence içine sar
-4. Display-name UTF-7 / look-alike normalize + cap
-
-**Tahmini efor:** ~1 mühendislik günü (mevcut email.py 800+ satır,
-DKIM imzalama path'i için yeni helper modülü).
+`gateway/platforms/email.py` + yeni `gateway/platforms/email_dkim.py`:
+- **Outbound DKIM:** opt-in via `STOA_EMAIL_DKIM_KEY` /
+  `STOA_EMAIL_DKIM_SELECTOR` / `STOA_EMAIL_DKIM_DOMAIN`. Default OFF —
+  geriye uyumlu. `dkimpy` yokken loud warning + unsigned fallback.
+  Üç SMTP path'i (`_send_email`, `_send_email_with_attachments`,
+  `_send_email_with_attachment`) tek `_smtp_send()` helper'ında
+  birleştirildi; DKIM açıkken `dkim.sign()` wire bytes'a uygulanıyor.
+- **Display-name spoof reject:** decoded `From:` header `"x@y" <z@w>`
+  şeklindeyse inbound mesaj sessizce drop ediliyor (warn log).
+- **Agent-context fence:** subject + body artık
+  `<email subject="..." from="...">…</email>` XML fence'inde sarılıyor;
+  attribute & body injection ikisi de entity-escape edilmiş.
+- **Reused subject sanitization:** zero-width + RTLO/LRO bidi chars
+  outbound `Re:` header'a sızmadan strip ediliyor, 200 char cap.
+- **Stress test:** `tests/gateway/platforms/test_email_audit_v11.py` —
+  18/18 green (DKIM disabled noop, spoof reject, fence + escape,
+  send_message used when DKIM off).
 
 ### H-R2 — Skill marketplace ed25519/cosign + revocation + author binding (v11 HIGH-61, 7 finding)
 

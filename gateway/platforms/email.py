@@ -42,6 +42,13 @@ from gateway.platforms.base import (
     cache_image_from_bytes,
 )
 from gateway.config import Platform, PlatformConfig
+from gateway.platforms.email_dkim import (
+    dkim_enabled,
+    fence_email_for_agent,
+    is_display_name_spoof,
+    sanitize_reused_subject,
+    sign_message_bytes,
+)
 
 logger = logging.getLogger(__name__)
 # Automated sender patterns — emails from these are silently ignored
@@ -393,11 +400,28 @@ class EmailAdapter(BasePlatformAdapter):
                     sender_raw = msg.get("From", "")
                     sender_addr = _extract_email_address(sender_raw)
                     sender_name = _decode_header_value(sender_raw)
+                    # Reject display-name spoof attempts like:
+                    #   From: "alice@bank.com" <evil@attacker.example>
+                    # See gateway/platforms/email_dkim.is_display_name_spoof.
+                    # NOTE: detection runs on the *decoded* header so that
+                    # RFC-2047-encoded spoof payloads cannot bypass the check.
+                    if is_display_name_spoof(sender_name):
+                        logger.warning(
+                            "[Email] Rejecting display-name spoof from %s "
+                            "(decoded header: %r)",
+                            sender_addr,
+                            sender_name,
+                        )
+                        continue
                     # Remove email from name if present
                     if "<" in sender_name:
                         sender_name = sender_name.split("<")[0].strip().strip('"')
 
                     subject = _decode_header_value(msg.get("Subject", "(no subject)"))
+                    # Strip invisible / bidi chars from subject up-front so the
+                    # value we later reuse in the outbound "Re:" header and the
+                    # value the agent sees in its context are identical.
+                    subject = sanitize_reused_subject(subject) or "(no subject)"
                     message_id = msg.get("Message-ID", "")
                     in_reply_to = msg.get("In-Reply-To", "")
                     # Skip automated/noreply senders before any processing
@@ -457,10 +481,17 @@ class EmailAdapter(BasePlatformAdapter):
         body = msg_data["body"].strip()
         attachments = msg_data["attachments"]
 
-        # Build message text: include subject as context
-        text = body
-        if subject and not subject.startswith("Re:"):
-            text = f"[Subject: {subject}]\n\n{body}"
+        # Build agent-facing message text.
+        # We wrap subject + body in an XML-like fence so that the agent
+        # loop has a stable boundary between trusted system instructions
+        # and untrusted user content.  This neutralises trivial
+        # "IGNORE PREVIOUS INSTRUCTIONS" prompt-injection payloads that
+        # could otherwise be smuggled through the subject line or body.
+        text = fence_email_for_agent(
+            subject=subject,
+            from_addr=sender_addr,
+            body=body,
+        )
 
         # Determine message type and media
         media_urls = []
@@ -529,9 +560,11 @@ class EmailAdapter(BasePlatformAdapter):
         msg["From"] = self._address
         msg["To"] = to_addr
 
-        # Thread context for reply
+        # Thread context for reply.  Sanitize the stored subject before
+        # reuse: inbound subjects can contain invisible/bidi chars that
+        # would otherwise round-trip into our outbound "Re:" header.
         ctx = self._thread_context.get(to_addr, {})
-        subject = ctx.get("subject", "STOA Agent")
+        subject = sanitize_reused_subject(ctx.get("subject", "STOA Agent")) or "STOA Agent"
         if not subject.startswith("Re:"):
             subject = f"Re: {subject}"
         msg["Subject"] = subject
@@ -548,19 +581,41 @@ class EmailAdapter(BasePlatformAdapter):
 
         msg.attach(MIMEText(body, "plain", "utf-8"))
 
+        self._smtp_send(msg)
+
+        logger.info("[Email] Sent reply to %s (subject: %s)", to_addr, subject)
+        return msg_id
+
+    def _smtp_send(self, msg: MIMEMultipart) -> None:
+        """Send *msg* via SMTP, DKIM-signing the wire bytes when opted in.
+
+        Centralised so all three outbound send paths get identical
+        signing behavior.  When STOA_EMAIL_DKIM_KEY is unset (the
+        default), this is byte-identical to the previous
+        ``smtp.send_message(msg)`` call — no behavior change.
+        """
         smtp = smtplib.SMTP(self._smtp_host, self._smtp_port, timeout=30)
         try:
             smtp.starttls(context=ssl.create_default_context())
             smtp.login(self._address, self._password)
-            smtp.send_message(msg)
+            if dkim_enabled():
+                raw = msg.as_bytes()
+                signed = sign_message_bytes(raw, self._address)
+                # SMTP envelope addresses derive from the MIME headers.
+                from_addr = msg["From"]
+                to_addrs = [
+                    addr.strip()
+                    for addr in (msg["To"] or "").split(",")
+                    if addr.strip()
+                ]
+                smtp.sendmail(from_addr, to_addrs, signed)
+            else:
+                smtp.send_message(msg)
         finally:
             try:
                 smtp.quit()
             except Exception:
                 smtp.close()
-
-        logger.info("[Email] Sent reply to %s (subject: %s)", to_addr, subject)
-        return msg_id
 
     async def send_typing(self, chat_id: str, metadata: Optional[Dict[str, Any]] = None) -> None:
         """Email has no typing indicator — no-op."""
@@ -641,7 +696,7 @@ class EmailAdapter(BasePlatformAdapter):
         msg["To"] = to_addr
 
         ctx = self._thread_context.get(to_addr, {})
-        subject = ctx.get("subject", "STOA Agent")
+        subject = sanitize_reused_subject(ctx.get("subject", "STOA Agent")) or "STOA Agent"
         if not subject.startswith("Re:"):
             subject = f"Re: {subject}"
         msg["Subject"] = subject
@@ -670,16 +725,7 @@ class EmailAdapter(BasePlatformAdapter):
             except Exception as e:
                 logger.warning("[Email] Failed to attach %s: %s", file_path, e)
 
-        smtp = smtplib.SMTP(self._smtp_host, self._smtp_port, timeout=30)
-        try:
-            smtp.starttls(context=ssl.create_default_context())
-            smtp.login(self._address, self._password)
-            smtp.send_message(msg)
-        finally:
-            try:
-                smtp.quit()
-            except Exception:
-                smtp.close()
+        self._smtp_send(msg)
 
         logger.info("[Email] Sent multi-attachment email to %s (%d files)", to_addr, len(file_paths))
         return msg_id
@@ -722,7 +768,7 @@ class EmailAdapter(BasePlatformAdapter):
         msg["To"] = to_addr
 
         ctx = self._thread_context.get(to_addr, {})
-        subject = ctx.get("subject", "STOA Agent")
+        subject = sanitize_reused_subject(ctx.get("subject", "STOA Agent")) or "STOA Agent"
         if not subject.startswith("Re:"):
             subject = f"Re: {subject}"
         msg["Subject"] = subject
@@ -749,16 +795,7 @@ class EmailAdapter(BasePlatformAdapter):
             part.add_header("Content-Disposition", f"attachment; filename={fname}")
             msg.attach(part)
 
-        smtp = smtplib.SMTP(self._smtp_host, self._smtp_port, timeout=30)
-        try:
-            smtp.starttls(context=ssl.create_default_context())
-            smtp.login(self._address, self._password)
-            smtp.send_message(msg)
-        finally:
-            try:
-                smtp.quit()
-            except Exception:
-                smtp.close()
+        self._smtp_send(msg)
 
         return msg_id
 
