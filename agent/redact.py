@@ -93,6 +93,31 @@ def force_enable_redaction() -> None:
         )
     _REDACT_ENABLED = True
 
+# Audit v11 HIGH-57-2 fix: PII regexes for GDPR-aware redaction.
+# Phone numbers, email addresses, IBAN, US SSN, credit-card BIN+last4.
+# These fire on .info-level log records that aren't sensitive enough
+# for the credential regexes but still trip a privacy review when
+# they leak into an export / debug dump / Sentry capture.
+_PII_PATTERNS = [
+    # Email: RFC 5322-ish; we redact the local part only.
+    (r"\b([A-Za-z0-9._%+-]{1,64})@([A-Za-z0-9.-]+\.[A-Za-z]{2,24})\b",
+     lambda m: f"<email:{m.group(2)}>"),
+    # E.164-ish phone (10+ digits with optional +/spaces/dashes). Catches
+    # +905551234567, (415) 555-0100, etc. Avoids matching pure-digit IDs.
+    (r"\+?\d[\d\s().-]{8,16}\d",
+     lambda m: "<phone>"),
+    # IBAN: country + 2 check digits + 11-30 alphanumeric.
+    (r"\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b",
+     lambda m: "<iban>"),
+    # US SSN.
+    (r"\b\d{3}-\d{2}-\d{4}\b",
+     lambda m: "<ssn>"),
+    # Credit card (Luhn-loose). 13–19 contiguous digits with optional separators.
+    (r"\b(?:\d[ -]?){13,19}\b",
+     lambda m: "<card>"),
+]
+
+
 # Known API key prefixes -- match the prefix + contiguous token chars
 _PREFIX_PATTERNS = [
     r"sk-[A-Za-z0-9_-]{10,}",           # OpenAI / OpenRouter / Anthropic (sk-ant-*)
@@ -440,6 +465,17 @@ def redact_sensitive_text(text: str, *, force: bool = False, code_file: bool = F
                 return phone[:2] + "****" + phone[-2:]
             return phone[:4] + "****" + phone[-4:]
         text = _SIGNAL_PHONE_RE.sub(_redact_phone, text)
+
+    # Audit v11 HIGH-57 fix: PII patterns. Gated behind STOA_REDACT_PII=1
+    # so opt-in users (EU operators, regulated industries) flip on
+    # without breaking the existing "credentials only" baseline that
+    # many users rely on for log readability. Default off.
+    if os.getenv("STOA_REDACT_PII", "0") == "1":
+        for pat, repl in _PII_PATTERNS:
+            try:
+                text = re.sub(pat, repl, text)
+            except Exception:
+                continue
 
     return text
 

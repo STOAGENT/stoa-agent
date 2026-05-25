@@ -1076,7 +1076,27 @@ def check_all_command_guards(command: str, env_type: str,
     # --yolo or approvals.mode=off: bypass all approval prompts.
     # Gateway /yolo is session-scoped; CLI --yolo remains process-scoped.
     approval_mode = _get_approval_mode()
-    if is_truthy_value(os.getenv("STOA_YOLO_MODE")) or is_current_session_yolo_enabled() or approval_mode == "off":
+    # Audit v9 HIGH-47-2 fix: --no-yolo / STOA_NO_YOLO=1 always wins over
+    # STOA_YOLO_MODE. Gives parents a way to de-inherit yolo when they
+    # spawn a delegated subagent — without this, a hostile prompt that
+    # tricked the parent into YOLO would propagate to every child too.
+    no_yolo_override = is_truthy_value(os.getenv("STOA_NO_YOLO"))
+    if not no_yolo_override and (
+        is_truthy_value(os.getenv("STOA_YOLO_MODE"))
+        or is_current_session_yolo_enabled()
+        or approval_mode == "off"
+    ):
+        # Audit v9 HIGH-46 fix: log every YOLO bypass so post-incident
+        # analysis can answer "was YOLO on when this dangerous command
+        # ran?" without relying on volatile process state.
+        try:
+            from agent.audit_log import record as _audit_record
+            _audit_record(
+                kind="yolo-bypass", tool="terminal",
+                args_preview=command, approved=True, actor="yolo",
+            )
+        except Exception:
+            pass
         return {"approved": True, "message": None}
 
     is_cli = env_var_enabled("STOA_INTERACTIVE")
