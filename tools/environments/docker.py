@@ -166,7 +166,37 @@ _BASE_SECURITY_ARGS = [
     "--tmpfs", "/tmp:rw,nosuid,size=512m",
     "--tmpfs", "/var/tmp:rw,noexec,nosuid,size=256m",
     "--tmpfs", "/run:rw,noexec,nosuid,size=64m",
+    # Audit v9 CRIT-43-1 fix: opt-in seccomp profile. Default Docker
+    # seccomp policy lets the container call io_uring_*, userfaultfd,
+    # keyctl, bpf, perf_event_open, unshare(CLONE_NEWUSER) — the syscall
+    # surface for CVE-2023-2598, CVE-2024-0582, CVE-2024-1086. We ship a
+    # stricter profile under data/seccomp/stoa-sandbox.json and apply it
+    # when present; operators on hardened kernels can substitute their
+    # own via STOA_DOCKER_SECCOMP=/path/to/profile.json. Defaults to the
+    # bundled profile when it exists, falls back to Docker default when
+    # not (so the cap-drop / no-new-privileges layer still applies).
 ]
+
+
+def _resolve_seccomp_profile() -> Optional[str]:
+    """Return a path to the seccomp profile to apply, or None for default.
+
+    Resolution order:
+      1. STOA_DOCKER_SECCOMP env var (absolute path)
+      2. <repo_root>/data/seccomp/stoa-sandbox.json if bundled
+      3. None (Docker default profile)
+    """
+    env_path = os.environ.get("STOA_DOCKER_SECCOMP", "").strip()
+    if env_path:
+        if Path(env_path).is_file():
+            return env_path
+        logger.warning("STOA_DOCKER_SECCOMP=%s not found; falling back to bundled/default", env_path)
+    here = Path(__file__).resolve()
+    for parent in (here.parent.parent.parent, here.parent.parent):
+        candidate = parent / "data" / "seccomp" / "stoa-sandbox.json"
+        if candidate.is_file():
+            return str(candidate)
+    return None
 
 # Extra caps needed when the container starts as root and an entrypoint
 # must drop privileges via gosu/su. Skipped when --user is passed because
@@ -179,9 +209,14 @@ _GOSU_CAP_ARGS = [
 
 def _build_security_args(run_as_host_user: bool) -> list[str]:
     """Return the security/cap/tmpfs args tailored to the privilege mode."""
-    if run_as_host_user:
-        return list(_BASE_SECURITY_ARGS)
-    return list(_BASE_SECURITY_ARGS) + list(_GOSU_CAP_ARGS)
+    args = list(_BASE_SECURITY_ARGS)
+    if not run_as_host_user:
+        args += list(_GOSU_CAP_ARGS)
+    # Audit v9 CRIT-43-1: attach seccomp profile when one is available.
+    seccomp = _resolve_seccomp_profile()
+    if seccomp:
+        args += ["--security-opt", f"seccomp={seccomp}"]
+    return args
 
 
 def _resolve_host_user_spec() -> Optional[str]:

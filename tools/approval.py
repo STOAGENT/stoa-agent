@@ -1083,10 +1083,16 @@ def check_all_command_guards(command: str, env_type: str,
     is_gateway = _is_gateway_approval_context()
     is_ask = env_var_enabled("STOA_EXEC_ASK")
 
-    # Preserve the existing non-interactive behavior: outside CLI/gateway/ask
-    # flows, we do not block on approvals and we skip external guard work.
+    # Audit v8 CRIT-32-01 fix: non-interactive callers (MCP serve, batch
+    # runner, library embed, scheduled jobs without STOA_CRON_SESSION)
+    # previously fell through to "approved=True" for every dangerous
+    # pattern. That made `terminal('cat ~/.aws/credentials')` succeed
+    # silently with zero prompt in any MCP client — full credential
+    # exfil with no audit trail. Default is now: when no interactive
+    # context is set AND no explicit non-interactive policy is
+    # configured, refuse dangerous commands; allow only safe ones.
     if not is_cli and not is_gateway and not is_ask:
-        # Cron sessions: respect cron_mode config
+        # Cron sessions: respect cron_mode config (unchanged)
         if env_var_enabled("STOA_CRON_SESSION"):
             if _get_cron_approval_mode() == "deny":
                 # Run detection to get a description for the block message
@@ -1102,6 +1108,23 @@ def check_all_command_guards(command: str, env_type: str,
                             "approvals.cron_mode: approve in config.yaml."
                         ),
                     }
+            return {"approved": True, "message": None}
+        # MCP serve / library embed / batch runner: default-deny dangerous.
+        is_dangerous, pk, description = detect_dangerous_command(command)
+        if is_dangerous:
+            return {
+                "approved": False,
+                "message": (
+                    f"BLOCKED: Command flagged as dangerous ({description}) "
+                    "but this runtime has no interactive approval channel "
+                    "(no CLI prompt, no gateway flow, no cron policy). "
+                    "Either run the command from a CLI session "
+                    "(`stoa chat`), wrap it in an explicit cron job "
+                    "(approvals.cron_mode: approve), or set "
+                    "STOA_YOLO_MODE=1 to opt the entire process out of "
+                    "approval gating (NOT recommended for MCP serve mode)."
+                ),
+            }
         return {"approved": True, "message": None}
 
     # --- Phase 1: Gather findings from both checks ---
