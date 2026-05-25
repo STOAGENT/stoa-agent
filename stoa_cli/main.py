@@ -8001,15 +8001,50 @@ def _install_python_dependencies_with_optional_fallback(
     in the venv Scripts dir before each install attempt so uv can write fresh
     copies (Windows blocks REPLACE on a running .exe but allows RENAME). See
     ``_quarantine_running_stoa_exe`` for the rationale.
+
+    Audit v6 CRIT C-3 fix: opt-in lockfile pinning via
+    ``STOA_REQUIRE_PINNED_DEPS=1``. When set, the install path switches
+    to ``uv sync --frozen`` (uv backend) or pip ``--require-hashes`` (pip
+    backend), refusing to install anything that doesn't match the
+    committed lockfile / requirements file. Default off so the existing
+    "best-effort install + reinstall extras individually" UX stays
+    unchanged for casual users; opt-in for CI / supply-chain-sensitive
+    operators.
     """
     scripts_dir = _venv_scripts_dir() if _is_windows() else None
+    pinned_mode = os.getenv("STOA_REQUIRE_PINNED_DEPS", "0") == "1"
+    is_uv = bool(install_cmd_prefix) and install_cmd_prefix[0].lower().endswith("uv") \
+        or (len(install_cmd_prefix) > 1 and install_cmd_prefix[1] == "pip" and "uv" in install_cmd_prefix[0])
 
     def _install(args: list[str]) -> None:
+        # Audit v6 CRIT C-3: in pinned mode, force `uv sync --frozen` for the
+        # base package install. Extras still go through the normal path
+        # (uv resolves each extra against the committed lockfile).
+        effective = args
+        if pinned_mode and is_uv and args[:2] == ["install", "-e"]:
+            effective = ["sync", "--frozen"]
+            logger.info("STOA_REQUIRE_PINNED_DEPS=1: substituting `%s` for `%s`",
+                        " ".join(effective), " ".join(args))
+        elif pinned_mode and not is_uv and args[:1] == ["install"]:
+            # pip fallback: enforce hashes if a requirements.txt is committed.
+            req_path = Path(PROJECT_ROOT) / "requirements.txt"
+            if req_path.is_file():
+                effective = ["install", "--require-hashes", "-r", str(req_path)]
+                logger.info("STOA_REQUIRE_PINNED_DEPS=1: switched pip to `--require-hashes -r %s`",
+                            req_path)
+            else:
+                logger.warning(
+                    "STOA_REQUIRE_PINNED_DEPS=1 set but no requirements.txt at %s "
+                    "(uv.lock + `uv export --format requirements-txt > requirements.txt` "
+                    "produces a hash-pinned file). Falling through to non-pinned install.",
+                    req_path,
+                )
+
         moved: list[tuple[Path, Path]] = []
         if scripts_dir is not None:
             moved = _quarantine_running_stoa_exe(scripts_dir)
         try:
-            _run_install_with_heartbeat(install_cmd_prefix + args, env=env)
+            _run_install_with_heartbeat(install_cmd_prefix + effective, env=env)
         except BaseException:
             # Restore shims if uv didn't write replacements (e.g. install
             # failed before the entry-points step). Don't swallow the error.

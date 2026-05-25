@@ -76,6 +76,29 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86  # v5
 
+      # Audit v9 CRIT-40-1 fix: explicitly verify every core dep listed in
+      # pyproject.toml appears in uv.lock with a resolved version. The
+      # bare `uv lock --check` passed even when eth-account==0.13.7 was
+      # silently dropped from the lockfile (Windows-side resolver quirk
+      # before this gate). Without the per-dep verify, `uv sync --frozen`
+      # in the Docker build path would fail in production but CI would
+      # never catch it.
+      - name: Verify every core dep is locked
+        run: |
+          missing=()
+          # Pull every `"name==version"` style line from the [project] block.
+          while IFS= read -r line; do
+            pkg=$(echo "$line" | sed -E 's/^[[:space:]]*"([a-zA-Z0-9._-]+)(\[[^]]*\])?==.*$/\1/')
+            if [ -n "$pkg" ] && ! grep -qE "^name = \"$pkg\"" uv.lock; then
+              missing+=("$pkg")
+            fi
+          done < <(awk '/^\[project\]/,/^\[/' pyproject.toml | grep -E '^[[:space:]]*"[a-zA-Z]')
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error title=uv.lock missing entries::These core deps are in pyproject.toml but not uv.lock: ${missing[*]}"
+            echo "Run \`uv lock\` (on Linux/macOS — Windows may silently drop coincurve-backed deps) and commit." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
       # `uv lock --check` re-resolves the project from pyproject.toml and
       # compares the result to uv.lock, exiting non-zero if they disagree.
       # No network writes, no file modifications.
