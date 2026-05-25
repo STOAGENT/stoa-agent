@@ -289,7 +289,9 @@ class TestCliBrandingHelpers:
     def test_active_prompt_symbol_default(self):
         from stoa_cli.skin_engine import get_active_prompt_symbol
 
-        assert get_active_prompt_symbol() == "❯ "
+        # Post-rebrand default skin uses single chevron "›" (lighter weight);
+        # "❯" remains the absolute fallback when no skin is loaded.
+        assert get_active_prompt_symbol() == "› "
 
     def test_active_prompt_symbol_ares(self):
         from stoa_cli.skin_engine import set_active_skin, get_active_prompt_symbol
