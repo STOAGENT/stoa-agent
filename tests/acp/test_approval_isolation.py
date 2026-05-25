@@ -222,13 +222,21 @@ class TestAcpExecAskGate:
             called_with.append((command, description))
             return "once"
 
-        # Without STOA_INTERACTIVE: takes auto-approve path, callback NOT called
+        # Without STOA_INTERACTIVE: audit CRIT-32-01 changed the default from
+        # auto-approve to default-DENY for dangerous commands in non-interactive
+        # contexts (MCP serve / library embed / batch). The callback must still
+        # NOT be consulted — denial happens without prompting because there's
+        # no human to prompt.
         result = check_all_command_guards(
             "rm -rf /tmp/test-exec-ask", "local", approval_callback=fake_cb,
         )
-        assert result["approved"] is True
+        assert result["approved"] is False, (
+            "post-audit non-interactive default is deny, not approve "
+            "(CRIT-32-01: MCP/library callers no longer silently auto-approve "
+            "dangerous commands)"
+        )
         assert called_with == [], (
-            "without STOA_INTERACTIVE the non-interactive auto-approve "
+            "without STOA_INTERACTIVE the non-interactive default-deny "
             "path should fire without consulting the callback"
         )
 
