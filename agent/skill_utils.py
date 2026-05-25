@@ -1,8 +1,8 @@
 """Lightweight skill metadata utilities shared by prompt_builder and skills_tool.
 
-This module intentionally avoids importing the tool registry, CLI config, or any
-heavy dependency chain.  It is safe to import at module level without triggering
-tool registration or provider resolution.
+This module intentionally avoids importing the tool registry, CLI config,
+or any heavy dependency chain. It is safe to import at module level
+without triggering tool registration or provider resolution.
 """
 
 import logging
@@ -759,8 +759,11 @@ def _load_skill_integrity_manifest() -> dict:
 
 
 def reset_skill_integrity_cache() -> None:
-    """Invalidate the in-process integrity cache. Called by skills_hub
-    after install/update/uninstall so the next loader sees fresh data."""
+    """Invalidate the in-process integrity cache.
+
+    Called by ``skills_hub`` after install / update / uninstall so the
+    next loader sees fresh data.
+    """
     global _SKILL_INTEGRITY_CACHE
     _SKILL_INTEGRITY_CACHE = None
 

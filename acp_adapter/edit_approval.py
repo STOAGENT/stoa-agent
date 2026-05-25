@@ -1,8 +1,9 @@
 """Pre-execution ACP edit approval helpers.
 
-This module is intentionally isolated from the generic tool registry.  ACP binds
-an edit approval requester in a ContextVar for the duration of one ACP agent run;
-CLI, gateway, and other sessions leave it unset and therefore bypass this guard.
+This module is intentionally isolated from the generic tool registry. ACP
+binds an edit approval requester in a ContextVar for the duration of one
+ACP agent run; CLI, gateway, and other sessions leave it unset and
+therefore bypass this guard.
 """
 
 from __future__ import annotations

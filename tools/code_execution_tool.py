@@ -24,7 +24,9 @@ Architecture (two transports):
 In both cases, only the script's stdout is returned to the LLM; intermediate
 tool results never enter the context window.
 
-Platform: Linux / macOS only (Unix domain sockets for local). Disabled on Windows.
+Platform: Linux / macOS use Unix domain sockets for the local backend.
+Windows falls back to loopback TCP for the same sandbox RPC transport,
+so execute_code is available everywhere STOA itself runs.
 Remote execution additionally requires Python 3 in the terminal backend.
 """
 

@@ -3,7 +3,7 @@
 This is the biggest single chunk pulled out of ``run_agent.py``: the
 roughly 3,900-line :func:`run_conversation` body that drives one user
 turn through the agent (model call, tool dispatch, retries, fallbacks,
-compression, post-turn hooks, background memory/skill review nudges).
+compression, post-turn hooks, background memory / skill review nudges).
 
 The function takes the parent ``AIAgent`` instance as its first
 argument (``agent``) and accesses its state via attribute lookup.

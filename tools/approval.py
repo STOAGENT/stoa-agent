@@ -114,6 +114,7 @@ def _is_gateway_approval_context() -> bool:
         return True
     return bool(_get_session_platform())
 
+
 # Sensitive write targets that should trigger approval even when referenced
 # via shell expansions like $HOME or $STOA_HOME.
 _SSH_SENSITIVE_PATH = r'(?:~|\$home|\$\{home\})/\.ssh(?:/|$)'

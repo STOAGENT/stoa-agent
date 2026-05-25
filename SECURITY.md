@@ -69,6 +69,7 @@ STOA_REQUIRE_PINNED_DEPS=1        # uv sync --frozen / pip --require-hashes
 STOA_REQUIRE_SKILL_INTEGRITY=1    # refuse unpinned skills at load
 STOA_NO_YOLO=1                    # never inherit YOLO into subagents
 STOA_REDACT_PII=1                 # add email/phone/IBAN/SSN to redact regex
+STOA_REDACT_IP=1                  # also scrub IPv4/IPv6 addresses (audit M-9)
 STOA_DEBUG_SHARE_DISABLED=1       # `stoa debug share` refuses to upload
 STOA_DOCKER_READONLY=1            # container rootfs read-only
 STOA_CRON_ALLOWED_BASE_URLS=...   # explicit allowlist for cron LLM endpoints
@@ -79,6 +80,21 @@ STOA_MSGRAPH_KEEP_PAYLOAD=0       # drop raw payload from MSGraph exceptions
 Setting all of these flips the per-feature trade-offs from
 "compatible-by-default" to "secure-by-default". Each is independently
 documented inline at the site of use.
+
+**Full env-var inventory** — every `STOA_*` knob (security and
+non-security) is enumerated in
+[`website/docs/reference/environment-variables.md`](website/docs/reference/environment-variables.md).
+Use that file as the single source of truth; this section only
+highlights the recommended paranoid preset.
+
+**Network egress observability** — the redaction layer scrubs known
+secret shapes (`sk-*`, `ASIA*`, Stripe `whsec_*`, Slack mention IDs,
+WhatsApp/Instagram CDN media URLs, etc.) from log records before they
+hit disk or any aggregator. `STOA_REDACT_IP=1` extends this to mask
+source IPv4 / IPv6 addresses (off by default — it costs debugging
+readability). Cloud metadata, Tailscale ULA (`fd7a:115c:a1e0::/48`),
+IPv6 link-local, and IPv6 multicast are blocked at the URL safety
+floor regardless of toggles (audit M-12 Lens 46).
 
 ### 2.0 Asset matrix (v11 HIGH-63)
 

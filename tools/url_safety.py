@@ -65,6 +65,13 @@ _ALWAYS_BLOCKED_IPS = frozenset({
 _ALWAYS_BLOCKED_NETWORKS = (
     ipaddress.ip_network("169.254.0.0/16"),    # Entire link-local range (no legit agent target)
     ipaddress.ip_network("::ffff:169.254.0.0/112"), # IPv4-mapped link-local range
+    # M-12 (Lens 46) follow-up: IPv6 link-local + Tailscale ULA + IPv6 multicast.
+    # These are NEVER legitimate fetch targets — they only resolve inside the
+    # operator's LAN / VPN / tailnet, and an agent that hits one is almost
+    # certainly the victim of SSRF or a misconfigured DNS rebinding attempt.
+    ipaddress.ip_network("fe80::/10"),         # IPv6 link-local
+    ipaddress.ip_network("fd7a:115c:a1e0::/48"),  # Tailscale ULA range (RFC 8190 reserved subset)
+    ipaddress.ip_network("ff00::/8"),          # IPv6 multicast
 )
 
 # Exact HTTPS hostnames allowed to resolve to private/benchmark-space IPs.
@@ -79,6 +86,26 @@ _TRUSTED_PRIVATE_IP_HOSTS = frozenset({
 # Must be blocked explicitly. Used by carrier-grade NAT, Tailscale/WireGuard
 # VPNs, and some cloud internal networks.
 _CGNAT_NETWORK = ipaddress.ip_network("100.64.0.0/10")
+
+# Audit M-12 (Lens 46) follow-up: Tailscale assigns IPv6 ULAs out of
+# `fd7a:115c:a1e0::/48` to every node in the tailnet. ipaddress treats
+# this range as is_private (it's inside fc00::/7), so the standard
+# `_is_blocked_ip` already catches it — but we record the network here
+# so the `_TAILSCALE_NETWORKS` allowlist-bypass guard and the docs
+# explicitly call it out as "never proxy to a tailnet peer via the
+# agent". Without the explicit constant a future
+# `allow_private_urls=true` patch could leak agent traffic onto the
+# operator's tailnet without anyone realising it.
+_TAILSCALE_ULA_NETWORK = ipaddress.ip_network("fd7a:115c:a1e0::/48")
+
+# Additional always-blocked link-local / multicast / discovery ranges
+# beyond the existing `169.254.0.0/16` entry. These are never legitimate
+# agent targets regardless of toggle state:
+#   - fe80::/10 — IPv6 link-local (mirror of 169.254/16 in v4)
+#   - ff00::/8  — IPv6 multicast (matches ip.is_multicast but we also
+#     add it to the always-blocked floor so the `is_always_blocked_url`
+#     check rejects it without resolving)
+_LINK_LOCAL_V6_NETWORK = ipaddress.ip_network("fe80::/10")
 
 # ---------------------------------------------------------------------------
 # Global toggle: allow private/internal IP resolution

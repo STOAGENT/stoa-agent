@@ -146,10 +146,10 @@ def get_read_block_error(path: str) -> Optional[str]:
       * Credential / secret stores under STOA_HOME and the global STOA
         root: ``auth.json``, ``auth.lock``, ``.anthropic_oauth.json``,
         ``.env``, ``webhook_subscriptions.json``, and anything under
-        ``mcp-tokens/``. These hold plaintext provider keys, OAuth tokens,
-        and HMAC secrets that the agent never needs to read directly —
-        provider tools / gateway adapters consume them through internal
-        channels.
+        ``mcp-tokens/``. These hold plaintext provider keys, OAuth
+        tokens, and HMAC secrets that the agent never needs to read
+        directly — provider tools and gateway adapters consume them
+        through internal channels.
 
     **This is NOT a security boundary.** The terminal tool runs as the
     same OS user with shell access; the agent can still ``cat auth.json``

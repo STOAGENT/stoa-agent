@@ -1,9 +1,9 @@
 """
-STOA verdict composer — the core "beyond STOA" feature.
+STOA verdict composer — the core "council synthesis" feature.
 
 A single task is dispatched to all six council personas in parallel. Each
 persona is bound to its own sovereign LLM provider (see ``persona_router``).
-A seventh persona (STOA the dispatcher) reads the six responses and
+A seventh persona (STOA, the dispatcher) reads the six responses and
 composes a verdict — synthesis, not a catalog of who-said-what.
 
 The verdict carries an ``agreement`` signal:
@@ -26,8 +26,8 @@ Design notes
     framework is that minority reports are visible, not erased.
 
 3.  The verdict prompt explicitly instructs STOA to synthesize, not
-    summarize. "Drax said X, Lyra said Y" is the wrong output shape — the
-    caller wants the actual answer they should act on.
+    summarize. "Drax said X, Lyra said Y" is the wrong output shape —
+    the caller wants the actual answer they should act on.
 
 4.  Token + latency accounting is preserved per-persona so the operator
     can see (via ``stoa /verdict``) which provider drove the cost and

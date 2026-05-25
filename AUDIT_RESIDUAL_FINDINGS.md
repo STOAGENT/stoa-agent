@@ -209,12 +209,22 @@ hedef dosyalar:
 
 ### M-9 — Pattern hardening (43 MED)
 
-- Form-urlencoded body redact (Lens 12)
-- Discord/Slack mention redact (Lens 12)
-- Memory-context surrogate fence (Lens 12)
-- E.164 phone redact width tuning (Lens 12)
-- Stripe / SendGrid / HuggingFace token prefix gaps (Lens 12)
-- ReDoS surface narrowing (Lens 21)
+**Status (2026-05-25):** Secondary patterns largely closed —
+form-urlencoded body redact already in place,
+Discord/Slack mention redact done (Slack `<@U…>` / `<#C…|chan>` /
+`<!subteam^S…>` + Discord role `<@&…>` shapes covered),
+Stripe / SendGrid / HuggingFace prefix gaps closed (`rk_test_`,
+`pk_live_`, `whsec_*`, two-segment SendGrid shape, `hf_oauth_*`,
+AWS STS `ASIA*`), WhatsApp / Instagram CDN media URL strip added,
+opt-in `STOA_REDACT_IP=1` for IPv4 / IPv6 source-IP scrubbing.
+Bounded quantifiers throughout to narrow ReDoS surface (Lens 21).
+
+Remaining for a follow-up pass: E.164 phone redact width tuning
+(width currently fixed; some operators want full mask), memory-
+context surrogate fence (`agent/message_sanitization.py` already
+recovers surrogates; the fenced-view wrapper around memory context
+is a separate refactor pending the holographic store interface
+change).
 
 **Hedef:** `agent/redact.py` + `agent/message_sanitization.py`.
 
@@ -234,6 +244,15 @@ shadowing detection, vb.
 - Boot integrity hash (Lens 46)
 - Network egress observability (Lens 46)
 
+**Status (2026-05-25):** SECURITY.md §2.0.0 now references the full
+`STOA_*` env inventory at
+`website/docs/reference/environment-variables.md` (single source of
+truth) and adds a "Network egress observability" paragraph naming
+the secret shapes, source-IP toggle, and the always-blocked egress
+floor (Tailscale ULA + IPv6 link-local + multicast). Per-provider
+egress trace + MCP allowlist UI + boot integrity hash are still
+TODO — those need code work, not docs.
+
 **Hedef:** Çoğunlukla doc-only. `website/docs/` + `SECURITY.md`
 extend.
 
@@ -243,6 +262,13 @@ Locale catalog hardening (Lens 60), hash collision narrow widening
 (Lens 41), test coverage geniş açılım (Lens 79), reproducibility
 (Lens 76), shutdown ordering (Lens 77), kalan IPv6 + cron + plugin
 küçük fix'ler.
+
+**Status (2026-05-25):** URL safety floor now also blocks IPv6
+link-local (`fe80::/10`), Tailscale ULA (`fd7a:115c:a1e0::/48`),
+and IPv6 multicast (`ff00::/8`) — agent egress to a tailnet peer
+or to a fe80 link-local interface is impossible regardless of the
+`security.allow_private_urls` toggle (Lens 46). Other items
+unchanged.
 
 ---
 
