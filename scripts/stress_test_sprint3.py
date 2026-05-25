@@ -98,11 +98,11 @@ def t9_audit_chain_tamper():
             ok, _ = verify_chain()
             assert ok, "fresh chain should verify"
             p = _log_path()
-            L = open(p).readlines()
+            L = open(p, encoding="utf-8").readlines()
             rec = json.loads(L[1])
             rec["args_preview"] = "tampered"
             L[1] = json.dumps(rec) + "\n"
-            open(p, "w").writelines(L)
+            open(p, "w", encoding="utf-8").writelines(L)
             ok, _ = verify_chain()
             assert not ok, "tamper should be detected"
         finally:

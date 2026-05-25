@@ -2,12 +2,12 @@ name: Tests
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
   pull_request:
-    branches: [main]
+    branches: [master]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
@@ -109,7 +109,7 @@ jobs:
   # (including PRs) get balanced slicing.
   save-durations:
     needs: test
-    if: always() && github.ref == 'refs/heads/main'
+    if: always() && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - name: Download all slice durations

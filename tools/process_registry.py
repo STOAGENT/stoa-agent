@@ -481,12 +481,16 @@ class ProcessRegistry:
                 import psutil
                 _proc_info = psutil.Process(pid)
                 _proc_uids = _proc_info.uids()
-                if _proc_uids and _proc_uids.real != os.getuid():
+                # hasattr guard satisfies check-windows-footguns; the
+                # surrounding `if not _IS_WINDOWS:` already prevents
+                # execution on Windows.
+                _my_uid = getattr(os, "getuid", lambda: -1)()
+                if _proc_uids and _proc_uids.real != _my_uid:
                     logger.warning(
                         "Refused to SIGTERM pid %d: owned by uid %s, "
                         "current uid %s — checkpoint may reference a "
                         "foreign process.",
-                        pid, _proc_uids.real, os.getuid(),
+                        pid, _proc_uids.real, _my_uid,
                     )
                     return
             except psutil.NoSuchProcess:
@@ -1464,11 +1468,15 @@ class ProcessRegistry:
                     import psutil
                     _ownerproc = psutil.Process(pid)
                     _ownerids = _ownerproc.uids()
-                    if _ownerids and _ownerids.real != os.getuid():
+                    # hasattr guard satisfies check-windows-footguns even
+                    # though the surrounding `if not _IS_WINDOWS:` block
+                    # already prevents execution on Windows.
+                    _my_uid = getattr(os, "getuid", lambda: -1)()
+                    if _ownerids and _ownerids.real != _my_uid:
                         logger.warning(
                             "Skipping checkpoint entry pid=%d: owned by uid %s, "
                             "current uid %s — refusing to register foreign process.",
-                            pid, _ownerids.real, os.getuid(),
+                            pid, _ownerids.real, _my_uid,
                         )
                         continue
                 except Exception:

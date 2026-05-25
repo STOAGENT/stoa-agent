@@ -40,14 +40,6 @@ classifiers = [
   "Typing :: Typed",
 ]
 
-[project.urls]
-Homepage      = "https://stoax.xyz"
-Documentation = "https://stoax.xyz/docs"
-Repository    = "https://github.com/STOAGENT/stoa-agent"
-Issues        = "https://github.com/STOAGENT/stoa-agent/issues"
-Upstream      = "https://github.com/NousResearch/hermes-agent"
-Source        = "https://github.com/STOAGENT/stoa-agent"
-
 dependencies = [
   # Core — every direct dep is exact-pinned to ==X.Y.Z (no ranges).
   # Rationale: ranges allow PyPI to ship a fresh version of a transitive
@@ -108,6 +100,14 @@ dependencies = [
   # binding revalidation. Small dep (pure-Python + coincurve), no native build.
   "eth-account==0.13.7",
 ]
+
+[project.urls]
+Homepage      = "https://stoax.xyz"
+Documentation = "https://stoax.xyz/docs"
+Repository    = "https://github.com/STOAGENT/stoa-agent"
+Issues        = "https://github.com/STOAGENT/stoa-agent/issues"
+Upstream      = "https://github.com/NousResearch/hermes-agent"
+Source        = "https://github.com/STOAGENT/stoa-agent"
 
 [project.optional-dependencies]
 # Native Anthropic provider — only needed when provider=anthropic (not via

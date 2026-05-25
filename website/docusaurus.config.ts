@@ -7,7 +7,7 @@ const config: Config = {
   tagline: 'The self-improving AI agent',
   favicon: 'img/favicon.ico',
 
-  url: 'https://stoa-agent.nousresearch.com',
+  url: 'https://stoax.xyz',
   baseUrl: '/docs/',
 
   organizationName: 'stoa-xyz',

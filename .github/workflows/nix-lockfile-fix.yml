@@ -2,7 +2,7 @@ name: Nix Lockfile Fix
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths:
       - 'ui-tui/package-lock.json'
       - 'ui-tui/package.json'
@@ -103,12 +103,12 @@ jobs:
               exit 0
             fi
             echo "::warning::Push attempt $attempt failed (non-fast-forward?), rebasing…"
-            git fetch origin main
+            git fetch origin master
 
             # If package files changed between our base and the new main,
             # our computed hashes are stale. Abort and let the next triggered
             # run recompute from the correct package-lock state.
-            pkg_changed="$(git diff --name-only "$BASE_SHA"..origin/main -- \
+            pkg_changed="$(git diff --name-only "$BASE_SHA"..origin/master -- \
               'ui-tui/package-lock.json' 'ui-tui/package.json' \
               'web/package-lock.json' 'web/package.json' || true)"
             if [ -n "$pkg_changed" ]; then
@@ -116,7 +116,7 @@ jobs:
               exit 0
             fi
 
-            git rebase origin/main
+            git rebase origin/master
           done
           echo "::error::Failed to push after 3 rebase attempts"
           exit 1
