@@ -127,8 +127,17 @@ class MemoryStore:
         self.default_trust = _clamp_trust(default_trust)
         self.hrr_dim = hrr_dim
         self._hrr_available = hrr._HAS_NUMPY
-        self._conn: sqlite3.Connection = sqlite3.connect(
-            str(self.db_path),
+        # Route through agent.db_encryption so STOA_DB_ENCRYPTION=1
+        # upgrades the memory store to SQLCipher (audit v12 HIGH-70 #3:
+        # memory_store.db plaintext).  Default OFF — env unset gives back
+        # a stock sqlite3.connect with the same kwargs, plus
+        # PRAGMA secure_delete=ON.  The annotation stays as
+        # ``sqlite3.Connection`` since pysqlcipher3's connection is a
+        # subclass-compatible duck type that satisfies every API we use
+        # downstream (executescript, execute, commit, row_factory, ...).
+        from agent.db_encryption import open_connection
+        self._conn: sqlite3.Connection = open_connection(
+            self.db_path,
             check_same_thread=False,
             timeout=10.0,
         )

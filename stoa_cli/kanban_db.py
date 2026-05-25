@@ -1168,7 +1168,13 @@ def connect(
     # via _INITIALIZED_PATHS so it only runs once per process per path.
     _guard_existing_db_is_healthy(path)
     resolved = str(path.resolve())
-    conn = sqlite3.connect(str(path), isolation_level=None, timeout=30)
+    # Route through agent.db_encryption so STOA_DB_ENCRYPTION=1 upgrades
+    # this kanban DB to SQLCipher (audit v12 HIGH-70 #2: kanban.db
+    # plaintext).  Default-OFF path is byte-identical to the previous
+    # ``sqlite3.connect(str(path), isolation_level=None, timeout=30)``,
+    # plus PRAGMA secure_delete=ON.
+    from agent.db_encryption import open_connection
+    conn = open_connection(path, isolation_level=None, timeout=30)
     try:
         conn.row_factory = sqlite3.Row
         with _INIT_LOCK:
