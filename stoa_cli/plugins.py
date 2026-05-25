@@ -1171,6 +1171,25 @@ class PluginManager:
             if yaml is None:
                 logger.warning("PyYAML not installed – cannot load %s", manifest_file)
                 return None
+            # Audit v8 HIGH-35 fix: bounded YAML to defuse alias-bomb
+            # ("billion laughs") + node-count DoS at plugin discovery.
+            # We cap the source file at 256 KiB BEFORE yaml.safe_load
+            # parses it — alias-bomb attacks pack the bomb into the
+            # parser, so refusing the file at the I/O layer is the
+            # cleanest defense. 256 KiB is generous for any legitimate
+            # plugin.yaml (real ones top out around 4 KiB).
+            try:
+                manifest_size = manifest_file.stat().st_size
+            except OSError:
+                manifest_size = 0
+            if manifest_size > 256 * 1024:
+                logger.warning(
+                    "plugin manifest %s is %d bytes (>256 KiB cap); "
+                    "refusing to parse — likely YAML bomb or accidental "
+                    "data file checked in.",
+                    manifest_file, manifest_size,
+                )
+                return None
             data = yaml.safe_load(manifest_file.read_text(encoding="utf-8")) or {}
 
             name = data.get("name", plugin_dir.name)

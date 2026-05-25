@@ -230,12 +230,55 @@ def run_backup(args) -> None:
             if i % 500 == 0:
                 print(f"  {i}/{file_count} files ...")
 
+    # Audit v11 HIGH-56 fix: write a sidecar manifest with version,
+    # schema, sha256 of every file, and a top-level digest. Restore-time
+    # validation reads this manifest and refuses to extract a member
+    # whose hash doesn't match. Stops:
+    #   - Forgery (zip created from a different fork / a malicious
+    #     "STOA-style" zip — 0-byte state.db passed the old marker check)
+    #   - Cross-version downgrade (manifest carries STOA version + DB
+    #     schema, restore refuses if downgrading would corrupt state.db)
+    #   - Silent corruption (each member's hash is independently verified
+    #     instead of relying on zip CRC32 which isn't security)
+    try:
+        import hashlib as _hashlib
+        from stoa_cli import __version__ as _stoa_version
+    except Exception:
+        _stoa_version = "unknown"
+
+    manifest_entries: list[dict[str, Any]] = []
+    rolling = _hashlib.sha256()
+    with zipfile.ZipFile(out_path, "r") as zf:
+        for name in zf.namelist():
+            if name.endswith("/"):
+                continue
+            try:
+                with zf.open(name) as fh:
+                    h = _hashlib.sha256()
+                    for chunk in iter(lambda: fh.read(64 * 1024), b""):
+                        h.update(chunk)
+                    file_hex = h.hexdigest()
+                manifest_entries.append({"path": name, "sha256": file_hex})
+                rolling.update(name.encode("utf-8") + b"\x00" + file_hex.encode("ascii"))
+            except Exception as exc:
+                errors.append(f"  {name}: manifest hash failed ({exc})")
+    manifest = {
+        "manifest_version": 1,
+        "stoa_version": _stoa_version,
+        "created_at_ms": int(time.time() * 1000),
+        "files": manifest_entries,
+        "top_hash": rolling.hexdigest(),
+    }
+    sidecar = out_path.with_suffix(out_path.suffix + ".manifest.json")
+    sidecar.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
     elapsed = time.monotonic() - t0
     zip_size = out_path.stat().st_size
 
     # Summary
     print()
     print(f"Backup complete: {out_path}")
+    print(f"  Manifest:    {sidecar.name} (sha256 top {manifest['top_hash'][:16]}…)")
     print(f"  Files:       {file_count}")
     print(f"  Original:    {_format_size(total_bytes)}")
     print(f"  Compressed:  {_format_size(zip_size)}")

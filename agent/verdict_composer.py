@@ -41,6 +41,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import time
 from dataclasses import asdict, dataclass
 from typing import Any, Awaitable, Callable
@@ -235,6 +236,28 @@ async def _compose_verdict(
 ) -> tuple[str, str]:
     """Ask STOA (the dispatcher) to synthesize a verdict over the survivors."""
     dispatcher = resolve_dispatcher()
+    # Audit v4 HIGH V-02 fix: prompt-injection fence. Council answers
+    # are untrusted free-form text — a persona that wrote
+    # "AGREEMENT: consensus" inside its own answer used to leak through
+    # the trailing-line parser and let one persona unilaterally declare
+    # quorum. We now:
+    #   1. Escape the literal token "AGREEMENT:" inside survivor text
+    #      so only the dispatcher's own AGREEMENT line counts
+    #   2. Wrap each survivor in explicit <persona name="…"> bounds so
+    #      the dispatcher (and our parser) can tell where one answer
+    #      ends and the next begins
+    #   3. Hard cap each survivor to 4000 chars so a runaway persona
+    #      can't fill the dispatcher context with self-quoted AGREEMENT
+    #      markers
+    def _fence(text: str) -> str:
+        text = (text or "")[:4000]
+        # Neutralise marker patterns that the parser keys on. Leading-
+        # line "AGREEMENT:" → "[AGREEMENT]:" (kept readable, parser
+        # won't match the regex). [PERSONA] tags inside body → escaped.
+        text = re.sub(r"(?im)^\s*AGREEMENT\s*:", "[AGREEMENT]:", text)
+        text = text.replace("</persona>", "&lt;/persona&gt;")
+        return text
+
     composite_task = "\n".join(
         [
             STOA_VERDICT_PROMPT,
@@ -243,7 +266,10 @@ async def _compose_verdict(
             task,
             "",
             f"COUNCIL ANSWERS ({len(survivors)} of 6):",
-            *(f"\n[{m.persona.upper()}]\n{m.text}" for m in survivors),
+            *(
+                f'\n<persona name="{m.persona}">\n{_fence(m.text)}\n</persona>'
+                for m in survivors
+            ),
         ]
     )
     try:

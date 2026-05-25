@@ -670,14 +670,50 @@ def _resolve_workspace_hint(parent_agent) -> Optional[str]:
 
 
 def _strip_blocked_tools(toolsets: List[str]) -> List[str]:
-    """Remove toolsets that contain only blocked tools."""
+    """Remove toolsets that contain only blocked tools.
+
+    Audit v10 HIGH-54 fix: strip BOTH toolset names AND any toolset
+    containing a blocked TOOL. The previous implementation only matched
+    on the four toolset names (delegation/clarify/memory/code_execution),
+    so a toolset called e.g. ``messaging`` that ships ``send_message``
+    survived intact — and a subagent retained send_message access
+    despite send_message being on DELEGATE_BLOCKED_TOOLS. The fix
+    additionally walks each toolset's tool registry and drops the
+    toolset if any of its tools matches DELEGATE_BLOCKED_TOOLS.
+
+    Also drops the ``cronjob`` toolset outright (audit v10 HIGH-54b):
+    a subagent that can install cron jobs can install one whose body
+    re-elevates the parent's full toolset, defeating the entire scope
+    reduction. Cron isolation belongs at the orchestrator, not the
+    subagent.
+    """
     blocked_toolset_names = {
         "delegation",
         "clarify",
         "memory",
         "code_execution",
+        "cronjob",  # v10 HIGH-54b
+        "messaging",  # v10 HIGH-54: contains send_message
     }
-    return [t for t in toolsets if t not in blocked_toolset_names]
+    survivors: List[str] = []
+    try:
+        from tools.toolsets import get_toolset_tools  # available in stoa runtime
+        for t in toolsets:
+            if t in blocked_toolset_names:
+                continue
+            tools_in_set = get_toolset_tools(t) or []
+            if any(tn in DELEGATE_BLOCKED_TOOLS for tn in tools_in_set):
+                # Toolset contains at least one blocked tool — drop it
+                # entirely. We don't surgically subset within the
+                # toolset because tool dependencies inside a toolset
+                # are not declared; partial enablement is unsafe.
+                continue
+            survivors.append(t)
+    except Exception:
+        # Fallback: name-only match (the original behaviour) when the
+        # toolsets registry can't be loaded for some reason.
+        survivors = [t for t in toolsets if t not in blocked_toolset_names]
+    return survivors
 
 
 def _build_child_progress_callback(
