@@ -54,11 +54,34 @@ def _is_gh_copilot_deprecation_message(stderr_text: str) -> bool:
 
 
 def _resolve_command() -> str:
-    return (
-        os.getenv("STOA_COPILOT_ACP_COMMAND", "").strip()
-        or os.getenv("COPILOT_CLI_PATH", "").strip()
-        or "copilot"
-    )
+    """Resolve the Copilot ACP command, with P-10 allowlist hardening.
+
+    The user can override the binary via ``STOA_COPILOT_ACP_COMMAND`` /
+    ``COPILOT_CLI_PATH``, but we only honour the override when it points at an
+    existing executable file. This prevents an attacker who can flip an env
+    var (e.g. via a poisoned shell rc) from forcing us to exec an arbitrary
+    program — the override must be a real binary path or a name resolvable
+    via ``PATH`` to a real binary. Anything else falls back to ``copilot``.
+    """
+    import shutil
+
+    for raw in (
+        os.getenv("STOA_COPILOT_ACP_COMMAND", "").strip(),
+        os.getenv("COPILOT_CLI_PATH", "").strip(),
+    ):
+        if not raw:
+            continue
+        # Absolute / relative path → must point at a real, executable file.
+        if os.sep in raw or (os.altsep and os.altsep in raw):
+            if os.path.isfile(raw) and os.access(raw, os.X_OK):
+                return raw
+            # Reject silently; fall through to bundled default.
+            continue
+        # Bare name → must be resolvable on PATH.
+        resolved = shutil.which(raw)
+        if resolved:
+            return resolved
+    return "copilot"
 
 
 def _resolve_args() -> list[str]:

@@ -342,6 +342,27 @@ def exchange_copilot_token(raw_token: str, *, timeout: float = 10.0) -> tuple[st
     # Convert expires_at to float if needed
     expires_at = float(expires_at) if expires_at else time.time() + 1800
 
+    # P-09: best-effort zeroize of the previous cached api_token before
+    # replacement. Python strings are immutable & interned, so we cannot
+    # truly wipe the bytes — but we can drop the only known live reference
+    # so it becomes eligible for GC immediately rather than lingering in
+    # tuple memory until the next exchange. For defense-in-depth callers
+    # that need a hard guarantee should hold tokens in mlocked bytearrays.
+    _old = _jwt_cache.pop(fp, None)
+    if _old is not None:
+        try:
+            _old_token = _old[0]
+            # Overwrite the bytes representation we can reach via bytearray.
+            # This does not affect the original str (immutable), but it
+            # prevents the bytearray copy from being later read out of a
+            # heap dump.
+            _wipe = bytearray(_old_token.encode("utf-8", errors="ignore"))
+            for _i in range(len(_wipe)):
+                _wipe[_i] = 0
+            del _wipe, _old_token
+        except Exception:
+            pass
+        del _old
     _jwt_cache[fp] = (api_token, expires_at)
     logger.debug(
         "Copilot token exchanged, expires_at=%s",

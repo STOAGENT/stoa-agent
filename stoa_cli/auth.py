@@ -3206,7 +3206,16 @@ def refresh_codex_oauth_pure(
         )
 
     timeout = httpx.Timeout(max(5.0, float(timeout_seconds)))
-    with httpx.Client(timeout=timeout, headers={"Accept": "application/json"}) as client:
+    # P-08: explicitly pin TLS verification to the same context used by the
+    # rest of the auth stack (certifi bundle on macOS Homebrew Python, system
+    # default elsewhere). Prevents `urllib`-style "default verify" surprises
+    # if a caller has tampered with global SSL defaults.
+    _verify = _default_verify()
+    with httpx.Client(
+        timeout=timeout,
+        headers={"Accept": "application/json"},
+        verify=_verify,
+    ) as client:
         response = client.post(
             CODEX_OAUTH_TOKEN_URL,
             headers={"Content-Type": "application/x-www-form-urlencoded"},

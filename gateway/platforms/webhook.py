@@ -34,6 +34,7 @@ import logging
 import re
 import subprocess
 import time
+import uuid
 from typing import Any, Dict, List, Optional
 
 try:
@@ -468,10 +469,14 @@ class WebhookAdapter(BasePlatformAdapter):
             except Exception as e:
                 logger.warning("[webhook] Skill loading failed: %s", e)
 
-        # Build a unique delivery ID
+        # Build a unique delivery ID. Audit M-1 fix: previously used
+        # ``str(int(time.time() * 1000))`` as the fallback, which is
+        # predictable and collides across concurrent requests in the same
+        # millisecond, letting one request silently dedup another out.
+        # UUID4 fallback eliminates both classes of failure.
         delivery_id = request.headers.get(
             "X-GitHub-Delivery",
-            request.headers.get("X-Request-ID", str(int(time.time() * 1000))),
+            request.headers.get("X-Request-ID", str(uuid.uuid4())),
         )
 
         # ── Idempotency ─────────────────────────────────────────
@@ -785,13 +790,42 @@ class WebhookAdapter(BasePlatformAdapter):
                 success=False, error="Missing repo or pr_number"
             )
 
+        # Audit M-1 fix: validate pr_number as a positive integer before
+        # passing it to the ``gh`` CLI. Templates can substitute arbitrary
+        # payload values into delivery_extra, so a malicious webhook payload
+        # could otherwise inject ``--repo other/repo`` or ``;rm -rf`` style
+        # tokens via pr_number. Even though we already invoke gh as a list
+        # (no shell), gh itself accepts ``--`` separated arguments and a
+        # non-numeric pr_number would either fail confusingly or — worse —
+        # pick up an argv parsing edge case in a future gh release.
+        pr_str = str(pr_number).strip()
+        if not pr_str.isdigit() or int(pr_str) <= 0:
+            logger.error(
+                "[webhook] github_comment pr_number is not a positive integer: %r",
+                pr_number,
+            )
+            return SendResult(
+                success=False, error="pr_number must be a positive integer"
+            )
+        # Basic repo sanity: owner/name, no path traversal or argv tricks.
+        if (
+            not repo
+            or "/" not in repo
+            or repo.startswith("-")
+            or any(c in repo for c in (" ", "\t", "\n", ";", "&", "|", "`", "$"))
+        ):
+            logger.error("[webhook] github_comment repo is malformed: %r", repo)
+            return SendResult(
+                success=False, error="repo must be 'owner/name'"
+            )
+
         try:
             result = subprocess.run(
                 [
                     "gh",
                     "pr",
                     "comment",
-                    str(pr_number),
+                    pr_str,
                     "--repo",
                     repo,
                     "--body",

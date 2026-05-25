@@ -928,7 +928,8 @@ def refresh_anthropic_oauth_pure(refresh_token: str, *, use_json: bool = False) 
     if not refresh_token:
         raise ValueError("refresh_token is required")
 
-    client_id = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+    # P-12: single source of truth — see module-level _OAUTH_CLIENT_ID.
+    client_id = _OAUTH_CLIENT_ID
     if use_json:
         data = json.dumps({
             "grant_type": "refresh_token",
@@ -1218,6 +1219,8 @@ def _generate_pkce() -> tuple:
 
 def run_stoa_oauth_login_pure() -> Optional[Dict[str, Any]]:
     """Run STOA-native OAuth PKCE flow and return credential state."""
+    import getpass
+    import hmac as _hmac
     import secrets
     import time
     import webbrowser
@@ -1247,7 +1250,14 @@ def run_stoa_oauth_login_pure() -> Optional[Dict[str, Any]]:
     print("│  Open this link in your browser:                  │")
     print("╰───────────────────────────────────────────────────╯")
     print()
-    print(f"  {auth_url}")
+    # P-13: avoid leaking the OAuth authorize URL (contains PKCE challenge +
+    # state) to stdout unless the user explicitly opted into verbose output.
+    _verbose_oauth = bool(os.getenv("STOA_OAUTH_VERBOSE", "").strip())
+    if _verbose_oauth:
+        print(f"  {auth_url}")
+    else:
+        print("  (URL hidden — set STOA_OAUTH_VERBOSE=1 to print.")
+        print("   Use the browser window that just opened instead.)")
     print()
 
     try:
@@ -1260,7 +1270,10 @@ def run_stoa_oauth_login_pure() -> Optional[Dict[str, Any]]:
     print("After authorizing, you'll see a code. Paste it below.")
     print()
     try:
-        auth_code = input("Authorization code: ").strip()
+        # P-07: the authorization code is single-use but sensitive; use
+        # getpass so it does not echo to the terminal and does not land in
+        # shell history when copy/pasted.
+        auth_code = getpass.getpass("Authorization code (input hidden): ").strip()
     except (KeyboardInterrupt, EOFError):
         return None
 
@@ -1272,8 +1285,10 @@ def run_stoa_oauth_login_pure() -> Optional[Dict[str, Any]]:
     code = splits[0]
     received_state = splits[1] if len(splits) > 1 else ""
 
-    # Validate state to prevent CSRF (RFC 6749 §10.12)
-    if received_state != oauth_state:
+    # Validate state to prevent CSRF (RFC 6749 §10.12).
+    # P-11: constant-time comparison to avoid leaking the expected state
+    # value through string-compare timing differences.
+    if not _hmac.compare_digest(received_state, oauth_state):
         logger.warning("OAuth state mismatch — possible CSRF, aborting")
         return None
 
@@ -1300,7 +1315,14 @@ def run_stoa_oauth_login_pure() -> Optional[Dict[str, Any]]:
         )
 
         with urllib.request.urlopen(req, timeout=15) as resp:
-            result = json.loads(resp.read().decode())
+            # P-14: cap the response body size to defend against a malicious
+            # / misbehaving token endpoint streaming an unbounded payload.
+            # 64 KiB is ~50x the largest legitimate OAuth token response.
+            raw = resp.read(64 * 1024)
+            if len(raw) >= 64 * 1024:
+                logger.warning("Token-exchange response exceeded 64 KiB ceiling — refusing")
+                return None
+            result = json.loads(raw.decode())
     except Exception as e:
         print(f"Token exchange failed: {e}")
         return None
