@@ -81,7 +81,7 @@ jobs:
           image: ${{ env.IMAGE_NAME }}:test
 
       - name: Log in to Docker Hub
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'release'
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121  # v4.1.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -98,7 +98,7 @@ jobs:
       # don't carry image config labels.
       - name: Push amd64 by digest
         id: push
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'release'
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f  # v7.1.0
         with:
           context: .
@@ -113,14 +113,14 @@ jobs:
       # Write the digest to a file and upload it as an artifact so the
       # merge job can stitch both per-arch digests into a manifest list.
       - name: Export digest
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'release'
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.push.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'release'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: digest-amd64
@@ -169,7 +169,7 @@ jobs:
           image: ${{ env.IMAGE_NAME }}:test
 
       - name: Log in to Docker Hub
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'release'
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121  # v4.1.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -177,7 +177,7 @@ jobs:
 
       - name: Push arm64 by digest
         id: push
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'release'
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f  # v7.1.0
         with:
           context: .
@@ -190,14 +190,14 @@ jobs:
           cache-to: type=gha,mode=max,scope=docker-arm64
 
       - name: Export digest
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'release'
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.push.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest artifact
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'release'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: digest-arm64
@@ -218,7 +218,7 @@ jobs:
   # ancestor check is defense-in-depth.
   # ---------------------------------------------------------------------------
   merge:
-    if: github.repository == 'STOAGENT/stoa-agent' && (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'release')
+    if: github.repository == 'STOAGENT/stoa-agent' && (github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'release')
     runs-on: ubuntu-latest
     needs: [build-amd64, build-arm64]
     timeout-minutes: 10
@@ -231,7 +231,7 @@ jobs:
       release_tag: ${{ steps.tag.outputs.tag }}
     steps:
       - name: Checkout code
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
           fetch-depth: 1000
@@ -259,7 +259,7 @@ jobs:
       # already advanced :main past us (or diverged), we skip and leave
       # it alone.
       - name: Decide whether to move :main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         id: main_check
         run: |
           set -euo pipefail
@@ -299,7 +299,7 @@ jobs:
 
           if ! git cat-file -e "${current_sha}^{commit}" 2>/dev/null; then
             git fetch --no-tags --prune origin \
-              "+refs/heads/main:refs/remotes/origin/main" \
+              "+refs/heads/master:refs/remotes/origin/master" \
               || true
           fi
 
@@ -463,7 +463,7 @@ jobs:
           # Releases can be cut from any branch, so fetch broadly.
           if ! git cat-file -e "${current_sha}^{commit}" 2>/dev/null; then
             git fetch --no-tags --prune origin \
-              "+refs/heads/main:refs/remotes/origin/main" \
+              "+refs/heads/master:refs/remotes/origin/master" \
               || true
           fi
 

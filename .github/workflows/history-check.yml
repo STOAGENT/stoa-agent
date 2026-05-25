@@ -34,7 +34,7 @@ jobs:
           # commits share no ancestor.  We check both conditions explicitly
           # so the failure message is clear regardless of which signal fires
           # first.
-          if ! BASE=$(git merge-base origin/main HEAD 2>/dev/null) || [ -z "$BASE" ]; then
+          if ! BASE=$(git merge-base origin/master HEAD 2>/dev/null) || [ -z "$BASE" ]; then
             echo ""
             echo "::error::This PR has no common ancestor with main."
             echo ""
@@ -49,8 +49,8 @@ jobs:
             echo "files to a single orphan commit."
             echo ""
             echo "To fix, rebase your changes onto current main:"
-            echo "  git fetch origin main"
-            echo "  git checkout -b fix-branch origin/main"
+            echo "  git fetch origin master"
+            echo "  git checkout -b fix-branch origin/master"
             echo "  # re-apply your changes (cherry-pick, copy files, etc.)"
             echo "  git push -f origin fix-branch"
             exit 1
