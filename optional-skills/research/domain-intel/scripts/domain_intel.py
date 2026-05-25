@@ -88,13 +88,16 @@ def check_ssl(host, port=443, timeout=10):
             with ctx.wrap_socket(sock, server_hostname=host) as s:
                 cert, cipher, proto = s.getpeercert(), s.cipher(), s.version()
     except ssl.SSLCertVerificationError as e:
+        # Audit v5 + v7 HIGH Y-03 fix: do NOT fall back to CERT_NONE.
+        # The previous fallback let a MITM substitute a self-signed cert
+        # for a target domain and the tool would happily report "cert
+        # found" + ship attacker-supplied "cert" details. Verification
+        # failure is data — record it as the finding and return cleanly
+        # without bypassing the trust chain.
         warning = str(e)
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
-        with socket.create_connection((host, port), timeout=timeout) as sock:
-            with ctx.wrap_socket(sock, server_hostname=host) as s:
-                cert, cipher, proto = s.getpeercert(), s.cipher(), s.version()
+        cert = {}
+        cipher = None
+        proto = None
 
     not_after = parse_date(cert.get("notAfter", ""))
     now = datetime.now(timezone.utc)
@@ -270,11 +273,14 @@ def check_available(domain):
     dns_exists = bool(a or ns)
 
     # SSL
+    # Audit v5 + v7 HIGH Y-03 fix: probe with REAL TLS verification.
+    # The previous CERT_NONE+check_hostname=False made every "ssl_reachable"
+    # signal a yes-vote no matter who the actual TLS peer was — including
+    # MITM proxies. The probe now matches what a browser sees; expired or
+    # mismatched certs correctly read as "ssl_reachable: False".
     ssl_up = False
     try:
         ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
         with socket.create_connection((domain, 443), timeout=3) as s:
             with ctx.wrap_socket(s, server_hostname=domain):
                 ssl_up = True

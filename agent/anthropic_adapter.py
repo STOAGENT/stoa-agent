@@ -1040,11 +1040,33 @@ def _write_claude_code_credentials(
         existing["claudeAiOauth"] = oauth_data
 
         cred_path.parent.mkdir(parents=True, exist_ok=True)
+        # Audit v10 HIGH-50 fix: write the tempfile with 0o600 from
+        # the start using O_EXCL. The previous "write_text → replace
+        # → chmod" pattern left a brief umask-default window (0o644
+        # on most Linux setups) between rename and chmod where another
+        # process could open the file world-readable. O_EXCL forces a
+        # fresh inode + opens at the requested mode atomically; if a
+        # tmp from a previous crash exists we unlink it first.
         _tmp_cred = cred_path.with_suffix(".tmp")
-        _tmp_cred.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+        try:
+            _tmp_cred.unlink()
+        except FileNotFoundError:
+            pass
+        fd = os.open(str(_tmp_cred), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(existing, fh, indent=2)
+        except BaseException:
+            try: _tmp_cred.unlink()
+            except FileNotFoundError: pass
+            raise
         _tmp_cred.replace(cred_path)
-        # Restrict permissions (credentials file)
-        cred_path.chmod(0o600)
+        # Belt-and-suspenders chmod on Windows where O_EXCL mode bits
+        # behave differently; no-op on POSIX since file was already 0o600.
+        try:
+            cred_path.chmod(0o600)
+        except OSError:
+            pass
     except (OSError, IOError) as e:
         logger.debug("Failed to write refreshed credentials: %s", e)
 

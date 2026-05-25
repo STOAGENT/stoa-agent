@@ -40,6 +40,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 import time
 from dataclasses import asdict, dataclass
 from typing import Any, Awaitable, Callable
@@ -264,17 +265,31 @@ async def _compose_verdict(
     return text, agreement
 
 
+_VERDICT_DOMAIN_TAG = b"stoa-verdict-v1\x00"
+
+
 def _hash_response(
     *,
     task: str,
     agents: list[CouncilMessage],
     verdict_text: str,
+    chain_id: int | None = None,
+    contract_address: str | None = None,
 ) -> str:
-    """sha256 over canonical JSON. Stable across runs given the same inputs.
+    """sha256 over canonical JSON with a domain separator. Stable across runs.
 
     This hash is what gets attested on-chain. We include provider/model so
     that two verdicts from different sovereign routings are distinguishable
-    even if the surface text matches verbatim — provenance matters."""
+    even if the surface text matches verbatim — provenance matters.
+
+    Audit v4 HIGH V-04 fix: the hash now includes a domain-separator
+    prefix (``stoa-verdict-v1\\x00``) plus chain_id + contract address so a
+    signature minted for the testnet contract cannot replay against the
+    mainnet contract (or any other deployment / future protocol version).
+    Without this, the bare sha256 over the JSON payload was the same
+    bytes everywhere — perfect cross-chain replay primitive once the
+    attestation contract goes live.
+    """
     payload = {
         "task": task,
         "agents": [
@@ -288,6 +303,15 @@ def _hash_response(
             for m in agents
         ],
         "verdict": verdict_text,
+        # Domain-separation fields. Read from env when not passed
+        # explicitly so the rest of the codebase needn't be plumbed
+        # on day one. STOA_CHAIN_ID matches the wallet binding default.
+        "chain_id": chain_id if chain_id is not None else int(os.environ.get("STOA_CHAIN_ID", "10143")),
+        "contract": (contract_address or os.environ.get("AUDIT_ATTESTATION_V2_ADDRESS", "")).lower(),
+        "schema_version": 1,
     }
-    canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    h = hashlib.sha256()
+    h.update(_VERDICT_DOMAIN_TAG)
+    h.update(canonical)
+    return h.hexdigest()
