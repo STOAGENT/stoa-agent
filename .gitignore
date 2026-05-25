@@ -31,6 +31,9 @@ run_datagen_megascience_glm4-6.sh
 run_datagen_sonnet.sh
 source-data/*
 data/*
+# Website data is hand-curated content, not training data — track it.
+!website/src/data/
+!website/src/data/**
 node_modules/
 browser-use/
 agent-browser/
