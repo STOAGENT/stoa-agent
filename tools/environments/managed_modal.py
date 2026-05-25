@@ -17,7 +17,25 @@ from tools.environments.modal_utils import (
 )
 from tools.managed_tool_gateway import resolve_managed_tool_gateway
 
+try:
+    # Audit M-2 fix: redact the Nous bearer token from exception messages
+    # before they hit logs. The token is in the Authorization header, which
+    # some lower-level HTTP libraries echo into traceback strings (esp. when
+    # the underlying connector raises with the request object attached).
+    from agent.redact import redact_sensitive_text as _redact_sensitive_text
+except Exception:  # pragma: no cover - defensive import
+    def _redact_sensitive_text(text: str, *, force: bool = False, code_file: bool = False) -> str:
+        return text
+
 logger = logging.getLogger(__name__)
+
+
+def _safe_exc(exc: BaseException) -> str:
+    """Stringify exc with bearer-token redaction applied."""
+    try:
+        return _redact_sensitive_text(str(exc), force=True)
+    except Exception:
+        return type(exc).__name__
 
 
 def _request_timeout_env(name: str, default: float) -> float:
@@ -89,7 +107,9 @@ class ManagedModalEnvironment(BaseModalExecutionEnvironment):
             )
         except Exception as exc:
             return ModalExecStart(
-                immediate_result=self._error_result(f"Managed Modal exec failed: {exc}")
+                immediate_result=self._error_result(
+                    f"Managed Modal exec failed: {_safe_exc(exc)}"
+                )
             )
 
         if response.status_code >= 400:
@@ -126,7 +146,9 @@ class ManagedModalEnvironment(BaseModalExecutionEnvironment):
                 timeout=(self._CONNECT_TIMEOUT_SECONDS, self._POLL_READ_TIMEOUT_SECONDS),
             )
         except Exception as exc:
-            return self._error_result(f"Managed Modal exec poll failed: {exc}")
+            return self._error_result(
+                f"Managed Modal exec poll failed: {_safe_exc(exc)}"
+            )
 
         if status_response.status_code == 404:
             return self._error_result("Managed Modal exec not found")
@@ -165,7 +187,7 @@ class ManagedModalEnvironment(BaseModalExecutionEnvironment):
                 timeout=60,
             )
         except Exception as exc:
-            logger.warning("Managed Modal cleanup failed: %s", exc)
+            logger.warning("Managed Modal cleanup failed: %s", _safe_exc(exc))
         finally:
             self._sandbox_id = None
 
@@ -253,7 +275,7 @@ class ManagedModalEnvironment(BaseModalExecutionEnvironment):
                 timeout=(self._CONNECT_TIMEOUT_SECONDS, self._CANCEL_READ_TIMEOUT_SECONDS),
             )
         except Exception as exc:
-            logger.warning("Managed Modal exec cancel failed: %s", exc)
+            logger.warning("Managed Modal exec cancel failed: %s", _safe_exc(exc))
 
     @staticmethod
     def _coerce_number(value: Any, default: float) -> float:

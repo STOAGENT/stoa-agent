@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import uuid
+from pathlib import Path
 from typing import Optional
 
 from tools.environments.base import BaseEnvironment, _popen_bash
@@ -244,6 +245,25 @@ def _build_security_args(run_as_host_user: bool) -> list[str]:
     seccomp = _resolve_seccomp_profile()
     if seccomp:
         args += ["--security-opt", f"seccomp={seccomp}"]
+    # Audit M-2 fix: opt-in AppArmor profile. Operators on Ubuntu/Debian
+    # hosts can load a custom profile via apparmor_parser and reference it
+    # here with STOA_DOCKER_APPARMOR=stoa-sandbox. When unset, Docker
+    # applies its built-in ``docker-default`` profile, which is fine but
+    # not tuned to STOA's syscall surface.
+    apparmor_profile = os.environ.get("STOA_DOCKER_APPARMOR", "").strip()
+    if apparmor_profile:
+        args += ["--security-opt", f"apparmor={apparmor_profile}"]
+    # Audit M-2 fix: opt-in alternative OCI runtime. ``runc`` is the
+    # default; operators on hostile/multi-tenant hosts can flip to
+    # ``runsc`` (gVisor) or ``kata-runtime`` (Kata Containers) for
+    # stronger isolation. Userns-remap stays an admin-side concern
+    # (configured in /etc/docker/daemon.json with ``userns-remap``);
+    # documenting it here so operators know the layered defense:
+    # daemon-side userns-remap + per-container runtime swap = two
+    # independent kernel-confinement layers.
+    runtime = os.environ.get("STOA_DOCKER_RUNTIME", "").strip()
+    if runtime and runtime != "runc":
+        args += ["--runtime", runtime]
     return args
 
 
@@ -652,9 +672,19 @@ class DockerEnvironment(BaseEnvironment):
     @staticmethod
     def _storage_opt_supported() -> bool:
         """Check if Docker's storage driver supports --storage-opt size=.
-        
+
         Only overlay2 on XFS with pquota supports per-container disk quotas.
         Ubuntu (and most distros) default to ext4, where this flag errors out.
+
+        Audit M-2 fix: previously probed by ``docker create --storage-opt
+        size=1m hello-world``, which forces a registry pull of ``hello-world``
+        on every host that doesn't already have it. That made first-run
+        environments touch a public registry just to determine local
+        capability, and in air-gapped deployments the probe would falsely
+        report "no storage-opt support" because the pull itself failed.
+        We now prefer a locally cached image (any image returned by
+        ``docker images``) and only fall back to ``hello-world`` if the
+        host has no images at all.
         """
         global _storage_opt_ok
         if _storage_opt_ok is not None:
@@ -669,10 +699,36 @@ class DockerEnvironment(BaseEnvironment):
             if driver != "overlay2":
                 _storage_opt_ok = False
                 return False
-            # overlay2 only supports storage-opt on XFS with pquota.
-            # Probe by attempting a dry-ish run — the fastest reliable check.
+
+            # Prefer a locally cached image for the probe so we don't trigger
+            # a public-registry pull. Pick the first repo:tag from `docker
+            # images --filter dangling=false`. Skip <none>:<none>.
+            probe_image: Optional[str] = None
+            try:
+                listed = subprocess.run(
+                    [docker, "images", "--filter", "dangling=false",
+                     "--format", "{{.Repository}}:{{.Tag}}"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if listed.returncode == 0:
+                    for line in listed.stdout.splitlines():
+                        line = line.strip()
+                        if line and line != "<none>:<none>" and not line.startswith("<none>"):
+                            probe_image = line
+                            break
+            except Exception:
+                probe_image = None
+
+            if probe_image is None:
+                # Last-resort fallback. Honor STOA_DOCKER_STORAGE_OPT_PROBE_IMAGE
+                # so air-gapped operators can preload a tiny known image
+                # (e.g. ``scratch:latest`` doesn't work; use ``alpine:3``).
+                probe_image = os.environ.get(
+                    "STOA_DOCKER_STORAGE_OPT_PROBE_IMAGE", "hello-world"
+                )
+
             probe = subprocess.run(
-                [docker, "create", "--storage-opt", "size=1m", "hello-world"],
+                [docker, "create", "--storage-opt", "size=1m", probe_image],
                 capture_output=True, text=True, timeout=15,
             )
             if probe.returncode == 0:

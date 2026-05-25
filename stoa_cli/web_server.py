@@ -112,10 +112,15 @@ app.add_middleware(
 # /api/ is gated by the auth middleware below.  Keep this list minimal —
 # only truly non-sensitive, read-only endpoints belong here.
 # ---------------------------------------------------------------------------
+# Audit M-7 #2: /api/config/defaults and /api/config/schema were
+# previously public. They leak the full DEFAULT_CONFIG (~500 setting
+# names, including BSM / Bedrock / provider hints that disclose what
+# infrastructure the operator runs) and the CONFIG_SCHEMA (every UI
+# field). Public exposure makes them a fingerprint endpoint for any
+# attacker on the loopback interface; gating behind the session token
+# matches every other /api/config/* surface.
 _PUBLIC_API_PATHS: frozenset = frozenset({
     "/api/status",
-    "/api/config/defaults",
-    "/api/config/schema",
     "/api/model/info",
     "/api/dashboard/themes",
     "/api/dashboard/plugins",
@@ -868,12 +873,19 @@ async def get_config():
 
 
 @app.get("/api/config/defaults")
-async def get_defaults():
+async def get_defaults(request: Request):
+    # Audit M-7 #2: gate behind the dashboard session token. The middleware
+    # already enforces this after the _PUBLIC_API_PATHS removal, but keeping
+    # the explicit check at the handler matches the project's prevailing
+    # pattern and defends against accidental future relaxation of the
+    # public-paths set.
+    _require_token(request)
     return DEFAULT_CONFIG
 
 
 @app.get("/api/config/schema")
-async def get_schema():
+async def get_schema(request: Request):
+    _require_token(request)
     return {"fields": CONFIG_SCHEMA, "category_order": _CATEGORY_ORDER}
 
 

@@ -73,14 +73,23 @@ def _warn_config_parse_failure(config_path: Path, exc: Exception) -> None:
 _IS_WINDOWS = platform.system() == "Windows"
 _ENV_VAR_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _LAST_EXPANDED_CONFIG_BY_PATH: Dict[str, Any] = {}
-# (path, mtime_ns, size) -> cached expanded config dict.
+# (path, mtime_ns, size, content_hash) -> cached expanded config dict.
 # load_config() returns a deepcopy of the cached value when the file
 # hasn't changed since the last load, skipping yaml.safe_load +
 # _deep_merge + _normalize_* + _expand_env_vars (~13 ms/call).
 # save_config() + migrate_config() write via atomic_yaml_write which
 # produces a fresh inode, so stat() sees a new mtime_ns and the next
 # load repopulates automatically — no explicit invalidation hook.
-_LOAD_CONFIG_CACHE: Dict[str, Tuple[int, int, Dict[str, Any]]] = {}
+#
+# Audit M-7 #4: the content hash entry was added to the tuple so the
+# cache survives in-place edits on filesystems where mtime_ns has
+# coarse resolution (FAT32 with 2s granularity, certain SMB mounts) or
+# where a malicious actor could mtime-clobber the file with `touch`
+# after writing new content. mtime+size still gate the cheap fast-path
+# (avoid hashing on every call); the content hash is only computed
+# when mtime+size match the cached tuple but we want to verify the
+# bytes weren't swapped.
+_LOAD_CONFIG_CACHE: Dict[str, Tuple[int, int, str, Dict[str, Any]]] = {}
 # (path, mtime_ns, size) -> cached raw yaml dict. Same pattern as
 # _LOAD_CONFIG_CACHE but for read_raw_config() — used when callers want
 # the user's on-disk values without defaults merged in.
@@ -4122,13 +4131,31 @@ def migrate_config(interactive: bool = True, quiet: bool = False) -> Dict[str, A
     return results
 
 
-def _deep_merge(base: dict, override: dict) -> dict:
+_DEEP_MERGE_MAX_DEPTH = 32
+
+
+def _deep_merge(base: dict, override: dict, _depth: int = 0) -> dict:
     """Recursively merge *override* into *base*, preserving nested defaults.
 
     Keys in *override* take precedence. If both values are dicts the merge
     recurses, so a user who overrides only ``tts.elevenlabs.voice_id`` will
     keep the default ``tts.elevenlabs.model_id`` intact.
+
+    Audit M-7 #3: recursion is bounded at ``_DEEP_MERGE_MAX_DEPTH`` levels.
+    A maliciously crafted config.yaml with a deeply-nested mapping
+    (thousands of levels) would otherwise blow the Python recursion limit
+    inside ``load_config()`` and crash every CLI / gateway entry point on
+    a single bad file. Hitting the cap falls back to a shallow override
+    (``override`` wins outright) and logs once so the operator sees the
+    truncation.
     """
+    if _depth >= _DEEP_MERGE_MAX_DEPTH:
+        logger.warning(
+            "_deep_merge: depth cap %d reached — falling back to shallow override. "
+            "Likely cause: malformed deeply-nested config.yaml.",
+            _DEEP_MERGE_MAX_DEPTH,
+        )
+        return override.copy() if isinstance(override, dict) else override
     result = base.copy()
     for key, value in override.items():
         if (
@@ -4136,7 +4163,7 @@ def _deep_merge(base: dict, override: dict) -> dict:
             and isinstance(result[key], dict)
             and isinstance(value, dict)
         ):
-            result[key] = _deep_merge(result[key], value)
+            result[key] = _deep_merge(result[key], value, _depth + 1)
         else:
             result[key] = value
     return result
@@ -4420,20 +4447,38 @@ def _load_config_impl(*, want_deepcopy: bool) -> Dict[str, Any]:
 
         try:
             st = config_path.stat()
-            cache_key: Optional[Tuple[int, int]] = (st.st_mtime_ns, st.st_size)
+            cache_stat: Optional[Tuple[int, int]] = (st.st_mtime_ns, st.st_size)
         except FileNotFoundError:
-            cache_key = None
+            cache_stat = None
 
+        # Audit M-7 #4: only trust cache when mtime+size AND content hash
+        # match the cached entry. Verifies an attacker who mtime-clobbered
+        # the file (touch -r) didn't swap bytes underneath us.
         cached = _LOAD_CONFIG_CACHE.get(path_key)
-        if cached is not None and cache_key is not None and cached[:2] == cache_key:
-            return copy.deepcopy(cached[2]) if want_deepcopy else cached[2]
+        cached_content_hash: Optional[str] = None
+        if cached is not None and cache_stat is not None and cached[:2] == cache_stat:
+            try:
+                import hashlib as _hashlib
+                with open(config_path, "rb") as _hf:
+                    cached_content_hash = _hashlib.sha256(_hf.read()).hexdigest()
+                if cached[2] == cached_content_hash:
+                    return copy.deepcopy(cached[3]) if want_deepcopy else cached[3]
+            except OSError:
+                # Race: file disappeared between stat() and open(). Fall
+                # through to the slow path which re-stats and rebuilds.
+                cached_content_hash = None
 
         config = copy.deepcopy(DEFAULT_CONFIG)
+        content_hash = cached_content_hash or ""
 
-        if cache_key is not None:
+        if cache_stat is not None:
             try:
-                with open(config_path, encoding="utf-8") as f:
-                    user_config = yaml.safe_load(f) or {}
+                with open(config_path, "rb") as f:
+                    _raw_bytes = f.read()
+                if not content_hash:
+                    import hashlib as _hashlib
+                    content_hash = _hashlib.sha256(_raw_bytes).hexdigest()
+                user_config = yaml.safe_load(_raw_bytes.decode("utf-8")) or {}
 
                 if "max_turns" in user_config:
                     agent_user_config = dict(user_config.get("agent") or {})
@@ -4449,13 +4494,13 @@ def _load_config_impl(*, want_deepcopy: bool) -> Dict[str, Any]:
         normalized = _normalize_root_model_keys(_normalize_max_turns_config(config))
         expanded = _expand_env_vars(normalized)
         _LAST_EXPANDED_CONFIG_BY_PATH[path_key] = copy.deepcopy(expanded)
-        if cache_key is not None:
+        if cache_stat is not None:
             # Cache stores a separate deepcopy so subsequent ``load_config()``
             # (deepcopy=True) callers can mutate freely without affecting the
             # cached value, and ``load_config_readonly()`` (deepcopy=False)
             # callers all see the same stable cached object.
             cached_copy = copy.deepcopy(expanded)
-            _LOAD_CONFIG_CACHE[path_key] = (cache_key[0], cache_key[1], cached_copy)
+            _LOAD_CONFIG_CACHE[path_key] = (cache_stat[0], cache_stat[1], content_hash, cached_copy)
             # On the readonly path return the same cached object subsequent
             # calls will see — keeps "two readonly calls return the same
             # object" invariant that callers may rely on for identity checks.

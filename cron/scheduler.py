@@ -855,11 +855,23 @@ def _run_job_script(script_path: str) -> tuple[bool, str]:
 
     script_timeout = _get_script_timeout()
 
-    # Pick an interpreter by extension.  Bash for .sh/.bash, Python for
-    # everything else.  We deliberately do NOT honour the file's own
-    # shebang: the scripts dir is trusted, but keeping the interpreter
-    # choice explicit here keeps the allowed surface small and auditable.
+    # Pick an interpreter by extension. Audit M-3 #6 hardens this to a
+    # strict allowlist: only .sh / .bash / .py are accepted. Previously
+    # *any* other extension silently fell through to Python, which meant
+    # a .pl / .rb / .js / .ts / .exe / unknown-extension file dropped in
+    # scripts/ would execute under the Python interpreter (typically a
+    # SyntaxError, but on rare crafted inputs an arbitrary-code path
+    # via exec-on-import). We deliberately do NOT honour the file's own
+    # shebang: the scripts dir is trusted but the interpreter choice
+    # stays explicit + auditable here.
     suffix = path.suffix.lower()
+    _ALLOWED_SCRIPT_SUFFIXES = {".sh", ".bash", ".py"}
+    if suffix not in _ALLOWED_SCRIPT_SUFFIXES:
+        return False, (
+            f"Blocked: cron scripts must have a .sh, .bash, or .py extension "
+            f"(got {suffix!r} on {path.name!r}). Rename the script or wrap it "
+            f"in a .py / .sh launcher."
+        )
     if suffix in {".sh", ".bash"}:
         # Resolve bash dynamically so Windows (Git Bash) and Linux/macOS
         # all work.  On native Windows without Git for Windows installed
@@ -904,11 +916,18 @@ def _run_job_script(script_path: str) -> tuple[bool, str]:
         stdout = (result.stdout or "").strip()
         stderr = (result.stderr or "").strip()
 
-        # Redact secrets from both stdout and stderr before any return path.
+        # Audit M-3 #7: redact secrets from both stdout and stderr with
+        # force=True before any return path. Cron output is written to
+        # output files (saved on disk), echoed into agent prompts, and
+        # delivered to operator chat channels. Without force=True, the
+        # per-process `redact_secrets: false` toggle would let secrets
+        # leak through every one of those surfaces, but a cron audit
+        # trail must never depend on the operator remembering to keep
+        # redaction enabled for interactive chat.
         try:
             from agent.redact import redact_sensitive_text
-            stdout = redact_sensitive_text(stdout)
-            stderr = redact_sensitive_text(stderr)
+            stdout = redact_sensitive_text(stdout, force=True)
+            stderr = redact_sensitive_text(stderr, force=True)
         except Exception:
             pass
 
@@ -1325,7 +1344,18 @@ def _run_job_impl(job: dict) -> tuple[bool, str, str, Optional[str]]:
     _cron_session_id = f"cron_{job_id}_{_stoa_now().strftime('%Y%m%d_%H%M%S')}"
 
     logger.info("Running job '%s' (ID: %s)", job_name, job_id)
-    logger.info("Prompt: %s", prompt[:100])
+    # Audit M-3 #8: strict redact before logging the cron prompt preview.
+    # The prompt may interpolate skill content / context_from output which
+    # can include secrets the user pasted into the source job at create
+    # time. force=True forces redaction regardless of the per-process
+    # redact_secrets toggle so an operator who disabled redaction for the
+    # main chat still doesn't see cron secrets in agent.log.
+    try:
+        from agent.redact import redact_sensitive_text as _redact_log
+        _log_preview = _redact_log(prompt[:100], force=True)
+    except Exception:
+        _log_preview = "<prompt preview unavailable: redactor unreachable>"
+    logger.info("Prompt: %s", _log_preview)
 
     agent = None
 
@@ -1822,6 +1852,22 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
     Returns:
         Number of jobs executed (0 if another tick is already running)
     """
+    # Audit M-3 #4: admin killswitch. When STOA_CRON_KILLSWITCH is set to
+    # any truthy value, the scheduler refuses to fire jobs at boot/tick
+    # time. Operators flip this when responding to a compromised
+    # cron config, runaway job, or rotation gate ("freeze cron until I
+    # finish auditing jobs.json"). The flag is intentionally checked at
+    # every tick — not just startup — so flipping the env var on a
+    # running gateway works without a restart.
+    _killswitch_raw = os.environ.get("STOA_CRON_KILLSWITCH", "").strip().lower()
+    if _killswitch_raw and _killswitch_raw not in {"0", "false", "no", "off"}:
+        logger.warning(
+            "Cron scheduler refused to tick: STOA_CRON_KILLSWITCH=%r is set. "
+            "Unset the env var (or set it to 0/false) to resume scheduling.",
+            _killswitch_raw,
+        )
+        return 0
+
     lock_dir, lock_file = _get_lock_paths()
     lock_dir.mkdir(parents=True, exist_ok=True)
 

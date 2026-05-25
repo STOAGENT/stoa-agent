@@ -336,11 +336,34 @@ class SessionDB:
         self.db_path = db_path or DEFAULT_DB_PATH
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Audit S-06 / M-7 #7: ensure state.db is owner-only (0o600) even
+        # in container mode. Unlike config.yaml (which intentionally relaxes
+        # perms inside containers so multi-process compose stacks can share
+        # state), state.db carries session messages, kanban content, and
+        # subagent transcripts — none of which should ever be group/world
+        # readable. We chmod the existing inode if present so an upgrade
+        # from a pre-fix install also tightens the perms; the connection
+        # call below will create the file if missing, and we re-chmod in
+        # that case after init.
+        try:
+            if os.name == "posix" and self.db_path.exists():
+                os.chmod(self.db_path, 0o600)
+        except (OSError, NotImplementedError):
+            pass
+
         self._lock = threading.Lock()
         self._write_count = 0
         try:
-            self._conn = sqlite3.connect(
-                str(self.db_path),
+            # Route through agent.db_encryption so that STOA_DB_ENCRYPTION=1
+            # transparently upgrades this connection to SQLCipher (audit
+            # v12 HIGH-70 #1: state.db plaintext).  Default OFF — the env
+            # var unset path returns a stock sqlite3.connect with the
+            # exact same kwargs we used before, plus PRAGMA secure_delete=ON
+            # (closes the "deleted rows readable in free pages until
+            # VACUUM" leak — finding #4 of the same audit).
+            from agent.db_encryption import open_connection
+            self._conn = open_connection(
+                self.db_path,
                 check_same_thread=False,
                 # Short timeout — application-level retry with random jitter
                 # handles contention instead of sitting in SQLite's internal
@@ -357,6 +380,12 @@ class SessionDB:
             self._conn.execute("PRAGMA foreign_keys=ON")
 
             self._init_schema()
+            # Audit S-06: re-chmod after init for newly-created databases.
+            try:
+                if os.name == "posix" and self.db_path.exists():
+                    os.chmod(self.db_path, 0o600)
+            except (OSError, NotImplementedError):
+                pass
         except Exception as exc:
             # Capture the cause so /resume and friends can surface WHY the
             # session DB is unavailable instead of a bare "Session database
