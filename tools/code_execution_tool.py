@@ -78,10 +78,22 @@ MAX_STDERR_BYTES = 10_000    # 10 KB
 # match either a safe prefix or, on Windows, an OS-essential name.
 _SAFE_ENV_PREFIXES = ("PATH", "HOME", "USER", "LANG", "LC_", "TERM",
                       "TMPDIR", "TMP", "TEMP", "SHELL", "LOGNAME",
-                      "XDG_", "PYTHONPATH", "VIRTUAL_ENV", "CONDA",
-                      "STOA_")
+                      "XDG_", "PYTHONPATH", "VIRTUAL_ENV", "CONDA")
+# Audit v5 CRIT T-02 fix: STOA_ prefix removed from safe-env passthrough.
+# The prefix is too coarse — it passed STOA_DB_URI, STOA_SMTP_DSN, etc.
+# straight into LLM-run code. _SECRET_SUBSTRINGS catches KEY/TOKEN/etc
+# names but NOT generic DSN/URI/connection-string names. Sandbox does not
+# need ambient STOA_* — anything required flows through env_passthrough
+# (skill- or config-declared opt-in). For genuinely-safe STOA_ vars use
+# the explicit name allowlist below.
+_STOA_SAFE_EXACT = frozenset({
+    "STOA_OFFLINE",      # offline-mode behaviour flag
+    "STOA_NO_COLOR",     # ANSI suppressor
+    "STOA_LOG_LEVEL",    # log verbosity
+})
 _SECRET_SUBSTRINGS = ("KEY", "TOKEN", "SECRET", "PASSWORD", "CREDENTIAL",
-                      "PASSWD", "AUTH")
+                      "PASSWD", "AUTH", "PRIVATE", "MNEMONIC", "SEED",
+                      "DSN", "PEM", "SIGNATURE")
 
 # Windows-only: a handful of variables are required by the OS/CRT itself.
 # Without them, even stdlib calls like ``socket.socket()`` fail with
@@ -146,6 +158,10 @@ def _scrub_child_env(source_env, is_passthrough=None, is_windows=None):
         if any(s in k.upper() for s in _SECRET_SUBSTRINGS):
             continue
         if any(k.startswith(p) for p in _SAFE_ENV_PREFIXES):
+            scrubbed[k] = v
+            continue
+        # Audit v5 CRIT T-02: explicit STOA_ allowlist (was wildcard prefix).
+        if k in _STOA_SAFE_EXACT:
             scrubbed[k] = v
             continue
         if is_windows and k.upper() in _WINDOWS_ESSENTIAL_ENV_VARS:
