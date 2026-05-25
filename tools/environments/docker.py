@@ -166,6 +166,34 @@ _BASE_SECURITY_ARGS = [
     "--tmpfs", "/tmp:rw,nosuid,size=512m",
     "--tmpfs", "/var/tmp:rw,noexec,nosuid,size=256m",
     "--tmpfs", "/run:rw,noexec,nosuid,size=64m",
+    # Audit v9 HIGH-14 + HIGH-15 + HIGH-16 fix: resource caps default.
+    # The previous lack of --memory / --cpus / --ulimit nofile let a
+    # compromised in-container process exhaust host RAM (fork bomb,
+    # memory amplifier) before --pids-limit ever caught it. Default
+    # 2 GiB RAM + 2.0 CPU + 4096 file-handles is generous for build /
+    # test workloads but bounded for hostile ones. Operators can lift
+    # via STOA_DOCKER_MEMORY / STOA_DOCKER_CPUS / STOA_DOCKER_NOFILE.
+    "--memory", os.environ.get("STOA_DOCKER_MEMORY", "2g"),
+    "--memory-swap", os.environ.get("STOA_DOCKER_MEMORY_SWAP",
+                                     os.environ.get("STOA_DOCKER_MEMORY", "2g")),
+    "--cpus", os.environ.get("STOA_DOCKER_CPUS", "2.0"),
+    "--ulimit", f"nofile={os.environ.get('STOA_DOCKER_NOFILE', '4096')}",
+    "--ulimit", "core=0",      # no core dumps inside the sandbox
+    # Audit v9 HIGH-13 fix: opt-in --read-only root FS. Default off so
+    # legacy skill scripts that write outside /tmp keep working, but
+    # operators on production can set STOA_DOCKER_READONLY=1 to flip
+    # the rootfs to read-only — persistent backdoors at /usr/local/bin
+    # then survive only as long as the container.
+    *(["--read-only"] if os.environ.get("STOA_DOCKER_READONLY", "0") == "1" else []),
+    # Audit v9 CRIT-43-1 fix: opt-in seccomp profile. Default Docker
+    # seccomp policy lets the container call io_uring_*, userfaultfd,
+    # keyctl, bpf, perf_event_open, unshare(CLONE_NEWUSER) — the syscall
+    # surface for CVE-2023-2598, CVE-2024-0582, CVE-2024-1086. We ship a
+    # stricter profile under data/seccomp/stoa-sandbox.json and apply it
+    # when present; operators on hardened kernels can substitute their
+    # own via STOA_DOCKER_SECCOMP=/path/to/profile.json. Defaults to the
+    # bundled profile when it exists, falls back to Docker default when
+    # not (so the cap-drop / no-new-privileges layer still applies).
     # Audit v9 CRIT-43-1 fix: opt-in seccomp profile. Default Docker
     # seccomp policy lets the container call io_uring_*, userfaultfd,
     # keyctl, bpf, perf_event_open, unshare(CLONE_NEWUSER) — the syscall
