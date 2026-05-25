@@ -36,6 +36,13 @@ import yaml
 from tools.skills_guard import (
     ScanResult, content_hash, TRUSTED_REPOS,
 )
+from tools.skills_signature import (
+    classify_update_diff,
+    is_sha_revoked,
+    is_signature_required,
+    validate_author_field,
+    verify_bundle_signature,
+)
 from tools.url_safety import is_safe_url
 from tools.website_policy import check_website_access
 
@@ -2954,13 +2961,86 @@ def install_from_quarantine(
     bundle: SkillBundle,
     scan_result: ScanResult,
 ) -> Path:
-    """Move a scanned skill from quarantine into the skills directory."""
+    """Move a scanned skill from quarantine into the skills directory.
+
+    Audit v11 HIGH-61 mitigation gates (all OFF by default, see
+    ``tools.skills_signature``):
+
+      1. **Revocation kill-switch** — ALWAYS active (does not require
+         the env flag).  If the bundle's content hash is in
+         ``~/.stoa/skills/.hub/revocations.json`` the install is
+         refused regardless of trust level.
+      2. **Author identity binding** — under
+         ``STOA_SKILL_REQUIRE_SIGNATURE=1`` the SKILL.md ``author:``
+         field must use the ``github:<org>`` or ``did:web:<host>``
+         prefix and must not collide with the known-imposter list.
+      3. **Ed25519 signature verification** — under the same env flag
+         the bundle's ``.signature.json`` must verify against the
+         bundle hash and a trusted signer pubkey.
+    """
     safe_skill_name = _validate_skill_name(skill_name)
     safe_category = _validate_category_name(category) if category else ""
     quarantine_resolved = quarantine_path.resolve()
     quarantine_root = QUARANTINE_DIR.resolve()
     if not quarantine_resolved.is_relative_to(quarantine_root):
         raise ValueError(f"Unsafe quarantine path: {quarantine_path}")
+
+    # --- Audit v11 HIGH-61 gates -------------------------------------------
+    pre_install_hash = content_hash(quarantine_path)
+
+    rev = is_sha_revoked(pre_install_hash)
+    if rev.ok is False:
+        append_audit_log(
+            "INSTALL_BLOCKED", safe_skill_name, bundle.source,
+            bundle.trust_level, scan_result.verdict,
+            f"revoked:{pre_install_hash}",
+        )
+        raise PermissionError(
+            f"Install refused — {rev.reason}"
+        )
+
+    if is_signature_required():
+        sig_verdict = verify_bundle_signature(quarantine_path, pre_install_hash)
+        if sig_verdict.ok is False:
+            append_audit_log(
+                "INSTALL_BLOCKED", safe_skill_name, bundle.source,
+                bundle.trust_level, scan_result.verdict,
+                f"signature:{sig_verdict.reason}",
+            )
+            raise PermissionError(
+                f"Install refused — signature check failed: {sig_verdict.reason}"
+            )
+        if sig_verdict.ok is None:
+            # TOFU pubkey — caller must promote to trusted-signers.json
+            append_audit_log(
+                "INSTALL_BLOCKED", safe_skill_name, bundle.source,
+                bundle.trust_level, scan_result.verdict,
+                f"signature_tofu:{sig_verdict.signer_pubkey_hex}",
+            )
+            raise PermissionError(
+                f"Install needs confirmation — {sig_verdict.reason}"
+            )
+
+        # Author binding (only enforced under the env flag, but a soft
+        # validation runs in legacy mode below).
+        skill_md_path = quarantine_path / "SKILL.md"
+        if skill_md_path.is_file():
+            try:
+                skill_md_text = skill_md_path.read_text(encoding="utf-8")
+            except OSError:
+                skill_md_text = ""
+            fm = GitHubSource._parse_frontmatter_quick(skill_md_text)
+            author_verdict = validate_author_field(fm.get("author"))
+            if not author_verdict.ok:
+                append_audit_log(
+                    "INSTALL_BLOCKED", safe_skill_name, bundle.source,
+                    bundle.trust_level, scan_result.verdict,
+                    f"author:{author_verdict.reason}",
+                )
+                raise PermissionError(
+                    f"Install refused — author binding: {author_verdict.reason}"
+                )
+    # -----------------------------------------------------------------------
 
     if safe_category:
         install_dir = SKILLS_DIR / safe_category / safe_skill_name
@@ -3137,6 +3217,22 @@ def check_for_skill_updates(
         current_hash = entry.get("content_hash", "")
         latest_hash = bundle_content_hash(bundle)
         status = "up_to_date" if current_hash == latest_hash else "update_available"
+
+        # Audit v11 HIGH-61 finding #4: classify upstream push-update
+        # diff so a silently-added scripts/exfil.sh trips a re-confirm.
+        diff_verdict = classify_update_diff(
+            previous_files=entry.get("files", []) or [],
+            new_files=list(bundle.files.keys()),
+        )
+
+        # Audit v11 HIGH-61 finding #3: refuse to surface a revoked sha
+        # as an update — even if the upstream pushed something new.
+        rev_verdict = is_sha_revoked(latest_hash)
+        update_block_reason = ""
+        if rev_verdict.ok is False:
+            status = "blocked_revoked"
+            update_block_reason = rev_verdict.reason
+
         results.append({
             "name": entry.get("name", ""),
             "identifier": identifier,
@@ -3145,6 +3241,11 @@ def check_for_skill_updates(
             "current_hash": current_hash,
             "latest_hash": latest_hash,
             "bundle": bundle,
+            "diff_classification": diff_verdict.classification,
+            "diff_added": diff_verdict.added_files,
+            "diff_removed": diff_verdict.removed_files,
+            "diff_reason": diff_verdict.reason,
+            "block_reason": update_block_reason,
         })
 
     return results

@@ -197,3 +197,74 @@ def verify_chain() -> tuple[bool, Optional[str]]:
     except OSError as oe:
         return False, f"read error: {oe}"
     return True, None
+
+
+def _all_log_files() -> list[Path]:
+    """Return current + rotated audit log files in chronological order
+    (oldest first). Rotated files are ``tool-calls.jsonl.N`` where higher
+    N is older (see ``_rotate_if_needed``)."""
+    p = _log_path()
+    files: list[Path] = []
+    # Older rotations first → newest last (the live .jsonl)
+    for i in range(_RETAIN, 0, -1):
+        rotated = p.with_suffix(f".jsonl.{i}")
+        if rotated.exists():
+            files.append(rotated)
+    if p.exists():
+        files.append(p)
+    return files
+
+
+def export_log(
+    since_ms: Optional[int] = None,
+    user_filter: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    """Collect audit log entries from the live log + rotated files.
+
+    Used by ``stoa audit export`` to satisfy operator / compliance
+    requests ("show me every tool call user X made since timestamp T").
+
+    Parameters
+    ----------
+    since_ms
+        Drop entries with ``ts_ms < since_ms``. Default: no time filter.
+    user_filter
+        Drop entries whose ``extra.user_id`` does not match this string.
+        Entries without ``extra.user_id`` are also dropped when the
+        filter is set.
+
+    Returns a list of decoded entries (oldest first). Malformed lines
+    are silently skipped — ``verify_chain()`` is the right tool for
+    integrity checks; export is a best-effort dump.
+
+    Note: callers must redact ``args_preview`` themselves via
+    ``redact_sensitive_text(..., force=True)`` before persisting / sharing
+    the dump. The CLI export command does this automatically.
+    """
+    out: list[dict[str, Any]] = []
+    for path in _all_log_files():
+        try:
+            with path.open("r", encoding="utf-8") as fh:
+                for raw in fh:
+                    raw = raw.rstrip("\n")
+                    if not raw:
+                        continue
+                    try:
+                        entry = json.loads(raw)
+                    except json.JSONDecodeError:
+                        continue
+                    if since_ms is not None:
+                        ts = entry.get("ts_ms")
+                        if not isinstance(ts, (int, float)) or ts < since_ms:
+                            continue
+                    if user_filter is not None:
+                        extra = entry.get("extra") or {}
+                        if not isinstance(extra, dict):
+                            continue
+                        if str(extra.get("user_id", "")) != user_filter:
+                            continue
+                    out.append(entry)
+        except OSError as exc:
+            logger.warning("audit export: failed to read %s (%s)", path, exc)
+            continue
+    return out

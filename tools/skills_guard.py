@@ -13,6 +13,15 @@ Trust levels:
   - trusted:   openai/skills and anthropics/skills only. Caution verdicts allowed.
   - community: Everything else. Any findings = blocked unless --force.
 
+Audit v11 HIGH-61: the TRUSTED_REPOS string-match is a weak trust
+anchor (a forked repo with a matching slug, a CDN-poisoned response,
+or a typosquatted ``author:`` field all sail through). The
+``tools.skills_signature`` module provides an opt-in stricter path
+(set ``STOA_SKILL_REQUIRE_SIGNATURE=1``) that adds ed25519 bundle
+signatures, an always-on revocation manifest, prefix-bound
+``author:`` identities, and a push-update diff classifier. Default
+behaviour here is preserved when the flag is unset.
+
 Usage:
     from tools.skills_guard import scan_skill, should_allow_install, format_scan_report
 

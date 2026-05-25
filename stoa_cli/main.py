@@ -10753,6 +10753,99 @@ def cmd_completion(args, parser=None):
         print(generate_bash(parser))
 
 
+def cmd_audit_verify(args):
+    """Walk the audit log hash chain and report tamper / integrity status.
+
+    Exit code 0 = chain intact, 1 = mismatch / malformed line.
+
+    The ``--profile`` argument is consumed up-front by
+    ``_apply_profile_override`` (which sets ``STOA_HOME`` before module
+    imports), so this handler only needs to call ``verify_chain()``.
+    """
+    from agent.audit_log import verify_chain, _log_path
+
+    ok, err = verify_chain()
+    log_path = _log_path()
+    if ok:
+        if not log_path.exists():
+            print(f"audit: no log at {log_path} — nothing to verify (OK)")
+        else:
+            print(f"audit: chain OK ({log_path})")
+        sys.exit(0)
+    else:
+        print(f"audit: chain FAIL ({log_path})")
+        print(f"  {err}")
+        sys.exit(1)
+
+
+def cmd_audit_export(args):
+    """Dump audit log entries to a file (JSON array or CSV), with optional
+    ``--since`` (ms) and ``--user`` filters. Args previews are re-redacted
+    on the way out (``force=True``) so a compromised audit log entry can
+    never re-emit a raw secret.
+    """
+    import csv
+    import json as _json
+
+    from agent.audit_log import export_log
+
+    since_ms = getattr(args, "since", None)
+    user_filter = getattr(args, "user", None)
+    out_path = Path(args.out_file)
+    fmt = (getattr(args, "format", None) or "json").lower()
+    if fmt not in {"json", "csv"}:
+        print(f"audit: unknown --format {fmt!r} (expected 'json' or 'csv')")
+        sys.exit(2)
+
+    entries = export_log(since_ms=since_ms, user_filter=user_filter)
+
+    # Re-redact args_preview defensively. The writer redacts at ingest
+    # time, but a log that was tampered with or written by an older
+    # version of STOA might still contain secrets.
+    try:
+        from agent.redact import redact_sensitive_text
+        for entry in entries:
+            preview = entry.get("args_preview")
+            if isinstance(preview, str) and preview:
+                entry["args_preview"] = redact_sensitive_text(preview, force=True)
+    except Exception as exc:
+        logger.warning("audit export: redaction layer unavailable (%s)", exc)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if fmt == "json":
+        with out_path.open("w", encoding="utf-8") as fh:
+            _json.dump(entries, fh, ensure_ascii=False, indent=2, sort_keys=True)
+    else:
+        # CSV: flatten extra dict into a single JSON-encoded column.
+        fieldnames = [
+            "ts_ms", "kind", "tool", "actor", "approved",
+            "args_preview", "prev_hash", "extra",
+        ]
+        with out_path.open("w", encoding="utf-8", newline="") as fh:
+            writer = csv.DictWriter(fh, fieldnames=fieldnames)
+            writer.writeheader()
+            for entry in entries:
+                row = {k: entry.get(k, "") for k in fieldnames}
+                extra = entry.get("extra")
+                if extra is not None:
+                    row["extra"] = _json.dumps(extra, ensure_ascii=False, sort_keys=True)
+                writer.writerow(row)
+
+    print(f"audit: exported {len(entries)} entries to {out_path}")
+
+
+def cmd_audit(args):
+    """Dispatch ``stoa audit <subcommand>``."""
+    sub = getattr(args, "audit_action", None)
+    if sub == "verify":
+        cmd_audit_verify(args)
+    elif sub == "export":
+        cmd_audit_export(args)
+    else:
+        print("usage: stoa audit {verify,export} ...")
+        sys.exit(2)
+
+
 def cmd_logs(args):
     """View and filter STOA log files."""
     from stoa_cli.logs import tail_log, list_logs
@@ -10801,9 +10894,9 @@ def _build_provider_choices() -> list[str]:
 # to parse.
 _BUILTIN_SUBCOMMANDS = frozenset(
     {
-        "acp", "auth", "backup", "bundles", "checkpoints", "claw", "completion",
+        "acp", "audit", "auth", "backup", "bundles", "checkpoints", "claw", "completion",
         "computer-use",
-        "config", "cron", "curator", "dashboard", "debug", "doctor",
+        "config", "cron", "curator", "dashboard", "db", "debug", "doctor",
         "dump", "fallback", "gateway", "hooks", "import", "insights",
         "kanban", "login", "logout", "logs", "lsp", "mcp", "memory", "migrate",
         "model", "pairing", "plugins", "portal", "postinstall", "profile", "proxy",
@@ -11268,6 +11361,133 @@ def main():
     )
     migrate_xai.set_defaults(func=cmd_migrate_xai)
     migrate_parser.set_defaults(func=cmd_migrate)
+
+    # =========================================================================
+    # db command — at-rest encryption (audit v12 HIGH-70)
+    # =========================================================================
+    # ``stoa db encrypt`` migrates the three plaintext SQLite databases
+    # (state.db, kanban.db, memory_store.db) to SQLCipher in place.
+    # Backed by agent.db_encryption.migrate_plaintext_to_encrypted,
+    # which makes a timestamped backup before swapping the encrypted
+    # copy in, so an interrupted migration can be rolled back.
+    db_parser = subparsers.add_parser(
+        "db",
+        help="At-rest database encryption (opt-in SQLCipher)",
+        description=(
+            "Manage at-rest encryption for STOA's SQLite databases. "
+            "Default OFF — set STOA_DB_ENCRYPTION=1 plus either "
+            "STOA_DB_PASSPHRASE or an OS-keychain entry to enable. "
+            "Run `stoa db encrypt` once to migrate the existing "
+            "plaintext databases under $STOA_HOME."
+        ),
+    )
+    db_subparsers = db_parser.add_subparsers(dest="db_command")
+
+    db_encrypt = db_subparsers.add_parser(
+        "encrypt",
+        help="Migrate plaintext STOA databases to SQLCipher in place",
+    )
+    db_encrypt.add_argument(
+        "--db",
+        action="append",
+        default=None,
+        help=(
+            "Specific database file to migrate (repeatable).  Defaults "
+            "to all three: state.db, kanban.db, memory_store.db under "
+            "$STOA_HOME."
+        ),
+    )
+    db_encrypt.add_argument(
+        "--passphrase",
+        default=None,
+        help=(
+            "Master passphrase to use.  Falls back to "
+            "STOA_DB_PASSPHRASE env or OS keychain when omitted.  Avoid "
+            "passing on the command line in shared shells — prefer the "
+            "env var or `--set-keychain`."
+        ),
+    )
+    db_encrypt.add_argument(
+        "--set-keychain",
+        action="store_true",
+        help=(
+            "After successful migration, store the passphrase in the "
+            "OS keychain (macOS Keychain / Windows DPAPI / Linux Secret "
+            "Service) so future sessions resolve it automatically."
+        ),
+    )
+
+    def _cmd_db_encrypt(args):  # noqa: ANN001
+        """Driver for ``stoa db encrypt``.
+
+        Resolves the target paths, calls the migration helper for each,
+        and prints a concise summary.  Lives inline here rather than in
+        a separate module because it's ~30 lines and the CLI surface
+        is the only consumer.
+        """
+        from agent.db_encryption import (
+            DbEncryptionError,
+            migrate_plaintext_to_encrypted,
+            store_passphrase_in_keychain,
+        )
+        from stoa_constants import get_stoa_home
+
+        if args.db:
+            targets = [Path(p) for p in args.db]
+        else:
+            home = get_stoa_home()
+            # Default to the three audit-flagged databases.  Skip any
+            # that don't exist yet — a fresh install will create them
+            # encrypted on first use because STOA_DB_ENCRYPTION will be
+            # set by the time the user runs the agent.
+            targets = [
+                p
+                for p in (
+                    home / "state.db",
+                    home / "kanban.db",
+                    home / "memory_store.db",
+                )
+                if p.exists()
+            ]
+
+        if not targets:
+            print("No plaintext databases found to migrate.", file=sys.stderr)
+            return 0
+
+        ok = 0
+        for target in targets:
+            try:
+                backup = migrate_plaintext_to_encrypted(
+                    target, passphrase=args.passphrase
+                )
+                print(f"encrypted: {target}  (backup: {backup})")
+                ok += 1
+            except DbEncryptionError as exc:
+                print(f"FAILED: {target}: {exc}", file=sys.stderr)
+
+        if args.set_keychain and args.passphrase:
+            if store_passphrase_in_keychain(args.passphrase):
+                print("Passphrase saved to OS keychain.")
+            else:
+                print(
+                    "WARNING: keyring backend unavailable — passphrase "
+                    "NOT saved to keychain.  Use STOA_DB_PASSPHRASE env "
+                    "var instead.",
+                    file=sys.stderr,
+                )
+
+        return 0 if ok == len(targets) else 1
+
+    db_encrypt.set_defaults(func=_cmd_db_encrypt)
+
+    def _dispatch_db(args):  # noqa: ANN001
+        sub = getattr(args, "db_command", None)
+        if sub is None:
+            db_parser.print_help()
+            return 0
+        return args.func(args)
+
+    db_parser.set_defaults(func=_dispatch_db)
 
     # =========================================================================
     # gateway command
@@ -13777,6 +13997,76 @@ Examples:
         help="List running stoa dashboard processes and exit",
     )
     dashboard_parser.set_defaults(func=cmd_dashboard)
+
+    # =========================================================================
+    # =========================================================================
+    # audit command (audit log integrity + export, v9 HIGH-46 follow-up)
+    # =========================================================================
+    audit_parser = subparsers.add_parser(
+        "audit",
+        help="Verify or export the STOA tool-call audit log",
+        description=(
+            "Manage the append-only, hash-chained audit log at "
+            "~/.stoa/audit/tool-calls.jsonl. Use 'verify' to detect "
+            "tampering, 'export' to dump entries for compliance / IR."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+Examples:
+    stoa audit verify
+    stoa audit verify --profile work
+    stoa audit export /tmp/audit.json
+    stoa audit export /tmp/audit.csv --format csv
+    stoa audit export /tmp/audit.json --since 1700000000000
+    stoa audit export /tmp/audit.json --user alice
+""",
+    )
+    audit_subparsers = audit_parser.add_subparsers(dest="audit_action")
+    audit_parser.set_defaults(func=cmd_audit)
+
+    audit_verify = audit_subparsers.add_parser(
+        "verify",
+        help="Walk the audit log hash chain and report integrity",
+    )
+    audit_verify.add_argument(
+        "--profile",
+        help=(
+            "STOA profile name. Consumed before argparse to scope "
+            "~/.stoa to the selected profile."
+        ),
+    )
+    audit_verify.set_defaults(func=cmd_audit)
+
+    audit_export = audit_subparsers.add_parser(
+        "export",
+        help="Dump audit log entries (JSON or CSV) for operator review",
+    )
+    audit_export.add_argument(
+        "out_file",
+        help="Output path. Parent directory is created if missing.",
+    )
+    audit_export.add_argument(
+        "--since",
+        type=int,
+        metavar="MS",
+        help="Drop entries with ts_ms < MS (unix epoch milliseconds).",
+    )
+    audit_export.add_argument(
+        "--user",
+        metavar="USER_ID",
+        help="Only include entries whose extra.user_id equals USER_ID.",
+    )
+    audit_export.add_argument(
+        "--format",
+        choices=["json", "csv"],
+        default="json",
+        help="Output format (default: json).",
+    )
+    audit_export.add_argument(
+        "--profile",
+        help="STOA profile name (consumed before argparse).",
+    )
+    audit_export.set_defaults(func=cmd_audit)
 
     # =========================================================================
     # logs command
