@@ -487,10 +487,28 @@ class SupermemoryMemoryProvider(MemoryProvider):
 
         # Resolve container tag: env var > config > default.
         # Supports {identity} template for profile-scoped containers.
+        #
+        # Audit v8 CRIT-33-03 fix: also support {user} placeholder so
+        # multi-user gateways can scope a Supermemory namespace per
+        # gateway-side principal (Telegram chat_id, Discord user ID,
+        # Slack member). Without this fix, every user a multi-user bot
+        # talked to shared one container_tag and one Supermemory cloud
+        # namespace — user A's "remember my private notes" instantly
+        # became recallable by user B.
+        #
+        # Caller plumbs `gateway_user_id` through kwargs at initialize
+        # time. Missing => raw {user} placeholder is dropped, behaviour
+        # matches the previous single-user case so existing CLI installs
+        # are unchanged.
         env_tag = os.environ.get("SUPERMEMORY_CONTAINER_TAG", "").strip()
         raw_tag = env_tag or self._config["container_tag"]
         identity = kwargs.get("agent_identity", "default")
-        self._container_tag = _sanitize_tag(raw_tag.replace("{identity}", identity))
+        gateway_user = str(kwargs.get("gateway_user_id", "") or "").strip()
+        substituted = (
+            raw_tag.replace("{identity}", identity)
+                   .replace("{user}", gateway_user or "anon")
+        )
+        self._container_tag = _sanitize_tag(substituted)
 
         self._auto_recall = self._config["auto_recall"]
         self._auto_capture = self._config["auto_capture"]

@@ -619,11 +619,20 @@ def run_conversation(
     # prefetch_all() on each tool call (10 tool calls = 10x latency + cost).
     # Use original_user_message (clean input) — user_message may contain
     # injected skill content that bloats / breaks provider queries.
+    #
+    # Audit v8 CRIT-33-02 fix: pass session_id through. Without it
+    # every memory provider that respects session-scoped recall fell
+    # back to its global namespace — leaking cross-session facts into
+    # the current turn. session_id is the active conversation key
+    # (already plumbed into the agent state by agent_init).
     _ext_prefetch_cache = ""
     if agent._memory_manager:
         try:
             _query = original_user_message if isinstance(original_user_message, str) else ""
-            _ext_prefetch_cache = agent._memory_manager.prefetch_all(_query) or ""
+            _session_id = getattr(agent, "session_id", "") or ""
+            _ext_prefetch_cache = agent._memory_manager.prefetch_all(
+                _query, session_id=_session_id,
+            ) or ""
         except Exception:
             pass
 
