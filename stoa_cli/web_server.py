@@ -1724,13 +1724,23 @@ def _save_anthropic_oauth_creds(access_token: str, refresh_token: str, expires_a
 
 
 def _start_anthropic_pkce() -> Dict[str, Any]:
-    """Begin PKCE flow. Returns the auth URL the UI should open."""
+    """Begin PKCE flow. Returns the auth URL the UI should open.
+
+    Audit v4 CRIT P-01 fix: the OAuth ``state`` is now a fresh
+    random token, NOT the PKCE ``code_verifier``. Round-tripping the
+    verifier as ``state`` would leak it through the browser address
+    bar / referrer / scrollback / clipboard the moment the user pastes
+    the callback back into the dashboard — collapsing PKCE entirely.
+    State and verifier serve different purposes (CSRF protection vs
+    proof-of-possession) and must be independent.
+    """
     if not _ANTHROPIC_OAUTH_AVAILABLE:
         raise HTTPException(status_code=501, detail="Anthropic OAuth not available (missing adapter)")
     verifier, challenge = _generate_pkce_pair()
+    state = secrets.token_urlsafe(32)
     sid, sess = _new_oauth_session("anthropic", "pkce")
     sess["verifier"] = verifier
-    sess["state"] = verifier  # Anthropic round-trips verifier as state
+    sess["state"] = state
     params = {
         "code": "true",
         "client_id": _ANTHROPIC_OAUTH_CLIENT_ID,
@@ -1739,7 +1749,7 @@ def _start_anthropic_pkce() -> Dict[str, Any]:
         "scope": _ANTHROPIC_OAUTH_SCOPES,
         "code_challenge": challenge,
         "code_challenge_method": "S256",
-        "state": verifier,
+        "state": state,
     }
     auth_url = f"{_ANTHROPIC_OAUTH_AUTHORIZE_URL}?{urllib.parse.urlencode(params)}"
     return {
@@ -1767,11 +1777,22 @@ def _submit_anthropic_pkce(session_id: str, code_input: str) -> Dict[str, Any]:
         return {"ok": False, "status": "error", "message": "No code provided"}
     state_from_callback = parts[1] if len(parts) > 1 else ""
 
+    # Audit v4 CRIT P-06 fix: constant-time state compare. Without this,
+    # a tampered ``code#state`` callback could be smuggled past the gate.
+    expected_state = sess.get("state", "")
+    if state_from_callback and not hmac.compare_digest(state_from_callback, expected_state):
+        with _oauth_sessions_lock:
+            sess["status"] = "error"
+            sess["error_message"] = "OAuth state mismatch (possible CSRF)"
+        return {"ok": False, "status": "error", "message": sess["error_message"]}
+
     exchange_data = json.dumps({
         "grant_type": "authorization_code",
         "client_id": _ANTHROPIC_OAUTH_CLIENT_ID,
         "code": code,
-        "state": state_from_callback or sess["state"],
+        # Always submit the server-stored state to the token endpoint, never
+        # the callback-supplied one (which we've now validated above).
+        "state": expected_state,
         "redirect_uri": _ANTHROPIC_OAUTH_REDIRECT_URI,
         "code_verifier": sess["verifier"],
     }).encode()
