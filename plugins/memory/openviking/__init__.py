@@ -88,7 +88,26 @@ def _atexit_commit_sessions():
         pass  # best-effort at shutdown time
 
 
-atexit.register(_atexit_commit_sessions)
+def _register_atexit_hook() -> None:
+    """Audit v10 HIGH-53 fix: atexit registration deferred to plugin
+    initialize-time so it doesn't fire on plain `import openviking`.
+
+    The previous module-level ``atexit.register(...)`` ran on every
+    Python process that imported the module — including test runners
+    and CLI subcommands that have nothing to do with openviking — which
+    meant ``_atexit_commit_sessions`` made an outbound network call to
+    openviking.cloud on every interpreter exit. That's a phone-home
+    pattern even when the user never enabled this memory provider.
+
+    The plugin's ``initialize()`` method now calls this helper once,
+    so the hook only registers when an active session actually uses
+    openviking. Re-registration is idempotent — atexit collapses
+    duplicates by callable identity.
+    """
+    atexit.register(_atexit_commit_sessions)
+
+
+# Note: NOT registered at module import. Call from initialize() only.
 
 
 # ---------------------------------------------------------------------------
@@ -467,6 +486,10 @@ class OpenVikingMemoryProvider(MemoryProvider):
         ]
 
     def initialize(self, session_id: str, **kwargs) -> None:
+        # Audit v10 HIGH-53: only register the atexit hook when an
+        # actual session uses this provider. Avoids cold imports
+        # triggering a phone-home at interpreter exit.
+        _register_atexit_hook()
         self._endpoint = os.environ.get("OPENVIKING_ENDPOINT", _DEFAULT_ENDPOINT)
         self._api_key = os.environ.get("OPENVIKING_API_KEY", "")
         self._account = os.environ.get("OPENVIKING_ACCOUNT", "default")

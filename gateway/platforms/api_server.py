@@ -598,9 +598,16 @@ def _derive_chat_session_id(
     them produces a deterministic session ID that lets the API server reuse
     the same STOA session (and therefore the same Docker container sandbox
     directory) across turns.
+
+    Audit v9 HIGH-41 fix: digest widened from 64-bit (16 hex chars,
+    2^32 birthday) to 256-bit (full SHA-256). The narrower digest was a
+    cross-tenant hijack oracle once multiple users hit the same OpenAI-
+    compatible endpoint — finding a colliding (system_prompt, first_msg)
+    pair within 16-char prefix takes under a minute on commodity GPUs,
+    and lands the attacker in someone else's sandbox container.
     """
     seed = f"{system_prompt or ''}\n{first_user_message}"
-    digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
+    digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
     return f"api-{digest}"
 
 

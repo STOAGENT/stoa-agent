@@ -651,7 +651,14 @@ class SupermemoryMemoryProvider(MemoryProvider):
         if self._write_thread and self._write_thread.is_alive():
             self._write_thread.join(timeout=2.0)
         self._write_thread = None
-        self._write_thread = threading.Thread(target=_run, daemon=False, name="supermemory-memory-write")
+        # Audit v10 HIGH-53 fix: daemon=True so a process supervisor
+        # SIGTERM doesn't have to wait for an in-flight Supermemory
+        # network write before reaping the worker. Memory writes are
+        # idempotent (the SDK retries client-side); losing the tail of
+        # the in-flight payload is the correct safety/availability
+        # tradeoff. shutdown() still does a bounded join below for
+        # cooperative drain in the happy path.
+        self._write_thread = threading.Thread(target=_run, daemon=True, name="supermemory-memory-write")
         self._write_thread.start()
 
     def shutdown(self) -> None:

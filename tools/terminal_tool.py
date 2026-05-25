@@ -2141,11 +2141,17 @@ def terminal_tool(
         import traceback
         tb_str = traceback.format_exc()
         logger.error("terminal_tool exception:\n%s", tb_str)
+        # Audit v10 HIGH-49 fix: do NOT ship the raw traceback back to
+        # the agent. The traceback contains source-line snippets like
+        # `call(api_key=secret_value)`, file paths, and frame locals
+        # — all of which become part of the agent's message history,
+        # then potentially the user's chat surface + Sentry-style
+        # crash captures. The structured short error is enough for the
+        # model to react; full traceback stays in operator-visible logs.
         return json.dumps({
             "output": "",
             "exit_code": -1,
-            "error": f"Failed to execute command: {str(e)}",
-            "traceback": tb_str,
+            "error": f"Failed to execute command: {type(e).__name__}: {str(e)[:200]}",
             "status": "error"
         }, ensure_ascii=False)
 
