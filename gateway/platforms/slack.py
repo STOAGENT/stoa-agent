@@ -2270,11 +2270,28 @@ class SlackAdapter(BasePlatformAdapter):
                 },
                 {
                     "type": "actions",
+                    # Audit v9 HIGH-45 fix (SE-1): button affordance
+                    # inverted. Deny is now the primary (blue) action,
+                    # ordered first; Allow* variants are plain
+                    # (un-styled) and ordered last with Always Allow
+                    # at the rightmost edge. Muscle-memory clickers
+                    # who tap the first button get the safe outcome.
+                    # Slack styling: only one button may be 'danger'
+                    # per action set so Deny gets 'danger' for the
+                    # red highlight and ALSO leads — defense-in-depth
+                    # against both the color-blind reader and the
+                    # absent-minded reviewer.
                     "elements": [
                         {
                             "type": "button",
+                            "text": {"type": "plain_text", "text": "Deny"},
+                            "style": "danger",
+                            "action_id": "stoa_deny",
+                            "value": session_key,
+                        },
+                        {
+                            "type": "button",
                             "text": {"type": "plain_text", "text": "Allow Once"},
-                            "style": "primary",
                             "action_id": "stoa_approve_once",
                             "value": session_key,
                         },
@@ -2288,13 +2305,6 @@ class SlackAdapter(BasePlatformAdapter):
                             "type": "button",
                             "text": {"type": "plain_text", "text": "Always Allow"},
                             "action_id": "stoa_approve_always",
-                            "value": session_key,
-                        },
-                        {
-                            "type": "button",
-                            "text": {"type": "plain_text", "text": "Deny"},
-                            "style": "danger",
-                            "action_id": "stoa_deny",
                             "value": session_key,
                         },
                     ],

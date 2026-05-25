@@ -36,6 +36,13 @@ import yaml
 from tools.skills_guard import (
     ScanResult, content_hash, TRUSTED_REPOS,
 )
+from tools.skills_signature import (
+    classify_update_diff,
+    is_sha_revoked,
+    is_signature_required,
+    validate_author_field,
+    verify_bundle_signature,
+)
 from tools.url_safety import is_safe_url
 from tools.website_policy import check_website_access
 
@@ -2575,6 +2582,26 @@ class OptionalSkillSource(SkillSource):
     def fetch(self, identifier: str) -> Optional[SkillBundle]:
         # identifier format: "official/category/skill" or "official/skill"
         rel = identifier.split("/", 1)[-1] if identifier.startswith("official/") else identifier
+
+        # Audit v4 CRIT K-01 fix: red-teaming skills must respect the same
+        # STOA_ENABLE_REDTEAM gate as the local enumeration path. The
+        # previous code happily installed `official/red-teaming/godmode`
+        # under ~/.stoa/skills/ regardless of env, and the next agent
+        # start would auto-discover it. Centralised check via
+        # agent.skill_utils so the marker list stays in one place.
+        try:
+            from agent.skill_utils import is_redteam_skill_path, is_redteam_enabled
+            if not is_redteam_enabled() and is_redteam_skill_path(rel):
+                logger.warning(
+                    "Refusing to install red-teaming skill %r: set "
+                    "STOA_ENABLE_REDTEAM=1 to opt in.", rel,
+                )
+                return None
+        except Exception:
+            # If the gate helpers can't import we fail closed — refuse.
+            if "red-teaming" in rel.lower() or "godmode" in rel.lower():
+                return None
+
         skill_dir = self._optional_dir / rel
 
         # Guard against path traversal (e.g. "official/../../etc")
@@ -2934,13 +2961,86 @@ def install_from_quarantine(
     bundle: SkillBundle,
     scan_result: ScanResult,
 ) -> Path:
-    """Move a scanned skill from quarantine into the skills directory."""
+    """Move a scanned skill from quarantine into the skills directory.
+
+    Audit v11 HIGH-61 mitigation gates (all OFF by default, see
+    ``tools.skills_signature``):
+
+      1. **Revocation kill-switch** — ALWAYS active (does not require
+         the env flag).  If the bundle's content hash is in
+         ``~/.stoa/skills/.hub/revocations.json`` the install is
+         refused regardless of trust level.
+      2. **Author identity binding** — under
+         ``STOA_SKILL_REQUIRE_SIGNATURE=1`` the SKILL.md ``author:``
+         field must use the ``github:<org>`` or ``did:web:<host>``
+         prefix and must not collide with the known-imposter list.
+      3. **Ed25519 signature verification** — under the same env flag
+         the bundle's ``.signature.json`` must verify against the
+         bundle hash and a trusted signer pubkey.
+    """
     safe_skill_name = _validate_skill_name(skill_name)
     safe_category = _validate_category_name(category) if category else ""
     quarantine_resolved = quarantine_path.resolve()
     quarantine_root = QUARANTINE_DIR.resolve()
     if not quarantine_resolved.is_relative_to(quarantine_root):
         raise ValueError(f"Unsafe quarantine path: {quarantine_path}")
+
+    # --- Audit v11 HIGH-61 gates -------------------------------------------
+    pre_install_hash = content_hash(quarantine_path)
+
+    rev = is_sha_revoked(pre_install_hash)
+    if rev.ok is False:
+        append_audit_log(
+            "INSTALL_BLOCKED", safe_skill_name, bundle.source,
+            bundle.trust_level, scan_result.verdict,
+            f"revoked:{pre_install_hash}",
+        )
+        raise PermissionError(
+            f"Install refused — {rev.reason}"
+        )
+
+    if is_signature_required():
+        sig_verdict = verify_bundle_signature(quarantine_path, pre_install_hash)
+        if sig_verdict.ok is False:
+            append_audit_log(
+                "INSTALL_BLOCKED", safe_skill_name, bundle.source,
+                bundle.trust_level, scan_result.verdict,
+                f"signature:{sig_verdict.reason}",
+            )
+            raise PermissionError(
+                f"Install refused — signature check failed: {sig_verdict.reason}"
+            )
+        if sig_verdict.ok is None:
+            # TOFU pubkey — caller must promote to trusted-signers.json
+            append_audit_log(
+                "INSTALL_BLOCKED", safe_skill_name, bundle.source,
+                bundle.trust_level, scan_result.verdict,
+                f"signature_tofu:{sig_verdict.signer_pubkey_hex}",
+            )
+            raise PermissionError(
+                f"Install needs confirmation — {sig_verdict.reason}"
+            )
+
+        # Author binding (only enforced under the env flag, but a soft
+        # validation runs in legacy mode below).
+        skill_md_path = quarantine_path / "SKILL.md"
+        if skill_md_path.is_file():
+            try:
+                skill_md_text = skill_md_path.read_text(encoding="utf-8")
+            except OSError:
+                skill_md_text = ""
+            fm = GitHubSource._parse_frontmatter_quick(skill_md_text)
+            author_verdict = validate_author_field(fm.get("author"))
+            if not author_verdict.ok:
+                append_audit_log(
+                    "INSTALL_BLOCKED", safe_skill_name, bundle.source,
+                    bundle.trust_level, scan_result.verdict,
+                    f"author:{author_verdict.reason}",
+                )
+                raise PermissionError(
+                    f"Install refused — author binding: {author_verdict.reason}"
+                )
+    # -----------------------------------------------------------------------
 
     if safe_category:
         install_dir = SKILLS_DIR / safe_category / safe_skill_name
@@ -2983,6 +3083,21 @@ def install_from_quarantine(
         metadata=bundle.metadata,
     )
 
+    # Audit v7 CRIT-30-01: pin the post-install content hash so the
+    # next loader can refuse to bring up a tampered skill. The pin
+    # records WHAT WAS INSTALLED at the moment of consent — any
+    # subsequent on-disk edit (malicious or accidental) trips the
+    # mismatch gate in agent/skill_utils.iter_skill_index_files.
+    try:
+        from agent.skill_utils import pin_skill_integrity
+        pin_skill_integrity(install_dir)
+    except Exception as exc:
+        logger.warning(
+            "Failed to pin skill integrity for %s: %s — gate will warn "
+            "but not block this skill on next load.",
+            safe_skill_name, exc,
+        )
+
     append_audit_log(
         "INSTALL", safe_skill_name, bundle.source,
         bundle.trust_level, scan_result.verdict,
@@ -3010,6 +3125,14 @@ def uninstall_skill(skill_name: str) -> Tuple[bool, str]:
     if install_path.exists():
         shutil.rmtree(install_path)
 
+    # Audit v7 CRIT-30-01: drop the integrity manifest entry so a
+    # future install at the same path doesn't inherit a stale pin.
+    try:
+        from agent.skill_utils import unpin_skill_integrity
+        unpin_skill_integrity(install_path)
+    except Exception as exc:
+        logger.debug("unpin_skill_integrity failed: %s", exc)
+
     lock.record_uninstall(skill_name)
     append_audit_log("UNINSTALL", skill_name, entry["source"], entry["trust_level"], "n/a", "user_request")
 
@@ -3017,7 +3140,18 @@ def uninstall_skill(skill_name: str) -> Tuple[bool, str]:
 
 
 def bundle_content_hash(bundle: SkillBundle) -> str:
-    """Compute a deterministic hash for an in-memory skill bundle."""
+    """Compute a deterministic hash for an in-memory skill bundle.
+
+    Audit v9 CRIT-41 fix: widened from 64-bit (16 hex chars) to full
+    256-bit SHA-256. The truncation was a chosen-prefix collision
+    oracle once the load-time integrity gate (v7 CRIT-30-01) goes
+    live: an attacker could brute-force a malicious bundle with the
+    same leading 16 hex chars in well under a day on commodity GPUs.
+    Full digest moves the brute-force horizon past 2^128.
+
+    Stays symmetric with ``tools.skills_guard.content_hash`` — same
+    feed order, same null separator, same width.
+    """
     h = hashlib.sha256()
     for rel_path in sorted(bundle.files):
         # Include the path so swapping file contents between two paths
@@ -3029,7 +3163,7 @@ def bundle_content_hash(bundle: SkillBundle) -> str:
             h.update(content)
         else:
             h.update(content.encode("utf-8"))
-    return f"sha256:{h.hexdigest()[:16]}"
+    return f"sha256:{h.hexdigest()}"
 
 
 def _source_matches(source: SkillSource, source_name: str) -> bool:
@@ -3083,6 +3217,22 @@ def check_for_skill_updates(
         current_hash = entry.get("content_hash", "")
         latest_hash = bundle_content_hash(bundle)
         status = "up_to_date" if current_hash == latest_hash else "update_available"
+
+        # Audit v11 HIGH-61 finding #4: classify upstream push-update
+        # diff so a silently-added scripts/exfil.sh trips a re-confirm.
+        diff_verdict = classify_update_diff(
+            previous_files=entry.get("files", []) or [],
+            new_files=list(bundle.files.keys()),
+        )
+
+        # Audit v11 HIGH-61 finding #3: refuse to surface a revoked sha
+        # as an update — even if the upstream pushed something new.
+        rev_verdict = is_sha_revoked(latest_hash)
+        update_block_reason = ""
+        if rev_verdict.ok is False:
+            status = "blocked_revoked"
+            update_block_reason = rev_verdict.reason
+
         results.append({
             "name": entry.get("name", ""),
             "identifier": identifier,
@@ -3091,6 +3241,11 @@ def check_for_skill_updates(
             "current_hash": current_hash,
             "latest_hash": latest_hash,
             "bundle": bundle,
+            "diff_classification": diff_verdict.classification,
+            "diff_added": diff_verdict.added_files,
+            "diff_removed": diff_verdict.removed_files,
+            "diff_reason": diff_verdict.reason,
+            "block_reason": update_block_reason,
         })
 
     return results

@@ -71,3 +71,32 @@ publish_url    where the skill is now installable (if status=publish)
 The author signs the publish request with a wallet that holds STOA on
 Monad. The audit hash is bound to that wallet — a publisher cannot
 re-spawn under a fresh wallet to bypass a block.
+
+## Strict-mode install controls (audit v11 HIGH-61)
+
+When the operator sets `STOA_SKILL_REQUIRE_SIGNATURE=1`, the Skills Hub
+enforces the following on EVERY install (publish flow and `stoa skill
+install` alike). Default is OFF for backward-compat.
+
+1. **Ed25519 bundle signature** — each bundle must ship a
+   `.signature.json` file: `{scheme:"ed25519-v1", signer_pubkey,
+   content_hash, signature}`. The signature is verified against the
+   computed `content_hash`, and the signer pubkey must appear in
+   `~/.stoa/skills/.hub/trusted-signers.json` (unknown-but-valid
+   signers raise a TOFU prompt rather than auto-trust).
+2. **Author identity binding** — the SKILL.md `author:` field MUST
+   use `github:<org>` or `did:web:<host>`. Bare strings like
+   `author: anthropic` are rejected because they can typosquat a real
+   maintainer. A small built-in imposter list catches the obvious
+   variants (`github:anthropic` vs the canonical `github:anthropics`).
+3. **Revocation manifest** — `~/.stoa/skills/.hub/revocations.json`
+   stores `{sha256: {revoked_at_ms, reason}}` and is consulted on every
+   install / update path. This bypasses the 6h centralized index TTL.
+4. **Push-update diff classification** — adding a non-`.md`/`.txt`
+   file (e.g. `scripts/exfil.sh`) to a previously installed skill is
+   flagged as `warn` in `check_for_skill_updates`. Doc-only changes
+   remain silent.
+5. **Cross-org publish refusal** — `stoa skill publish` validates
+   that the declared `author:` org matches the target repo's owner;
+   an installed skill cannot piggyback the user's GITHUB_TOKEN to push
+   into an arbitrary third-party repo.

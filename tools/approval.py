@@ -114,6 +114,7 @@ def _is_gateway_approval_context() -> bool:
         return True
     return bool(_get_session_platform())
 
+
 # Sensitive write targets that should trigger approval even when referenced
 # via shell expansions like $HOME or $STOA_HOME.
 _SSH_SENSITIVE_PATH = r'(?:~|\$home|\$\{home\})/\.ssh(?:/|$)'
@@ -1076,17 +1077,43 @@ def check_all_command_guards(command: str, env_type: str,
     # --yolo or approvals.mode=off: bypass all approval prompts.
     # Gateway /yolo is session-scoped; CLI --yolo remains process-scoped.
     approval_mode = _get_approval_mode()
-    if is_truthy_value(os.getenv("STOA_YOLO_MODE")) or is_current_session_yolo_enabled() or approval_mode == "off":
+    # Audit v9 HIGH-47-2 fix: --no-yolo / STOA_NO_YOLO=1 always wins over
+    # STOA_YOLO_MODE. Gives parents a way to de-inherit yolo when they
+    # spawn a delegated subagent — without this, a hostile prompt that
+    # tricked the parent into YOLO would propagate to every child too.
+    no_yolo_override = is_truthy_value(os.getenv("STOA_NO_YOLO"))
+    if not no_yolo_override and (
+        is_truthy_value(os.getenv("STOA_YOLO_MODE"))
+        or is_current_session_yolo_enabled()
+        or approval_mode == "off"
+    ):
+        # Audit v9 HIGH-46 fix: log every YOLO bypass so post-incident
+        # analysis can answer "was YOLO on when this dangerous command
+        # ran?" without relying on volatile process state.
+        try:
+            from agent.audit_log import record as _audit_record
+            _audit_record(
+                kind="yolo-bypass", tool="terminal",
+                args_preview=command, approved=True, actor="yolo",
+            )
+        except Exception:
+            pass
         return {"approved": True, "message": None}
 
     is_cli = env_var_enabled("STOA_INTERACTIVE")
     is_gateway = _is_gateway_approval_context()
     is_ask = env_var_enabled("STOA_EXEC_ASK")
 
-    # Preserve the existing non-interactive behavior: outside CLI/gateway/ask
-    # flows, we do not block on approvals and we skip external guard work.
+    # Audit v8 CRIT-32-01 fix: non-interactive callers (MCP serve, batch
+    # runner, library embed, scheduled jobs without STOA_CRON_SESSION)
+    # previously fell through to "approved=True" for every dangerous
+    # pattern. That made `terminal('cat ~/.aws/credentials')` succeed
+    # silently with zero prompt in any MCP client — full credential
+    # exfil with no audit trail. Default is now: when no interactive
+    # context is set AND no explicit non-interactive policy is
+    # configured, refuse dangerous commands; allow only safe ones.
     if not is_cli and not is_gateway and not is_ask:
-        # Cron sessions: respect cron_mode config
+        # Cron sessions: respect cron_mode config (unchanged)
         if env_var_enabled("STOA_CRON_SESSION"):
             if _get_cron_approval_mode() == "deny":
                 # Run detection to get a description for the block message
@@ -1102,6 +1129,23 @@ def check_all_command_guards(command: str, env_type: str,
                             "approvals.cron_mode: approve in config.yaml."
                         ),
                     }
+            return {"approved": True, "message": None}
+        # MCP serve / library embed / batch runner: default-deny dangerous.
+        is_dangerous, pk, description = detect_dangerous_command(command)
+        if is_dangerous:
+            return {
+                "approved": False,
+                "message": (
+                    f"BLOCKED: Command flagged as dangerous ({description}) "
+                    "but this runtime has no interactive approval channel "
+                    "(no CLI prompt, no gateway flow, no cron policy). "
+                    "Either run the command from a CLI session "
+                    "(`stoa chat`), wrap it in an explicit cron job "
+                    "(approvals.cron_mode: approve), or set "
+                    "STOA_YOLO_MODE=1 to opt the entire process out of "
+                    "approval gating (NOT recommended for MCP serve mode)."
+                ),
+            }
         return {"approved": True, "message": None}
 
     # --- Phase 1: Gather findings from both checks ---
@@ -1125,11 +1169,36 @@ def check_all_command_guards(command: str, env_type: str,
 
     session_key = get_current_session_key()
 
-    # Tirith block/warn → approvable warning with rich findings.
-    # Previously, tirith "block" was a hard block with no approval prompt.
-    # Now both block and warn go through the approval flow so users can
-    # inspect the explanation and approve if they understand the risk.
-    if tirith_result["action"] in {"block", "warn"}:
+    # Audit v8 HIGH-32-04 fix: Tirith "block" goes back to being a hard
+    # block. The earlier "block → approvable warning so users can inspect"
+    # downgrade traded a precise rules engine for human approval fatigue;
+    # users routinely click through tirith blocks without reading the
+    # rule_id, defeating the engine's job. "warn" still flows through
+    # approval (that's its purpose). "block" is now terminal except in
+    # session-yolo mode, which already bypasses everything by design.
+    if tirith_result["action"] == "block":
+        findings = tirith_result.get("findings") or []
+        rule_id = findings[0].get("rule_id", "unknown") if findings else "unknown"
+        tirith_desc = _format_tirith_description(tirith_result)
+        try:
+            from agent.audit_log import record as _audit_record
+            _audit_record(
+                kind="tirith-block", tool="terminal",
+                args_preview=command, approved=False, actor="tirith",
+                extra={"rule_id": rule_id},
+            )
+        except Exception:
+            pass
+        return {
+            "approved": False,
+            "message": (
+                f"BLOCKED by Tirith rule '{rule_id}': {tirith_desc}\n"
+                "Tirith blocks are terminal — if you genuinely need this "
+                "command, edit the rule or run under STOA_YOLO_MODE=1 "
+                "(NOT recommended for any non-interactive runtime)."
+            ),
+        }
+    if tirith_result["action"] == "warn":
         findings = tirith_result.get("findings") or []
         rule_id = findings[0].get("rule_id", "unknown") if findings else "unknown"
         tirith_key = f"tirith:{rule_id}"

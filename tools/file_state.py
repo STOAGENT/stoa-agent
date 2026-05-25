@@ -266,9 +266,32 @@ def get_registry() -> FileStateRegistry:
     return _registry
 
 
+_FILE_STATE_DISABLED_SNAPSHOT: Optional[bool] = None
+
+
 def _disabled() -> bool:
-    # Re-read each call so tests can toggle via monkeypatch.setenv.
-    return os.environ.get("STOA_DISABLE_FILE_STATE_GUARD", "").strip() == "1"
+    """Return the import-time snapshot of STOA_DISABLE_FILE_STATE_GUARD.
+
+    Audit v9 HIGH-47 fix: per-call re-read let a hostile skill (or
+    LLM-generated env-mutating command) flip the guard OFF mid-session
+    via ``os.environ["STOA_DISABLE_FILE_STATE_GUARD"] = "1"``. Snapshot
+    the value at first call and lock it. Tests that need to toggle the
+    flag in-process now do so through ``_reset_file_state_disabled_for_test``
+    below; production never resets it.
+    """
+    global _FILE_STATE_DISABLED_SNAPSHOT
+    if _FILE_STATE_DISABLED_SNAPSHOT is None:
+        _FILE_STATE_DISABLED_SNAPSHOT = (
+            os.environ.get("STOA_DISABLE_FILE_STATE_GUARD", "").strip() == "1"
+        )
+    return _FILE_STATE_DISABLED_SNAPSHOT
+
+
+def _reset_file_state_disabled_for_test() -> None:
+    """Test-only hook: clear the snapshot so a subsequent _disabled()
+    call re-reads the (test-mutated) env. Never called in production."""
+    global _FILE_STATE_DISABLED_SNAPSHOT
+    _FILE_STATE_DISABLED_SNAPSHOT = None
 
 
 def _fmt_ts(ts: float) -> str:

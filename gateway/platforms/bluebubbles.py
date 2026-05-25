@@ -9,6 +9,7 @@ downloading from PR #4588 (YuhangLin).
 """
 
 import asyncio
+import hmac
 import json
 import logging
 import os
@@ -775,7 +776,12 @@ class BlueBubblesAdapter(BasePlatformAdapter):
             or request.headers.get("x-guid")
             or request.headers.get("x-bluebubbles-guid")
         )
-        if token != self.password:
+        # Audit v4 HIGH G-02 fix: constant-time compare. The previous `!=`
+        # was a first-byte-mismatch timing oracle that let an attacker
+        # brute-force the bridge password one character at a time over
+        # network round-trips. compare_digest pads both inputs and runs
+        # length-independent comparison.
+        if not token or not hmac.compare_digest(str(token), str(self.password)):
             return web.json_response({"error": "unauthorized"}, status=401)
         try:
             raw = await request.read()

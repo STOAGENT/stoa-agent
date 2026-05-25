@@ -30,8 +30,10 @@ run_datagen_kimik2-thinking.sh
 run_datagen_megascience_glm4-6.sh
 run_datagen_sonnet.sh
 source-data/*
-run_datagen_megascience_glm4-6.sh
 data/*
+# Website data is hand-curated content, not training data — track it.
+!website/src/data/
+!website/src/data/**
 node_modules/
 browser-use/
 agent-browser/
@@ -40,7 +42,6 @@ agent-browser/
 *.pem
 privvy*
 images/
-__pycache__/
 stoa_agent.egg-info/
 wandb/
 testlogs

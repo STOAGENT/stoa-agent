@@ -1,9 +1,9 @@
 """
-STOA verdict composer — the core "beyond STOA" feature.
+STOA verdict composer — the core "council synthesis" feature.
 
 A single task is dispatched to all six council personas in parallel. Each
 persona is bound to its own sovereign LLM provider (see ``persona_router``).
-A seventh persona (STOA the dispatcher) reads the six responses and
+A seventh persona (STOA, the dispatcher) reads the six responses and
 composes a verdict — synthesis, not a catalog of who-said-what.
 
 The verdict carries an ``agreement`` signal:
@@ -26,8 +26,8 @@ Design notes
     framework is that minority reports are visible, not erased.
 
 3.  The verdict prompt explicitly instructs STOA to synthesize, not
-    summarize. "Drax said X, Lyra said Y" is the wrong output shape — the
-    caller wants the actual answer they should act on.
+    summarize. "Drax said X, Lyra said Y" is the wrong output shape —
+    the caller wants the actual answer they should act on.
 
 4.  Token + latency accounting is preserved per-persona so the operator
     can see (via ``stoa /verdict``) which provider drove the cost and
@@ -40,6 +40,8 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
+import re
 import time
 from dataclasses import asdict, dataclass
 from typing import Any, Awaitable, Callable
@@ -234,6 +236,28 @@ async def _compose_verdict(
 ) -> tuple[str, str]:
     """Ask STOA (the dispatcher) to synthesize a verdict over the survivors."""
     dispatcher = resolve_dispatcher()
+    # Audit v4 HIGH V-02 fix: prompt-injection fence. Council answers
+    # are untrusted free-form text — a persona that wrote
+    # "AGREEMENT: consensus" inside its own answer used to leak through
+    # the trailing-line parser and let one persona unilaterally declare
+    # quorum. We now:
+    #   1. Escape the literal token "AGREEMENT:" inside survivor text
+    #      so only the dispatcher's own AGREEMENT line counts
+    #   2. Wrap each survivor in explicit <persona name="…"> bounds so
+    #      the dispatcher (and our parser) can tell where one answer
+    #      ends and the next begins
+    #   3. Hard cap each survivor to 4000 chars so a runaway persona
+    #      can't fill the dispatcher context with self-quoted AGREEMENT
+    #      markers
+    def _fence(text: str) -> str:
+        text = (text or "")[:4000]
+        # Neutralise marker patterns that the parser keys on. Leading-
+        # line "AGREEMENT:" → "[AGREEMENT]:" (kept readable, parser
+        # won't match the regex). [PERSONA] tags inside body → escaped.
+        text = re.sub(r"(?im)^\s*AGREEMENT\s*:", "[AGREEMENT]:", text)
+        text = text.replace("</persona>", "&lt;/persona&gt;")
+        return text
+
     composite_task = "\n".join(
         [
             STOA_VERDICT_PROMPT,
@@ -242,7 +266,10 @@ async def _compose_verdict(
             task,
             "",
             f"COUNCIL ANSWERS ({len(survivors)} of 6):",
-            *(f"\n[{m.persona.upper()}]\n{m.text}" for m in survivors),
+            *(
+                f'\n<persona name="{m.persona}">\n{_fence(m.text)}\n</persona>'
+                for m in survivors
+            ),
         ]
     )
     try:
@@ -264,17 +291,31 @@ async def _compose_verdict(
     return text, agreement
 
 
+_VERDICT_DOMAIN_TAG = b"stoa-verdict-v1\x00"
+
+
 def _hash_response(
     *,
     task: str,
     agents: list[CouncilMessage],
     verdict_text: str,
+    chain_id: int | None = None,
+    contract_address: str | None = None,
 ) -> str:
-    """sha256 over canonical JSON. Stable across runs given the same inputs.
+    """sha256 over canonical JSON with a domain separator. Stable across runs.
 
     This hash is what gets attested on-chain. We include provider/model so
     that two verdicts from different sovereign routings are distinguishable
-    even if the surface text matches verbatim — provenance matters."""
+    even if the surface text matches verbatim — provenance matters.
+
+    Audit v4 HIGH V-04 fix: the hash now includes a domain-separator
+    prefix (``stoa-verdict-v1\\x00``) plus chain_id + contract address so a
+    signature minted for the testnet contract cannot replay against the
+    mainnet contract (or any other deployment / future protocol version).
+    Without this, the bare sha256 over the JSON payload was the same
+    bytes everywhere — perfect cross-chain replay primitive once the
+    attestation contract goes live.
+    """
     payload = {
         "task": task,
         "agents": [
@@ -288,6 +329,15 @@ def _hash_response(
             for m in agents
         ],
         "verdict": verdict_text,
+        # Domain-separation fields. Read from env when not passed
+        # explicitly so the rest of the codebase needn't be plumbed
+        # on day one. STOA_CHAIN_ID matches the wallet binding default.
+        "chain_id": chain_id if chain_id is not None else int(os.environ.get("STOA_CHAIN_ID", "10143")),
+        "contract": (contract_address or os.environ.get("AUDIT_ATTESTATION_V2_ADDRESS", "")).lower(),
+        "schema_version": 1,
     }
-    canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    h = hashlib.sha256()
+    h.update(_VERDICT_DOMAIN_TAG)
+    h.update(canonical)
+    return h.hexdigest()

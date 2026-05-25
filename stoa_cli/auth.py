@@ -3206,7 +3206,16 @@ def refresh_codex_oauth_pure(
         )
 
     timeout = httpx.Timeout(max(5.0, float(timeout_seconds)))
-    with httpx.Client(timeout=timeout, headers={"Accept": "application/json"}) as client:
+    # P-08: explicitly pin TLS verification to the same context used by the
+    # rest of the auth stack (certifi bundle on macOS Homebrew Python, system
+    # default elsewhere). Prevents `urllib`-style "default verify" surprises
+    # if a caller has tampered with global SSL defaults.
+    _verify = _default_verify()
+    with httpx.Client(
+        timeout=timeout,
+        headers={"Accept": "application/json"},
+        verify=_verify,
+    ) as client:
         response = client.post(
             CODEX_OAUTH_TOKEN_URL,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -6678,18 +6687,35 @@ def _xai_oauth_loopback_login(
 
 
 def _codex_device_code_login() -> Dict[str, Any]:
-    """Run the OpenAI device code login flow and return credentials dict."""
+    """Run the OpenAI device code login flow and return credentials dict.
+
+    Audit v4 CRIT P-02 fix: PKCE ``code_verifier`` is generated CLIENT-SIDE
+    here, not pulled from the device-auth response. The previous code did
+    ``code_verifier = code_resp.get("code_verifier", "")`` which trusted the
+    server to round-trip a verifier — defeating PKCE entirely. With this
+    fix we generate verifier+challenge locally, send only the ``code_challenge``
+    on the usercode request, and use our local verifier at token exchange.
+    """
     import time as _time
 
     issuer = "https://auth.openai.com"
     client_id = CODEX_OAUTH_CLIENT_ID
+
+    # Audit v4 CRIT P-02: client-side PKCE generation.
+    import secrets as _secrets_pkce
+    local_code_verifier = _secrets_pkce.token_urlsafe(64)
+    local_code_challenge = _oauth_pkce_code_challenge(local_code_verifier)
 
     # Step 1: Request device code
     try:
         with httpx.Client(timeout=httpx.Timeout(15.0)) as client:
             resp = client.post(
                 f"{issuer}/api/accounts/deviceauth/usercode",
-                json={"client_id": client_id},
+                json={
+                    "client_id": client_id,
+                    "code_challenge": local_code_challenge,
+                    "code_challenge_method": "S256",
+                },
                 headers={"Content-Type": "application/json"},
             )
     except Exception as exc:
@@ -6759,13 +6785,16 @@ def _codex_device_code_login() -> Dict[str, Any]:
         )
 
     # Step 4: Exchange authorization code for tokens
+    # Audit v4 CRIT P-02: use the LOCALLY-generated verifier from above,
+    # not whatever the server returns (server-returned verifiers defeat
+    # PKCE — they let a MITM swap the (code, verifier) pair).
     authorization_code = code_resp.get("authorization_code", "")
-    code_verifier = code_resp.get("code_verifier", "")
+    code_verifier = local_code_verifier
     redirect_uri = f"{issuer}/deviceauth/callback"
 
-    if not authorization_code or not code_verifier:
+    if not authorization_code:
         raise AuthError(
-            "Device auth response missing authorization_code or code_verifier.",
+            "Device auth response missing authorization_code.",
             provider="openai-codex", code="device_code_incomplete_exchange",
         )
 

@@ -16,6 +16,7 @@ Key design decisions:
 
 import json
 import logging
+import os
 import random
 import re
 import sqlite3
@@ -25,7 +26,7 @@ from pathlib import Path
 
 from agent.memory_manager import sanitize_context
 from stoa_constants import get_stoa_home
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -335,11 +336,34 @@ class SessionDB:
         self.db_path = db_path or DEFAULT_DB_PATH
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Audit S-06 / M-7 #7: ensure state.db is owner-only (0o600) even
+        # in container mode. Unlike config.yaml (which intentionally relaxes
+        # perms inside containers so multi-process compose stacks can share
+        # state), state.db carries session messages, kanban content, and
+        # subagent transcripts — none of which should ever be group/world
+        # readable. We chmod the existing inode if present so an upgrade
+        # from a pre-fix install also tightens the perms; the connection
+        # call below will create the file if missing, and we re-chmod in
+        # that case after init.
+        try:
+            if os.name == "posix" and self.db_path.exists():
+                os.chmod(self.db_path, 0o600)
+        except (OSError, NotImplementedError):
+            pass
+
         self._lock = threading.Lock()
         self._write_count = 0
         try:
-            self._conn = sqlite3.connect(
-                str(self.db_path),
+            # Route through agent.db_encryption so that STOA_DB_ENCRYPTION=1
+            # transparently upgrades this connection to SQLCipher (audit
+            # v12 HIGH-70 #1: state.db plaintext).  Default OFF — the env
+            # var unset path returns a stock sqlite3.connect with the
+            # exact same kwargs we used before, plus PRAGMA secure_delete=ON
+            # (closes the "deleted rows readable in free pages until
+            # VACUUM" leak — finding #4 of the same audit).
+            from agent.db_encryption import open_connection
+            self._conn = open_connection(
+                self.db_path,
                 check_same_thread=False,
                 # Short timeout — application-level retry with random jitter
                 # handles contention instead of sitting in SQLite's internal
@@ -356,6 +380,12 @@ class SessionDB:
             self._conn.execute("PRAGMA foreign_keys=ON")
 
             self._init_schema()
+            # Audit S-06: re-chmod after init for newly-created databases.
+            try:
+                if os.name == "posix" and self.db_path.exists():
+                    os.chmod(self.db_path, 0o600)
+            except (OSError, NotImplementedError):
+                pass
         except Exception as exc:
             # Capture the cause so /resume and friends can surface WHY the
             # session DB is unavailable instead of a bare "Session database
@@ -1493,6 +1523,20 @@ class SessionDB:
         # cannot bind list/dict parameters directly.
         stored_content = self._encode_content(content)
 
+        # Audit v3 HIGH S-05 fix: FTS5 trigram index DoS guard. A 200 MB
+        # Telegram message explodes into ~200 M index entries + 1+ GB
+        # WAL; the gateway request blocks for minutes. Truncate the
+        # stored content + FTS-indexed copy to bounded size BEFORE
+        # INSERT. Default 8 MiB stored / 64 KiB FTS-indexed strikes the
+        # balance — long pasted code still preserved in messages.content
+        # but trigram index stays sane.
+        MAX_CONTENT_BYTES = int(os.environ.get("STOA_MAX_MESSAGE_CONTENT_BYTES", str(8 * 1024 * 1024)))
+        if isinstance(stored_content, str):
+            stored_bytes = stored_content.encode("utf-8", errors="replace")
+            if len(stored_bytes) > MAX_CONTENT_BYTES:
+                stored_content = stored_bytes[:MAX_CONTENT_BYTES].decode("utf-8", errors="replace") + \
+                    f"\n[truncated by stoa_state: {len(stored_bytes)} > {MAX_CONTENT_BYTES} bytes]"
+
         # Pre-compute tool call count
         num_tool_calls = 0
         if tool_calls is not None:
@@ -2540,6 +2584,100 @@ class SessionDB:
                     pass
         except OSError:
             pass
+
+    def delete_user(
+        self,
+        user_id: str,
+        sessions_dir: Optional[Path] = None,
+    ) -> Dict[str, int]:
+        """Delete EVERY session + message belonging to ``user_id``.
+
+        Audit v11 CRIT-57-1 fix: GDPR Art. 17 right-to-erasure.
+        Without this, an EU user's "delete my data" request was
+        unsatisfiable without hand-written SQL. The schema already
+        scopes sessions to ``user_id``; this is the surgical sweep.
+
+        Returns a dict of counts: ``{"sessions": N, "messages": M}``.
+        Side-effect: removes on-disk transcript files for every
+        deleted session if ``sessions_dir`` is provided.
+        """
+        if not user_id:
+            return {"sessions": 0, "messages": 0}
+
+        # Collect first so we can cleanup files after the txn commits.
+        session_ids: list[str] = []
+
+        def _do(conn):
+            rows = conn.execute(
+                "SELECT id FROM sessions WHERE user_id = ?", (user_id,),
+            ).fetchall()
+            ids = [r[0] for r in rows]
+            session_ids.extend(ids)
+            if not ids:
+                return {"sessions": 0, "messages": 0}
+            placeholders = ",".join("?" * len(ids))
+            # Orphan children of soon-to-be-deleted sessions (FK satisfaction)
+            conn.execute(
+                f"UPDATE sessions SET parent_session_id = NULL "
+                f"WHERE parent_session_id IN ({placeholders})",
+                ids,
+            )
+            mcur = conn.execute(
+                f"DELETE FROM messages WHERE session_id IN ({placeholders})",
+                ids,
+            )
+            scur = conn.execute(
+                f"DELETE FROM sessions WHERE id IN ({placeholders})",
+                ids,
+            )
+            return {"sessions": scur.rowcount, "messages": mcur.rowcount}
+
+        counts = self._execute_write(_do)
+        for sid in session_ids:
+            self._remove_session_files(sessions_dir, sid)
+        return counts
+
+    def export_user_data(self, user_id: str) -> Dict[str, Any]:
+        """Return every session + message + meta row owned by ``user_id``.
+
+        Audit v11 CRIT-57-2 fix: GDPR Art. 20 Subject Access Request.
+        Returns plain dict ready for `json.dump` — caller writes to
+        the export file. Sensitive credentials never appear (those
+        live in auth.json / .env, not in the user-data tables).
+        """
+        if not user_id:
+            return {"user_id": user_id, "sessions": [], "messages": []}
+        sessions = self._read_only_query(
+            "SELECT * FROM sessions WHERE user_id = ?", (user_id,),
+        )
+        session_ids = [s["id"] for s in sessions]
+        messages: list[Dict[str, Any]] = []
+        if session_ids:
+            placeholders = ",".join("?" * len(session_ids))
+            messages = self._read_only_query(
+                f"SELECT * FROM messages WHERE session_id IN ({placeholders}) "
+                f"ORDER BY id",
+                session_ids,
+            )
+        return {
+            "user_id": user_id,
+            "exported_at_ms": int(time.time() * 1000),
+            "sessions": sessions,
+            "messages": messages,
+        }
+
+    def _read_only_query(self, sql: str, params: Iterable[Any]) -> list[Dict[str, Any]]:
+        """Helper for export_user_data — runs read-only SELECT, returns dicts.
+
+        Uses the existing write-helper connection path for thread-safety
+        even though we don't write — the same lock keeps a concurrent
+        DELETE from racing our export, so the dump is consistent.
+        """
+        def _do(conn: sqlite3.Connection) -> list[Dict[str, Any]]:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(sql, list(params)).fetchall()
+            return [dict(r) for r in rows]
+        return self._execute_write(_do)
 
     def delete_session(
         self,

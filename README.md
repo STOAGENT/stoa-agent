@@ -149,7 +149,22 @@ stoa /council "..."
 
 ## License
 
-MIT. See [LICENSE](LICENSE). The original Hermes Agent license is preserved unchanged; this fork adds [ATTRIBUTION.md](ATTRIBUTION.md).
+MIT for the STOA Agent codebase. See [LICENSE](LICENSE). The original
+Hermes Agent license is preserved unchanged; this fork adds
+[ATTRIBUTION.md](ATTRIBUTION.md).
+
+**Bundled assets carry their own licenses:**
+
+- `web/public/fonts-terminal/JetBrainsMono-*.woff2` — SIL Open Font
+  License 1.1, see [`web/public/fonts-terminal/OFL.txt`](web/public/fonts-terminal/OFL.txt).
+- `optional-skills/productivity/powerpoint/` — **Proprietary, Anthropic**.
+  Opt-in only (set `STOA_ENABLE_OPTIONAL_SKILLS=1` to discover it).
+  Use is governed by your separate agreement with Anthropic; the file
+  `optional-skills/productivity/powerpoint/LICENSE.txt` ships the full
+  terms. NOT covered by MIT.
+- `optional-skills/mlops/inference/obliteratus/` — AGPL-3.0. Opt-in via
+  `STOA_ENABLE_REDTEAM=1`. AGPL §13 obligations apply if you ship a
+  network-accessible service that incorporates this skill.
 
 ## Links
 

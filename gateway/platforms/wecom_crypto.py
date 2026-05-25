@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
 import os
 import secrets
 import socket
 import struct
+import time
 from typing import Optional
 from xml.etree import ElementTree as ET
 
@@ -86,8 +88,25 @@ class WXBizMsgCrypt:
         return plain.decode("utf-8")
 
     def decrypt(self, msg_signature: str, timestamp: str, nonce: str, encrypt: str) -> bytes:
+        # Audit v4 HIGH G-05 + v7 HIGH-10 fix: timestamp freshness check.
+        # Without this, any signed POST captured from the wire (LAN sniffer,
+        # mitm proxy, screen recording) could be replayed indefinitely after
+        # the per-id dedup window expires (5 min default). 10-minute window
+        # is the WeCom server's own clock-skew tolerance — anything older
+        # is the same hash as something we'd already have seen + dedup'd.
+        try:
+            ts = int(timestamp)
+        except (TypeError, ValueError):
+            raise SignatureError("timestamp not an integer")
+        now = int(time.time())
+        if abs(now - ts) > 600:  # 10 min
+            raise SignatureError(f"timestamp out of freshness window: ts={ts} now={now}")
+
         expected = _sha1_signature(self.token, timestamp, nonce, encrypt)
-        if expected != msg_signature:
+        # Audit v4 G-04 fix: constant-time compare. The previous `!=` leaks
+        # the first-byte-mismatch position via a timing oracle. SHA-1 hex
+        # has only 40 chars but compare_digest is still the right answer.
+        if not hmac.compare_digest(expected, msg_signature):
             raise SignatureError("signature mismatch")
         try:
             cipher_text = base64.b64decode(encrypt)

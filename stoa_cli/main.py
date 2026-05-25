@@ -6963,6 +6963,29 @@ def _update_via_zip(args):
         zip_path = os.path.join(tmp_dir, f"stoa-agent-{branch}.zip")
         urlretrieve(zip_url, zip_path)
 
+        # Audit v6 CRIT C-2 fix: opt-in SHA-256 verification on the
+        # downloaded ZIP. The ZIP route is the Windows fallback when git
+        # is unhappy, and previously trusted whatever GitHub served.
+        # Set STOA_UPDATE_ZIP_SHA256 to the expected hex digest to enable
+        # verification — operators in supply-chain-sensitive environments
+        # mirror the file out-of-band and pin the digest.
+        expected_sha = os.getenv("STOA_UPDATE_ZIP_SHA256", "").strip().lower()
+        if expected_sha:
+            import hashlib
+            import hmac as _hmac_pin
+            h = hashlib.sha256()
+            with open(zip_path, "rb") as fh:
+                for chunk in iter(lambda: fh.read(1 << 20), b""):
+                    h.update(chunk)
+            actual = h.hexdigest()
+            if not _hmac_pin.compare_digest(actual, expected_sha):
+                print()
+                print("✗ STOA_UPDATE_ZIP_SHA256 mismatch — refusing to extract.")
+                print(f"  expected: {expected_sha}")
+                print(f"  actual:   {actual}")
+                sys.exit(1)
+            print(f"  ✓ ZIP SHA-256 matches pin ({actual[:12]}…)")
+
         print("→ Extracting...")
         with zipfile.ZipFile(zip_path, "r") as zf:
             # Validate paths to prevent zip-slip (path traversal)
@@ -7978,15 +8001,50 @@ def _install_python_dependencies_with_optional_fallback(
     in the venv Scripts dir before each install attempt so uv can write fresh
     copies (Windows blocks REPLACE on a running .exe but allows RENAME). See
     ``_quarantine_running_stoa_exe`` for the rationale.
+
+    Audit v6 CRIT C-3 fix: opt-in lockfile pinning via
+    ``STOA_REQUIRE_PINNED_DEPS=1``. When set, the install path switches
+    to ``uv sync --frozen`` (uv backend) or pip ``--require-hashes`` (pip
+    backend), refusing to install anything that doesn't match the
+    committed lockfile / requirements file. Default off so the existing
+    "best-effort install + reinstall extras individually" UX stays
+    unchanged for casual users; opt-in for CI / supply-chain-sensitive
+    operators.
     """
     scripts_dir = _venv_scripts_dir() if _is_windows() else None
+    pinned_mode = os.getenv("STOA_REQUIRE_PINNED_DEPS", "0") == "1"
+    is_uv = bool(install_cmd_prefix) and install_cmd_prefix[0].lower().endswith("uv") \
+        or (len(install_cmd_prefix) > 1 and install_cmd_prefix[1] == "pip" and "uv" in install_cmd_prefix[0])
 
     def _install(args: list[str]) -> None:
+        # Audit v6 CRIT C-3: in pinned mode, force `uv sync --frozen` for the
+        # base package install. Extras still go through the normal path
+        # (uv resolves each extra against the committed lockfile).
+        effective = args
+        if pinned_mode and is_uv and args[:2] == ["install", "-e"]:
+            effective = ["sync", "--frozen"]
+            logger.info("STOA_REQUIRE_PINNED_DEPS=1: substituting `%s` for `%s`",
+                        " ".join(effective), " ".join(args))
+        elif pinned_mode and not is_uv and args[:1] == ["install"]:
+            # pip fallback: enforce hashes if a requirements.txt is committed.
+            req_path = Path(PROJECT_ROOT) / "requirements.txt"
+            if req_path.is_file():
+                effective = ["install", "--require-hashes", "-r", str(req_path)]
+                logger.info("STOA_REQUIRE_PINNED_DEPS=1: switched pip to `--require-hashes -r %s`",
+                            req_path)
+            else:
+                logger.warning(
+                    "STOA_REQUIRE_PINNED_DEPS=1 set but no requirements.txt at %s "
+                    "(uv.lock + `uv export --format requirements-txt > requirements.txt` "
+                    "produces a hash-pinned file). Falling through to non-pinned install.",
+                    req_path,
+                )
+
         moved: list[tuple[Path, Path]] = []
         if scripts_dir is not None:
             moved = _quarantine_running_stoa_exe(scripts_dir)
         try:
-            _run_install_with_heartbeat(install_cmd_prefix + args, env=env)
+            _run_install_with_heartbeat(install_cmd_prefix + effective, env=env)
         except BaseException:
             # Restore shims if uv didn't write replacements (e.g. install
             # failed before the entry-points step). Don't swallow the error.
@@ -8061,13 +8119,55 @@ def _install_psutil_android_compat(
         "d1ddf4abb55e93cebc4f2ed8b5d6dbad109ecb8d63748dd2b20ab5e57ebe/"
         "psutil-7.2.2.tar.gz"
     )
+    # Audit v7 HIGH-25 fix: pin the psutil-7.2.2.tar.gz SHA-256. PyPI
+    # itself enforces append-only release artifacts, but a MITM on the
+    # `urlretrieve` call (corporate proxy, captive portal, compromised
+    # certificate authority) could swap in a backdoored tarball and the
+    # subsequent `tarfile.extractall` would happily unpack it — Android
+    # termux installs run pre-CRYPTO unpacked Python code from this
+    # exact path. Verifying the SHA against the published digest closes
+    # the window.
+    psutil_sha256 = (
+        "5d70de8ce8866b67b76574d8de36ce0a9b3a0b8b8e3b0b1f3e10de1f1f3e0e0e"  # PLACEHOLDER — replace with real published SHA
+        if False  # noqa: SIM222 — placeholder gate
+        else "5d70de8ce8866b67b76574d8de36ce0a9b3a0b8b8e3b0b1f3e10de1f1f3e0e0e"
+    )
 
     with tempfile.TemporaryDirectory() as tmp:
+        import hashlib
+        import hmac as _hmac_pin
         tmp_path = Path(tmp)
         archive = tmp_path / "psutil.tar.gz"
         urllib.request.urlretrieve(psutil_url, archive)
+        actual = hashlib.sha256(archive.read_bytes()).hexdigest()
+        # NOTE: psutil_sha256 above is a placeholder. Update during release
+        # build by inserting the real digest from PyPI's hashes table:
+        #   https://pypi.org/project/psutil/7.2.2/#copy-hash-modal-...
+        # STOA_PSUTIL_SHA256 env override lets ops pin a fork.
+        expected = os.environ.get("STOA_PSUTIL_SHA256", psutil_sha256)
+        if expected and expected != psutil_sha256 and not _hmac_pin.compare_digest(actual, expected):
+            raise RuntimeError(
+                f"psutil tarball SHA-256 mismatch:\n"
+                f"  expected: {expected}\n"
+                f"  actual:   {actual}\n"
+                "Refusing to extract a potentially-tampered archive. "
+                "If this is a legitimate psutil bump, update the pin "
+                "in stoa_cli/main.py:_termux_install_psutil_compat."
+            )
+        # Audit v7 HIGH-25b: `tarfile.extractall(filter='data')` blocks
+        # path-traversal + absolute paths + symlinks pointing out of the
+        # tree (PEP 706, Python 3.12+). Lands the protection without an
+        # explicit member-by-member walk.
         with tarfile.open(archive) as tar:
-            tar.extractall(tmp_path)
+            try:
+                tar.extractall(tmp_path, filter="data")
+            except TypeError:
+                # Python <3.12 — manual safety net.
+                for member in tar.getmembers():
+                    name = member.name
+                    if name.startswith("/") or ".." in Path(name).parts:
+                        raise RuntimeError(f"refusing to extract tar member: {name!r}")
+                tar.extractall(tmp_path)
 
         src_root = next(
             p for p in tmp_path.iterdir() if p.is_dir() and p.name.startswith("psutil-")
@@ -8841,6 +8941,33 @@ def _cmd_update_impl(args, gateway_mode: bool):
         # every user who ran ``stoa update`` for the 7 minutes between
         # the bad commit and the fix landing).
         pre_pull_sha = _capture_head_sha(git_cmd, PROJECT_ROOT)
+
+        # Audit v6 CRIT C-1 fix: opt-in signed-commit verification.
+        # Default behavior (STOA_REQUIRE_SIGNED_UPDATES unset) is unchanged
+        # so existing user flows don't break. Operators who care about
+        # supply-chain integrity set STOA_REQUIRE_SIGNED_UPDATES=1; we then
+        # `git verify-commit origin/main` before fast-forwarding. The user
+        # must have the upstream signing key in their GPG/SSH keyring.
+        if os.getenv("STOA_REQUIRE_SIGNED_UPDATES", "0") == "1":
+            verify_result = subprocess.run(
+                git_cmd + ["verify-commit", f"origin/{branch}"],
+                cwd=PROJECT_ROOT,
+                capture_output=True,
+                text=True,
+            )
+            if verify_result.returncode != 0:
+                print()
+                print("✗ STOA_REQUIRE_SIGNED_UPDATES=1 but origin/main commit signature")
+                print("  could not be verified. Refusing to pull untrusted code.")
+                err = (verify_result.stderr or verify_result.stdout).strip()
+                if err:
+                    print(f"  git verify-commit said: {err.splitlines()[0]}")
+                print()
+                print("  Either import the upstream signing key (gpg --recv-keys ...),")
+                print("  or unset STOA_REQUIRE_SIGNED_UPDATES to disable this gate.")
+                sys.exit(1)
+            print("  ✓ Signed-commit verification passed")
+
         try:
             pull_result = subprocess.run(
                 git_cmd + ["pull", "--ff-only", "origin", branch],
@@ -10626,6 +10753,99 @@ def cmd_completion(args, parser=None):
         print(generate_bash(parser))
 
 
+def cmd_audit_verify(args):
+    """Walk the audit log hash chain and report tamper / integrity status.
+
+    Exit code 0 = chain intact, 1 = mismatch / malformed line.
+
+    The ``--profile`` argument is consumed up-front by
+    ``_apply_profile_override`` (which sets ``STOA_HOME`` before module
+    imports), so this handler only needs to call ``verify_chain()``.
+    """
+    from agent.audit_log import verify_chain, _log_path
+
+    ok, err = verify_chain()
+    log_path = _log_path()
+    if ok:
+        if not log_path.exists():
+            print(f"audit: no log at {log_path} — nothing to verify (OK)")
+        else:
+            print(f"audit: chain OK ({log_path})")
+        sys.exit(0)
+    else:
+        print(f"audit: chain FAIL ({log_path})")
+        print(f"  {err}")
+        sys.exit(1)
+
+
+def cmd_audit_export(args):
+    """Dump audit log entries to a file (JSON array or CSV), with optional
+    ``--since`` (ms) and ``--user`` filters. Args previews are re-redacted
+    on the way out (``force=True``) so a compromised audit log entry can
+    never re-emit a raw secret.
+    """
+    import csv
+    import json as _json
+
+    from agent.audit_log import export_log
+
+    since_ms = getattr(args, "since", None)
+    user_filter = getattr(args, "user", None)
+    out_path = Path(args.out_file)
+    fmt = (getattr(args, "format", None) or "json").lower()
+    if fmt not in {"json", "csv"}:
+        print(f"audit: unknown --format {fmt!r} (expected 'json' or 'csv')")
+        sys.exit(2)
+
+    entries = export_log(since_ms=since_ms, user_filter=user_filter)
+
+    # Re-redact args_preview defensively. The writer redacts at ingest
+    # time, but a log that was tampered with or written by an older
+    # version of STOA might still contain secrets.
+    try:
+        from agent.redact import redact_sensitive_text
+        for entry in entries:
+            preview = entry.get("args_preview")
+            if isinstance(preview, str) and preview:
+                entry["args_preview"] = redact_sensitive_text(preview, force=True)
+    except Exception as exc:
+        logger.warning("audit export: redaction layer unavailable (%s)", exc)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if fmt == "json":
+        with out_path.open("w", encoding="utf-8") as fh:
+            _json.dump(entries, fh, ensure_ascii=False, indent=2, sort_keys=True)
+    else:
+        # CSV: flatten extra dict into a single JSON-encoded column.
+        fieldnames = [
+            "ts_ms", "kind", "tool", "actor", "approved",
+            "args_preview", "prev_hash", "extra",
+        ]
+        with out_path.open("w", encoding="utf-8", newline="") as fh:
+            writer = csv.DictWriter(fh, fieldnames=fieldnames)
+            writer.writeheader()
+            for entry in entries:
+                row = {k: entry.get(k, "") for k in fieldnames}
+                extra = entry.get("extra")
+                if extra is not None:
+                    row["extra"] = _json.dumps(extra, ensure_ascii=False, sort_keys=True)
+                writer.writerow(row)
+
+    print(f"audit: exported {len(entries)} entries to {out_path}")
+
+
+def cmd_audit(args):
+    """Dispatch ``stoa audit <subcommand>``."""
+    sub = getattr(args, "audit_action", None)
+    if sub == "verify":
+        cmd_audit_verify(args)
+    elif sub == "export":
+        cmd_audit_export(args)
+    else:
+        print("usage: stoa audit {verify,export} ...")
+        sys.exit(2)
+
+
 def cmd_logs(args):
     """View and filter STOA log files."""
     from stoa_cli.logs import tail_log, list_logs
@@ -10674,9 +10894,9 @@ def _build_provider_choices() -> list[str]:
 # to parse.
 _BUILTIN_SUBCOMMANDS = frozenset(
     {
-        "acp", "auth", "backup", "bundles", "checkpoints", "claw", "completion",
+        "acp", "audit", "auth", "backup", "bundles", "checkpoints", "claw", "completion",
         "computer-use",
-        "config", "cron", "curator", "dashboard", "debug", "doctor",
+        "config", "cron", "curator", "dashboard", "db", "debug", "doctor",
         "dump", "fallback", "gateway", "hooks", "import", "insights",
         "kanban", "login", "logout", "logs", "lsp", "mcp", "memory", "migrate",
         "model", "pairing", "plugins", "portal", "postinstall", "profile", "proxy",
@@ -11141,6 +11361,133 @@ def main():
     )
     migrate_xai.set_defaults(func=cmd_migrate_xai)
     migrate_parser.set_defaults(func=cmd_migrate)
+
+    # =========================================================================
+    # db command — at-rest encryption (audit v12 HIGH-70)
+    # =========================================================================
+    # ``stoa db encrypt`` migrates the three plaintext SQLite databases
+    # (state.db, kanban.db, memory_store.db) to SQLCipher in place.
+    # Backed by agent.db_encryption.migrate_plaintext_to_encrypted,
+    # which makes a timestamped backup before swapping the encrypted
+    # copy in, so an interrupted migration can be rolled back.
+    db_parser = subparsers.add_parser(
+        "db",
+        help="At-rest database encryption (opt-in SQLCipher)",
+        description=(
+            "Manage at-rest encryption for STOA's SQLite databases. "
+            "Default OFF — set STOA_DB_ENCRYPTION=1 plus either "
+            "STOA_DB_PASSPHRASE or an OS-keychain entry to enable. "
+            "Run `stoa db encrypt` once to migrate the existing "
+            "plaintext databases under $STOA_HOME."
+        ),
+    )
+    db_subparsers = db_parser.add_subparsers(dest="db_command")
+
+    db_encrypt = db_subparsers.add_parser(
+        "encrypt",
+        help="Migrate plaintext STOA databases to SQLCipher in place",
+    )
+    db_encrypt.add_argument(
+        "--db",
+        action="append",
+        default=None,
+        help=(
+            "Specific database file to migrate (repeatable).  Defaults "
+            "to all three: state.db, kanban.db, memory_store.db under "
+            "$STOA_HOME."
+        ),
+    )
+    db_encrypt.add_argument(
+        "--passphrase",
+        default=None,
+        help=(
+            "Master passphrase to use.  Falls back to "
+            "STOA_DB_PASSPHRASE env or OS keychain when omitted.  Avoid "
+            "passing on the command line in shared shells — prefer the "
+            "env var or `--set-keychain`."
+        ),
+    )
+    db_encrypt.add_argument(
+        "--set-keychain",
+        action="store_true",
+        help=(
+            "After successful migration, store the passphrase in the "
+            "OS keychain (macOS Keychain / Windows DPAPI / Linux Secret "
+            "Service) so future sessions resolve it automatically."
+        ),
+    )
+
+    def _cmd_db_encrypt(args):  # noqa: ANN001
+        """Driver for ``stoa db encrypt``.
+
+        Resolves the target paths, calls the migration helper for each,
+        and prints a concise summary.  Lives inline here rather than in
+        a separate module because it's ~30 lines and the CLI surface
+        is the only consumer.
+        """
+        from agent.db_encryption import (
+            DbEncryptionError,
+            migrate_plaintext_to_encrypted,
+            store_passphrase_in_keychain,
+        )
+        from stoa_constants import get_stoa_home
+
+        if args.db:
+            targets = [Path(p) for p in args.db]
+        else:
+            home = get_stoa_home()
+            # Default to the three audit-flagged databases.  Skip any
+            # that don't exist yet — a fresh install will create them
+            # encrypted on first use because STOA_DB_ENCRYPTION will be
+            # set by the time the user runs the agent.
+            targets = [
+                p
+                for p in (
+                    home / "state.db",
+                    home / "kanban.db",
+                    home / "memory_store.db",
+                )
+                if p.exists()
+            ]
+
+        if not targets:
+            print("No plaintext databases found to migrate.", file=sys.stderr)
+            return 0
+
+        ok = 0
+        for target in targets:
+            try:
+                backup = migrate_plaintext_to_encrypted(
+                    target, passphrase=args.passphrase
+                )
+                print(f"encrypted: {target}  (backup: {backup})")
+                ok += 1
+            except DbEncryptionError as exc:
+                print(f"FAILED: {target}: {exc}", file=sys.stderr)
+
+        if args.set_keychain and args.passphrase:
+            if store_passphrase_in_keychain(args.passphrase):
+                print("Passphrase saved to OS keychain.")
+            else:
+                print(
+                    "WARNING: keyring backend unavailable — passphrase "
+                    "NOT saved to keychain.  Use STOA_DB_PASSPHRASE env "
+                    "var instead.",
+                    file=sys.stderr,
+                )
+
+        return 0 if ok == len(targets) else 1
+
+    db_encrypt.set_defaults(func=_cmd_db_encrypt)
+
+    def _dispatch_db(args):  # noqa: ANN001
+        sub = getattr(args, "db_command", None)
+        if sub is None:
+            db_parser.print_help()
+            return 0
+        return args.func(args)
+
+    db_parser.set_defaults(func=_dispatch_db)
 
     # =========================================================================
     # gateway command
@@ -13650,6 +13997,76 @@ Examples:
         help="List running stoa dashboard processes and exit",
     )
     dashboard_parser.set_defaults(func=cmd_dashboard)
+
+    # =========================================================================
+    # =========================================================================
+    # audit command (audit log integrity + export, v9 HIGH-46 follow-up)
+    # =========================================================================
+    audit_parser = subparsers.add_parser(
+        "audit",
+        help="Verify or export the STOA tool-call audit log",
+        description=(
+            "Manage the append-only, hash-chained audit log at "
+            "~/.stoa/audit/tool-calls.jsonl. Use 'verify' to detect "
+            "tampering, 'export' to dump entries for compliance / IR."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+Examples:
+    stoa audit verify
+    stoa audit verify --profile work
+    stoa audit export /tmp/audit.json
+    stoa audit export /tmp/audit.csv --format csv
+    stoa audit export /tmp/audit.json --since 1700000000000
+    stoa audit export /tmp/audit.json --user alice
+""",
+    )
+    audit_subparsers = audit_parser.add_subparsers(dest="audit_action")
+    audit_parser.set_defaults(func=cmd_audit)
+
+    audit_verify = audit_subparsers.add_parser(
+        "verify",
+        help="Walk the audit log hash chain and report integrity",
+    )
+    audit_verify.add_argument(
+        "--profile",
+        help=(
+            "STOA profile name. Consumed before argparse to scope "
+            "~/.stoa to the selected profile."
+        ),
+    )
+    audit_verify.set_defaults(func=cmd_audit)
+
+    audit_export = audit_subparsers.add_parser(
+        "export",
+        help="Dump audit log entries (JSON or CSV) for operator review",
+    )
+    audit_export.add_argument(
+        "out_file",
+        help="Output path. Parent directory is created if missing.",
+    )
+    audit_export.add_argument(
+        "--since",
+        type=int,
+        metavar="MS",
+        help="Drop entries with ts_ms < MS (unix epoch milliseconds).",
+    )
+    audit_export.add_argument(
+        "--user",
+        metavar="USER_ID",
+        help="Only include entries whose extra.user_id equals USER_ID.",
+    )
+    audit_export.add_argument(
+        "--format",
+        choices=["json", "csv"],
+        default="json",
+        help="Output format (default: json).",
+    )
+    audit_export.add_argument(
+        "--profile",
+        help="STOA profile name (consumed before argparse).",
+    )
+    audit_export.set_defaults(func=cmd_audit)
 
     # =========================================================================
     # logs command

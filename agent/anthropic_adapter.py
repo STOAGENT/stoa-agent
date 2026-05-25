@@ -928,7 +928,8 @@ def refresh_anthropic_oauth_pure(refresh_token: str, *, use_json: bool = False) 
     if not refresh_token:
         raise ValueError("refresh_token is required")
 
-    client_id = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+    # P-12: single source of truth — see module-level _OAUTH_CLIENT_ID.
+    client_id = _OAUTH_CLIENT_ID
     if use_json:
         data = json.dumps({
             "grant_type": "refresh_token",
@@ -1040,11 +1041,33 @@ def _write_claude_code_credentials(
         existing["claudeAiOauth"] = oauth_data
 
         cred_path.parent.mkdir(parents=True, exist_ok=True)
+        # Audit v10 HIGH-50 fix: write the tempfile with 0o600 from
+        # the start using O_EXCL. The previous "write_text → replace
+        # → chmod" pattern left a brief umask-default window (0o644
+        # on most Linux setups) between rename and chmod where another
+        # process could open the file world-readable. O_EXCL forces a
+        # fresh inode + opens at the requested mode atomically; if a
+        # tmp from a previous crash exists we unlink it first.
         _tmp_cred = cred_path.with_suffix(".tmp")
-        _tmp_cred.write_text(json.dumps(existing, indent=2), encoding="utf-8")
+        try:
+            _tmp_cred.unlink()
+        except FileNotFoundError:
+            pass
+        fd = os.open(str(_tmp_cred), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(existing, fh, indent=2)
+        except BaseException:
+            try: _tmp_cred.unlink()
+            except FileNotFoundError: pass
+            raise
         _tmp_cred.replace(cred_path)
-        # Restrict permissions (credentials file)
-        cred_path.chmod(0o600)
+        # Belt-and-suspenders chmod on Windows where O_EXCL mode bits
+        # behave differently; no-op on POSIX since file was already 0o600.
+        try:
+            cred_path.chmod(0o600)
+        except OSError:
+            pass
     except (OSError, IOError) as e:
         logger.debug("Failed to write refreshed credentials: %s", e)
 
@@ -1196,6 +1219,8 @@ def _generate_pkce() -> tuple:
 
 def run_stoa_oauth_login_pure() -> Optional[Dict[str, Any]]:
     """Run STOA-native OAuth PKCE flow and return credential state."""
+    import getpass
+    import hmac as _hmac
     import secrets
     import time
     import webbrowser
@@ -1225,7 +1250,14 @@ def run_stoa_oauth_login_pure() -> Optional[Dict[str, Any]]:
     print("│  Open this link in your browser:                  │")
     print("╰───────────────────────────────────────────────────╯")
     print()
-    print(f"  {auth_url}")
+    # P-13: avoid leaking the OAuth authorize URL (contains PKCE challenge +
+    # state) to stdout unless the user explicitly opted into verbose output.
+    _verbose_oauth = bool(os.getenv("STOA_OAUTH_VERBOSE", "").strip())
+    if _verbose_oauth:
+        print(f"  {auth_url}")
+    else:
+        print("  (URL hidden — set STOA_OAUTH_VERBOSE=1 to print.")
+        print("   Use the browser window that just opened instead.)")
     print()
 
     try:
@@ -1238,7 +1270,10 @@ def run_stoa_oauth_login_pure() -> Optional[Dict[str, Any]]:
     print("After authorizing, you'll see a code. Paste it below.")
     print()
     try:
-        auth_code = input("Authorization code: ").strip()
+        # P-07: the authorization code is single-use but sensitive; use
+        # getpass so it does not echo to the terminal and does not land in
+        # shell history when copy/pasted.
+        auth_code = getpass.getpass("Authorization code (input hidden): ").strip()
     except (KeyboardInterrupt, EOFError):
         return None
 
@@ -1250,8 +1285,10 @@ def run_stoa_oauth_login_pure() -> Optional[Dict[str, Any]]:
     code = splits[0]
     received_state = splits[1] if len(splits) > 1 else ""
 
-    # Validate state to prevent CSRF (RFC 6749 §10.12)
-    if received_state != oauth_state:
+    # Validate state to prevent CSRF (RFC 6749 §10.12).
+    # P-11: constant-time comparison to avoid leaking the expected state
+    # value through string-compare timing differences.
+    if not _hmac.compare_digest(received_state, oauth_state):
         logger.warning("OAuth state mismatch — possible CSRF, aborting")
         return None
 
@@ -1278,7 +1315,14 @@ def run_stoa_oauth_login_pure() -> Optional[Dict[str, Any]]:
         )
 
         with urllib.request.urlopen(req, timeout=15) as resp:
-            result = json.loads(resp.read().decode())
+            # P-14: cap the response body size to defend against a malicious
+            # / misbehaving token endpoint streaming an unbounded payload.
+            # 64 KiB is ~50x the largest legitimate OAuth token response.
+            raw = resp.read(64 * 1024)
+            if len(raw) >= 64 * 1024:
+                logger.warning("Token-exchange response exceeded 64 KiB ceiling — refusing")
+                return None
+            result = json.loads(raw.decode())
     except Exception as e:
         print(f"Token exchange failed: {e}")
         return None

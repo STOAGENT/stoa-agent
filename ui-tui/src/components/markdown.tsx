@@ -188,6 +188,23 @@ const renderResolvedLink = (k: number, t: Theme, rawUrl: string, label?: string)
   return <ResolvedLink fallbackLabel={pickFallbackLabel(label, target)} key={k} t={t} url={target} />
 }
 
+// Bidi controls (U+202A-U+202E LRE/RLE/PDF/LRO/RLO + U+2066-U+2069 isolates),
+// zero-width chars commonly used for spoofing (U+200B-U+200F, U+FEFF), and the
+// Unicode tag plane (U+E0000-U+E007F) — the last is the channel used by
+// "ASCII smuggling" prompt-injection demos to hide instructions inside
+// otherwise-innocent text. Strip them before any markdown rendering so the
+// terminal can't be tricked into displaying one thing while the model sees
+// another.
+const BIDI_TAG_STRIP_RE = /[​-‏‪-‮⁦-⁩﻿]|[\u{E0000}-\u{E007F}]/gu
+
+export const sanitizeMarkdownInput = (s: string): string => s.replace(BIDI_TAG_STRIP_RE, '')
+
+// IDN homograph guard: if a URL hostname starts with `xn--` (raw punycode),
+// surface it as such rather than trusting the rendered Unicode form. The
+// caller decides how to surface the warning; this helper just reports
+// whether the host is a raw-punycode label.
+export const isPunycodeHost = (host: string): boolean => /(^|\.)xn--/i.test(host)
+
 export const stripInlineMarkup = (v: string) =>
   v
     .replace(/!\[(.*?)\]\(((?:[^\s()]|\([^\s()]*\))+?)\)/g, '[image: $1] $2')
@@ -655,7 +672,7 @@ function MdImpl({ cols, compact, t, text }: MdProps) {
       return cached
     }
 
-    const lines = ensureEmojiPresentation(text).split('\n')
+    const lines = sanitizeMarkdownInput(ensureEmojiPresentation(text)).split('\n')
     const nodes: ReactNode[] = []
 
     let prevKind: Kind = null
@@ -700,15 +717,28 @@ function MdImpl({ cols, compact, t, text }: MdProps) {
 
       if (media) {
         start('paragraph')
+        // Audit v6 HIGH-17 fix: MEDIA: links no longer become clickable
+        // file://... or javascript:... URLs. The previous behaviour
+        // wrapped any path in a <Link url=...> — a model-emitted line
+        // like `MEDIA: javascript:fetch('exfil')` rendered as a
+        // Cmd-clickable bookmarklet, and `MEDIA: /etc/passwd` opened
+        // the file in the operator's default handler. We now render
+        // MEDIA as plain text only; copy-paste still works for the
+        // operator who genuinely wants the path. http(s):// URLs are
+        // the one safe scheme we keep clickable since prompt-injection
+        // payloads that fetch are already MITM'd by the agent's own
+        // url_safety floor.
+        const isHttpUrl = /^https?:\/\//i.test(media)
         nodes.push(
           <Text color={t.color.muted} key={key} wrap="wrap-trim">
             {'▸ '}
-
-            <Link url={/^(?:\/|[a-z]:[\\/])/i.test(media) ? `file://${media}` : media}>
-              <Text color={t.color.accent} underline>
-                {media}
-              </Text>
-            </Link>
+            {isHttpUrl ? (
+              <Link url={media}>
+                <Text color={t.color.accent} underline>{media}</Text>
+              </Link>
+            ) : (
+              <Text color={t.color.accent}>{media}</Text>
+            )}
           </Text>
         )
         i++
@@ -1002,12 +1032,19 @@ function MdImpl({ cols, compact, t, text }: MdProps) {
       if (QUOTE_RE.test(line)) {
         start('quote')
 
+        // Cap blockquote indent at 16 levels. A malicious message with
+        // `>>>>>>>… (1000 deep) > text` would otherwise pin paddingLeft at
+        // 1000*2 cells and either DoS the terminal renderer or push content
+        // off-screen entirely.
+        const MAX_QUOTE_DEPTH = 16
         const quoteLines: Array<{ depth: number; text: string }> = []
 
         while (i < lines.length && QUOTE_RE.test(lines[i]!)) {
           const prefix = lines[i]!.match(QUOTE_RE)?.[0] ?? ''
+          const rawDepth = (prefix.match(/>/g) ?? []).length
+          const depth = Math.min(rawDepth, MAX_QUOTE_DEPTH)
 
-          quoteLines.push({ depth: (prefix.match(/>/g) ?? []).length, text: lines[i]!.slice(prefix.length) })
+          quoteLines.push({ depth, text: lines[i]!.slice(prefix.length) })
           i++
         }
 

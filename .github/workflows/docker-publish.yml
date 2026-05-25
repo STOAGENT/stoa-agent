@@ -222,6 +222,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-amd64, build-arm64]
     timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write  # Audit v9 HIGH-42: cosign keyless OIDC signing
+      packages: write
     outputs:
       pushed_release_tag: ${{ steps.mark_release_pushed.outputs.pushed }}
       release_tag: ${{ steps.tag.outputs.tag }}
@@ -349,6 +353,28 @@ jobs:
         env:
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           TAG: ${{ steps.tag.outputs.tag }}
+
+      # Audit v9 HIGH-42 fix: cosign-sign the published image. Without
+      # this, the Docker Hub side of the supply chain ran on a static
+      # long-lived PAT with zero post-build attestation — a token leak
+      # or maintainer-side compromise could swap a backdoored image
+      # and downstream users had no cryptographic way to detect it.
+      # `cosign sign --yes ...` writes an in-toto attestation alongside
+      # the manifest list using OIDC identity from this workflow run.
+      - name: Install cosign
+        if: github.event_name != 'push' || steps.main_check.outputs.push_main == 'true'
+        uses: sigstore/cosign-installer@d7d6e07104d192c14ad6f2b1d4f3c0d68a4b95e1  # v3.7.0
+
+      - name: Sign image with cosign (keyless / OIDC)
+        if: github.event_name != 'push' || steps.main_check.outputs.push_main == 'true'
+        env:
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          COSIGN_YES: "true"
+        run: |
+          digest=$(docker buildx imagetools inspect "${IMAGE_NAME}:${TAG}" \
+            --format '{{json .Manifest}}' | jq -r '.digest')
+          cosign sign --yes "${IMAGE_NAME}@${digest}"
 
       # Signal to move-latest that the release tag is live.
       - name: Mark release tag pushed

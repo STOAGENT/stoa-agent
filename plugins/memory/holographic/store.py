@@ -13,10 +13,22 @@ try:
 except ImportError:
     import holographic as hrr  # type: ignore[no-redef]
 
+# Audit v8 CRIT-33-01 fix: ``owner_principal`` column. Without it the
+# facts table is a global pool across every user a multi-user gateway
+# (Telegram/Discord/Slack) talks to — user A's "remember my AWS key"
+# becomes a recall hit for user B's next query.
+#
+# Schema is forward-compatible: new column defaults NULL, pre-existing
+# rows remain NULL ("legacy single-user data"). Reads filter to
+# `owner IS NULL OR owner = ?` so single-user installs see no behaviour
+# change. Multi-user callers MUST set the principal at write time
+# (gateway plumbs `user_id` through; see plugins/memory/holographic
+# README and ATTRIBUTION.md).
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS facts (
     fact_id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    content         TEXT NOT NULL UNIQUE,
+    content         TEXT NOT NULL,
+    owner_principal TEXT DEFAULT NULL,
     category        TEXT DEFAULT 'general',
     tags            TEXT DEFAULT '',
     trust_score     REAL DEFAULT 0.5,
@@ -24,8 +36,11 @@ CREATE TABLE IF NOT EXISTS facts (
     helpful_count   INTEGER DEFAULT 0,
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    hrr_vector      BLOB
+    hrr_vector      BLOB,
+    UNIQUE(content, owner_principal)
 );
+
+CREATE INDEX IF NOT EXISTS idx_facts_owner ON facts(owner_principal);
 
 CREATE TABLE IF NOT EXISTS entities (
     entity_id   INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,8 +127,17 @@ class MemoryStore:
         self.default_trust = _clamp_trust(default_trust)
         self.hrr_dim = hrr_dim
         self._hrr_available = hrr._HAS_NUMPY
-        self._conn: sqlite3.Connection = sqlite3.connect(
-            str(self.db_path),
+        # Route through agent.db_encryption so STOA_DB_ENCRYPTION=1
+        # upgrades the memory store to SQLCipher (audit v12 HIGH-70 #3:
+        # memory_store.db plaintext).  Default OFF — env unset gives back
+        # a stock sqlite3.connect with the same kwargs, plus
+        # PRAGMA secure_delete=ON.  The annotation stays as
+        # ``sqlite3.Connection`` since pysqlcipher3's connection is a
+        # subclass-compatible duck type that satisfies every API we use
+        # downstream (executescript, execute, commit, row_factory, ...).
+        from agent.db_encryption import open_connection
+        self._conn: sqlite3.Connection = open_connection(
+            self.db_path,
             check_same_thread=False,
             timeout=10.0,
         )
@@ -148,12 +172,19 @@ class MemoryStore:
         content: str,
         category: str = "general",
         tags: str = "",
+        owner_principal: str | None = None,
     ) -> int:
         """Insert a fact and return its fact_id.
 
-        Deduplicates by content (UNIQUE constraint). On duplicate, returns
-        the existing fact_id without modifying the row. Extracts entities from
-        the content and links them to the fact.
+        Deduplicates by ``(content, owner_principal)`` (UNIQUE constraint).
+        On duplicate, returns the existing fact_id without modifying the
+        row. Extracts entities from the content and links them to the fact.
+
+        Audit v8 CRIT-33-01: ``owner_principal`` scopes the fact to a
+        single gateway-side user (e.g. Telegram chat_id, Discord user
+        snowflake, Slack member ID). Pass ``None`` for legacy single-user
+        installs — those rows are recallable to anyone. Multi-user
+        deploys MUST pass a non-empty principal.
         """
         with self._lock:
             content = content.strip()
@@ -163,19 +194,21 @@ class MemoryStore:
             try:
                 cur = self._conn.execute(
                     """
-                    INSERT INTO facts (content, category, tags, trust_score)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO facts (content, owner_principal, category, tags, trust_score)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                    (content, category, tags, self.default_trust),
+                    (content, owner_principal, category, tags, self.default_trust),
                 )
                 self._conn.commit()
                 fact_id: int = cur.lastrowid  # type: ignore[assignment]
             except sqlite3.IntegrityError:
-                # Duplicate content — return existing id
+                # Duplicate (content, owner) — return existing id
                 row = self._conn.execute(
-                    "SELECT fact_id FROM facts WHERE content = ?", (content,)
+                    "SELECT fact_id FROM facts WHERE content = ? AND "
+                    "(owner_principal IS ? OR owner_principal = ?)",
+                    (content, owner_principal, owner_principal or ""),
                 ).fetchone()
-                return int(row["fact_id"])
+                return int(row["fact_id"]) if row else -1
 
             # Entity extraction and linking
             for name in self._extract_entities(content):
@@ -194,18 +227,24 @@ class MemoryStore:
         category: str | None = None,
         min_trust: float = 0.3,
         limit: int = 10,
+        owner_principal: str | None = None,
     ) -> list[dict]:
         """Full-text search over facts using FTS5.
 
         Returns a list of fact dicts ordered by FTS5 rank, then trust_score
         descending. Also increments retrieval_count for matched facts.
+
+        Audit v8 CRIT-33-01 fix: results are restricted to facts owned
+        by ``owner_principal`` OR to ownerless ("legacy") facts. Multi-user
+        gateway callers pass the active user's principal; single-user CLI
+        callers pass ``None`` to see only ownerless data.
         """
         with self._lock:
             query = query.strip()
             if not query:
                 return []
 
-            params: list = [query, min_trust]
+            params: list = [query, min_trust, owner_principal]
             category_clause = ""
             if category is not None:
                 category_clause = "AND f.category = ?"
@@ -220,6 +259,7 @@ class MemoryStore:
                 JOIN facts_fts fts ON fts.rowid = f.fact_id
                 WHERE facts_fts MATCH ?
                   AND f.trust_score >= ?
+                  AND (f.owner_principal IS NULL OR f.owner_principal = ?)
                   {category_clause}
                 ORDER BY fts.rank, f.trust_score DESC
                 LIMIT ?

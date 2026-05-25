@@ -366,10 +366,35 @@ class TestDiscordMentions:
         text = "<@12345>"
         assert redact_sensitive_text(text) == text
 
-    def test_slack_mention_not_matched(self):
-        """Slack mentions use letters, not pure digits."""
+    def test_slack_mention_now_matched(self):
+        """Slack mentions (letter-prefixed IDs) are redacted by the dedicated
+        Slack pattern added in audit M-9 (Lens 12). Previously these slipped
+        through the Discord-only pattern; the workspace ID was visible in
+        gateway logs across Slack-bridged agents.
+        """
         text = "<@U024BE7LH>"
-        assert redact_sensitive_text(text) == text
+        result = redact_sensitive_text(text)
+        assert "U024BE7LH" not in result
+        assert "<@***>" in result
+
+    def test_slack_channel_mention_redacted(self):
+        text = "see <#C01XYZABCDE|general> for context"
+        result = redact_sensitive_text(text)
+        assert "C01XYZABCDE" not in result
+        assert "<#***|general>" in result
+
+    def test_slack_subteam_redacted(self):
+        text = "<!subteam^S01ABCDEFGH|@core> heads-up"
+        result = redact_sensitive_text(text)
+        assert "S01ABCDEFGH" not in result
+        assert "<!subteam^***|@core>" in result
+
+    def test_discord_role_mention_redacted(self):
+        """<@&roleid> shape — audit M-9 follow-up."""
+        text = "ping role <@&987654321098765432>"
+        result = redact_sensitive_text(text)
+        assert "987654321098765432" not in result
+        assert "<@&***>" in result
 
     def test_preserves_surrounding_text(self):
         text = "User <@222589316709220353> said hello"

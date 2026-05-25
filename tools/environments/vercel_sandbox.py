@@ -42,6 +42,14 @@ if TYPE_CHECKING:
 
 DEFAULT_VERCEL_CWD = "/vercel/sandbox"
 _DEFAULT_CONTAINER_DISK_MB = 51200
+# Audit M-2 fix: cap per-file upload size to bound peak heap usage during
+# bulk uploads. Vercel's WriteFile API accepts arbitrary bytes; without a
+# cap a single rogue ~GB file in iter_sync_files() would OOM the gateway
+# (Path.read_bytes() loads the whole file in one allocation). 64 MiB
+# matches the typical artifact size for skill bundles while still being
+# small enough to keep concurrent uploads from blowing past the gateway's
+# heap budget on modest hosts.
+_VERCEL_MAX_FILE_BYTES = int(os.environ.get("STOA_VERCEL_MAX_FILE_BYTES", str(64 * 1024 * 1024)))
 
 
 def _ensure_vercel_sdk() -> None:
@@ -509,13 +517,36 @@ class VercelSandboxEnvironment(BaseEnvironment):
         if not files:
             return
 
-        payload: list[WriteFile] = [
-            {
+        # Audit M-2 fix: enforce per-file size cap before allocating bytes.
+        # Path.read_bytes() unconditionally loads the entire file into a
+        # single bytes object; without a cap, a stray multi-GB artifact in
+        # iter_sync_files() would OOM the gateway. We stat() first and
+        # skip oversized files with a warning rather than crashing the
+        # whole sync.
+        payload: list[WriteFile] = []
+        for host_path, remote_path in files:
+            try:
+                size = Path(host_path).stat().st_size
+            except OSError as exc:
+                logger.warning(
+                    "Vercel: cannot stat %s, skipping upload: %s",
+                    host_path, exc,
+                )
+                continue
+            if size > _VERCEL_MAX_FILE_BYTES:
+                logger.warning(
+                    "Vercel: refusing to upload %s (%d bytes > cap %d). "
+                    "Raise STOA_VERCEL_MAX_FILE_BYTES if intentional.",
+                    host_path, size, _VERCEL_MAX_FILE_BYTES,
+                )
+                continue
+            payload.append({
                 "path": remote_path,
                 "content": Path(host_path).read_bytes(),
-            }
-            for host_path, remote_path in files
-        ]
+            })
+
+        if not payload:
+            return
 
         sandbox = self._sandbox
         if sandbox is None:

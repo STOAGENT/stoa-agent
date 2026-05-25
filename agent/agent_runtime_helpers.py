@@ -1082,14 +1082,36 @@ def dump_api_request_debug(
 
             dump_payload["error"] = error_info
 
+        # Audit v5 HIGH L-02 fix: STOA_DUMP_REQUESTS used to write the
+        # full request body (including any inlined user content + system
+        # prompt) to disk + STDOUT without going through the redactor.
+        # CI logs and Sentry pipelines that captured stdout then hoovered
+        # up provider API keys and any credential the agent had just
+        # processed. We now route the payload through `redact_sensitive_text`
+        # before persistence + before stdout, with force=True so a
+        # `_REDACT_ENABLED=False` opt-out (which itself fires a loud
+        # warning at startup) doesn't silently re-leak via dumps.
+        try:
+            from agent.redact import redact_sensitive_text
+            dump_json = json.dumps(dump_payload, ensure_ascii=False, default=str)
+            redacted_json = redact_sensitive_text(dump_json, force=True)
+            redacted_payload = json.loads(redacted_json)
+        except Exception:
+            # Best-effort — if redact import or parse fails, fall back to
+            # dumping the unredacted payload (matches previous behaviour
+            # so we don't silently drop debug data). The fail path is
+            # logged so operators notice.
+            logger.warning("redact_sensitive_text unavailable for dump_api_request_debug")
+            redacted_payload = dump_payload
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         dump_file = agent.logs_dir / f"request_dump_{agent.session_id}_{timestamp}.json"
-        atomic_json_write(dump_file, dump_payload, default=str)
+        atomic_json_write(dump_file, redacted_payload, default=str)
 
         agent._vprint(f"{agent.log_prefix}🧾 Request debug dump written to: {dump_file}")
 
         if env_var_enabled("STOA_DUMP_REQUEST_STDOUT"):
-            print(json.dumps(dump_payload, ensure_ascii=False, indent=2, default=str))
+            print(json.dumps(redacted_payload, ensure_ascii=False, indent=2, default=str))
 
         return dump_file
     except Exception as dump_error:

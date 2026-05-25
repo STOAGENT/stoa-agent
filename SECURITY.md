@@ -31,6 +31,102 @@ through the private security channel.
 
 ## 2. Trust Model
 
+STOA Agent is a single-tenant personal agent **by default**.
+
+> **Audit v11 HIGH-63 disclosure (multi-tenant posture).** The codebase
+> ships memory-provider plugins (Holographic, Supermemory, openviking,
+> mem0, Honcho) and a gateway adapter set (Telegram, Discord, Slack,
+> Matrix, etc.) that some operators use in a multi-user mode where a
+> single STOA install talks to many gateway-side principals. In that
+> mode you MUST:
+>
+>   - Pass `gateway_user_id` through to memory providers so the
+>     `owner_principal` / `container_tag` separation in v8 CRIT-33
+>     fixes actually scopes facts per user.
+>   - Set `STOA_REDACT_PII=1` to scrub email / phone / IBAN / SSN /
+>     card from logs and debug dumps (v11 HIGH-57).
+>   - Document data-residency + sub-processor disclosure if you
+>     operate from inside the EU (GDPR Art. 28).
+>   - Treat `/api/v1/*` as Internet-facing: enforce
+>     `API_SERVER_KEY` and front it with a TLS-terminating proxy
+>     (audit v4 G-08, v9 HIGH-26).
+>
+> Single-user CLI / personal-laptop deploys can ignore this block
+> entirely. The default `auto_prune: True` (v11 CRIT-57-3) + the
+> single-user `session_id` plumbing covers the personal-use threat
+> model out of the box.
+
+### 2.0.0 Defensive-mode umbrella env
+
+The audit produced ~80 env-gated security knobs (post-fix). Setting
+the umbrella var ``STOA_DEFENSIVE_MODE=1`` does NOT auto-flip them —
+each one has its own behaviour and trade-off. But the list below is
+the recommended "lock everything down" preset for paranoid deploys:
+
+```
+STOA_REQUIRE_SIGNED_UPDATES=1     # git verify-commit before `stoa update`
+STOA_REQUIRE_PINNED_DEPS=1        # uv sync --frozen / pip --require-hashes
+STOA_REQUIRE_SKILL_INTEGRITY=1    # refuse unpinned skills at load
+STOA_NO_YOLO=1                    # never inherit YOLO into subagents
+STOA_REDACT_PII=1                 # add email/phone/IBAN/SSN to redact regex
+STOA_REDACT_IP=1                  # also scrub IPv4/IPv6 addresses (audit M-9)
+STOA_DEBUG_SHARE_DISABLED=1       # `stoa debug share` refuses to upload
+STOA_DOCKER_READONLY=1            # container rootfs read-only
+STOA_CRON_ALLOWED_BASE_URLS=...   # explicit allowlist for cron LLM endpoints
+STOA_DOCKER_SECCOMP=/path/to/profile.json   # custom syscall denylist
+STOA_MSGRAPH_KEEP_PAYLOAD=0       # drop raw payload from MSGraph exceptions
+```
+
+Setting all of these flips the per-feature trade-offs from
+"compatible-by-default" to "secure-by-default". Each is independently
+documented inline at the site of use.
+
+**Full env-var inventory** — every `STOA_*` knob (security and
+non-security) is enumerated in
+[`website/docs/reference/environment-variables.md`](website/docs/reference/environment-variables.md).
+Use that file as the single source of truth; this section only
+highlights the recommended paranoid preset.
+
+**Network egress observability** — the redaction layer scrubs known
+secret shapes (`sk-*`, `ASIA*`, Stripe `whsec_*`, Slack mention IDs,
+WhatsApp/Instagram CDN media URLs, etc.) from log records before they
+hit disk or any aggregator. `STOA_REDACT_IP=1` extends this to mask
+source IPv4 / IPv6 addresses (off by default — it costs debugging
+readability). Cloud metadata, Tailscale ULA (`fd7a:115c:a1e0::/48`),
+IPv6 link-local, and IPv6 multicast are blocked at the URL safety
+floor regardless of toggles (audit M-12 Lens 46).
+
+### 2.0 Asset matrix (v11 HIGH-63)
+
+| Asset | Boundary trust level | Loss impact | Lives in |
+|-------|---------------------|-------------|----------|
+| Provider OAuth tokens (`auth.json`) | OS file perms (0600) | Account takeover | `~/.stoa/auth.json` |
+| API keys (env / .env) | OS file perms (0600) | Spend hijack | `~/.stoa/.env`, `~/.stoa/auth.json` |
+| Wallet binding + SIWE nonce | OS perms + SIWE freshness gate | Council-mode replay | `~/.stoa/wallet.json` + `wallet_nonces.json` |
+| Skill content + manifest | content-hash gate (v7 CRIT-30-01) | Tampered skill code | `~/.stoa/skills/` + `~/.stoa/skills/.hub/skill_integrity.json` |
+| Memory rows (per-user) | `owner_principal` column | Cross-user leak | `~/.stoa/memory_store.db` (Holographic) |
+| Session messages | `sessions.user_id` cascade | Cross-user history leak | `~/.stoa/state.db` |
+| Audit log (tool-calls) | append-only, hash-chained | Forensic gap | `~/.stoa/audit/tool-calls.jsonl` |
+| Backup zip | refuses while gateway live | Live-overwrite corruption | user-chosen path |
+
+### 2.0.1 Scaffold-vs-production surface (v11 HIGH-63)
+
+The following features are scaffolded but not yet production-grade —
+do not rely on them as security boundaries:
+
+- **AuditAttestationV2 wallet keystore (M3)** — wallet key custody is
+  currently filesystem-only. Hardware-signer (Ledger, KMS) integration
+  ships in M5; until then a compromised laptop = compromised council
+  signing key.
+- **Skill marketplace signature scheme (v11 HIGH cluster)** — the
+  marketplace publishes via PR + content-hash + ERC-8004 reputation;
+  there is no ed25519 / cosign verification on bundles yet. Bundled
+  trust is enforced through the `TRUSTED_REPOS` allowlist + the
+  load-time integrity gate above.
+- **Email gateway DKIM signing (v11 HIGH-52)** — outbound mail is
+  unsigned; recipients can spoof your `From:`. Inbound auth is
+  IMAP+TLS-only.
+
 STOA Agent is a single-tenant personal agent. Its posture is
 layered, and the layers are not equally load-bearing. Reporters and
 operators should reason about them in the same terms.

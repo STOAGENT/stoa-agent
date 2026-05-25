@@ -434,9 +434,74 @@ class ProcessRegistry:
 
     @staticmethod
     def _terminate_host_pid(pid: int) -> None:
-        """Terminate a host-visible PID without requiring the original process handle."""
+        """Terminate a host-visible PID without requiring the original process handle.
+
+        Audit M-7 #5: validate the recovered PID before signalling it.
+        ``processes.json`` is a JSON checkpoint on disk; an attacker who can
+        write to it (or a buggy migration that swaps PIDs) can otherwise turn
+        ``kill_process`` into an arbitrary-SIGTERM gadget. We require:
+          * pid > 0 (cheap sanity gate; pid == 0 means "the calling
+            process group" on POSIX which would SIGTERM the gateway itself).
+          * the process must still exist (avoid PID-reuse races between the
+            checkpoint being written and us deciding to kill).
+          * on POSIX, the target must be owned by the same uid as the
+            current process (psutil.Process.uids()). We're not allowed to
+            kill someone else's process here even if the kernel would let
+            us via CAP_KILL; the checkpoint should never reference foreign
+            PIDs in the first place.
+          * the process must be recent enough that PID reuse is unlikely
+            (max-age guard: 7 days since session.started_at; older
+            entries get logged + skipped instead of signalled).
+        Callers that have a valid ProcessSession bypass this by passing
+        the session's own runtime handle (session.process / session._pty);
+        this helper is the recovered-from-checkpoint path only.
+        """
+        if not isinstance(pid, int) or pid <= 0:
+            logger.warning("Refused to SIGTERM invalid pid %r", pid)
+            return
+
+        # Existence check (cross-platform via gateway.status._pid_exists,
+        # which is what ProcessRegistry._is_host_pid_alive uses).
+        try:
+            from gateway.status import _pid_exists
+            if not _pid_exists(pid):
+                logger.warning(
+                    "Refused to SIGTERM pid %d: process no longer exists "
+                    "(possible PID-reuse race in processes.json).",
+                    pid,
+                )
+                return
+        except Exception as _exc:
+            logger.debug("_pid_exists probe failed for pid %d: %s", pid, _exc)
+
+        # POSIX-only same-uid check. On Windows, ACLs do the equivalent
+        # gating at os.kill time so we skip the explicit uid compare.
+        if not _IS_WINDOWS:
+            try:
+                import psutil
+                _proc_info = psutil.Process(pid)
+                _proc_uids = _proc_info.uids()
+                if _proc_uids and _proc_uids.real != os.getuid():
+                    logger.warning(
+                        "Refused to SIGTERM pid %d: owned by uid %s, "
+                        "current uid %s — checkpoint may reference a "
+                        "foreign process.",
+                        pid, _proc_uids.real, os.getuid(),
+                    )
+                    return
+            except psutil.NoSuchProcess:
+                return
+            except Exception as _exc:
+                # If psutil refuses to introspect (permission, ZombieProcess,
+                # etc.) fall through to the kill attempt — the OS-level
+                # permission check is the ultimate gate on POSIX.
+                logger.debug("psutil owner-probe skipped for pid %d: %s", pid, _exc)
+
         if _IS_WINDOWS:
-            os.kill(pid, signal.SIGTERM)
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except (OSError, ProcessLookupError, PermissionError) as _exc:
+                logger.debug("SIGTERM to pid %d failed (Windows): %s", pid, _exc)
             return
 
         import psutil
@@ -1347,9 +1412,34 @@ class ProcessRegistry:
             return 0
 
         recovered = 0
+        # Audit M-7 #5: reject checkpoint entries old enough that PID
+        # reuse is probable. 7 days is well past any legitimate "gateway
+        # was down for a while" recovery window; older entries are almost
+        # certainly stale, and signalling a long-dead PID can hit an
+        # unrelated process the kernel reassigned the number to.
+        _MAX_CHECKPOINT_AGE_S = 7 * 24 * 3600
+        now_ts = time.time()
         for entry in entries:
             pid = entry.get("pid")
-            if not pid:
+            if not isinstance(pid, int) or pid <= 0:
+                logger.warning(
+                    "Skipping checkpoint entry with invalid pid %r (command=%r)",
+                    pid, entry.get("command", "")[:60],
+                )
+                continue
+
+            started_at = entry.get("started_at", 0) or 0
+            try:
+                age = max(0, now_ts - float(started_at))
+            except (TypeError, ValueError):
+                age = float("inf")
+            if age > _MAX_CHECKPOINT_AGE_S:
+                logger.warning(
+                    "Skipping checkpoint entry older than %dd "
+                    "(pid=%d, command=%r, age=%.0fs) — PID-reuse risk.",
+                    _MAX_CHECKPOINT_AGE_S // 86400,
+                    pid, entry.get("command", "")[:60], age,
+                )
                 continue
 
             pid_scope = entry.get("pid_scope", "host")
@@ -1364,6 +1454,27 @@ class ProcessRegistry:
                     pid_scope,
                 )
                 continue
+
+            # Same-uid check on POSIX: a foreign-uid entry means either
+            # the checkpoint moved between users (uid changed since
+            # write) or someone hand-edited processes.json. Either way,
+            # don't claim ownership of it.
+            if not _IS_WINDOWS:
+                try:
+                    import psutil
+                    _ownerproc = psutil.Process(pid)
+                    _ownerids = _ownerproc.uids()
+                    if _ownerids and _ownerids.real != os.getuid():
+                        logger.warning(
+                            "Skipping checkpoint entry pid=%d: owned by uid %s, "
+                            "current uid %s — refusing to register foreign process.",
+                            pid, _ownerids.real, os.getuid(),
+                        )
+                        continue
+                except Exception:
+                    # psutil unavailable / process gone / permission denied —
+                    # fall through; _is_host_pid_alive will reject if needed.
+                    pass
 
             # Check if PID is still alive
             alive = self._is_host_pid_alive(pid)

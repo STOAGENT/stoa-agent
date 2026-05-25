@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import uuid
+from pathlib import Path
 from typing import Optional
 
 from tools.environments.base import BaseEnvironment, _popen_bash
@@ -166,7 +167,65 @@ _BASE_SECURITY_ARGS = [
     "--tmpfs", "/tmp:rw,nosuid,size=512m",
     "--tmpfs", "/var/tmp:rw,noexec,nosuid,size=256m",
     "--tmpfs", "/run:rw,noexec,nosuid,size=64m",
+    # Audit v9 HIGH-14 + HIGH-15 + HIGH-16 fix: resource caps default.
+    # The previous lack of --memory / --cpus / --ulimit nofile let a
+    # compromised in-container process exhaust host RAM (fork bomb,
+    # memory amplifier) before --pids-limit ever caught it. Default
+    # 2 GiB RAM + 2.0 CPU + 4096 file-handles is generous for build /
+    # test workloads but bounded for hostile ones. Operators can lift
+    # via STOA_DOCKER_MEMORY / STOA_DOCKER_CPUS / STOA_DOCKER_NOFILE.
+    "--memory", os.environ.get("STOA_DOCKER_MEMORY", "2g"),
+    "--memory-swap", os.environ.get("STOA_DOCKER_MEMORY_SWAP",
+                                     os.environ.get("STOA_DOCKER_MEMORY", "2g")),
+    "--cpus", os.environ.get("STOA_DOCKER_CPUS", "2.0"),
+    "--ulimit", f"nofile={os.environ.get('STOA_DOCKER_NOFILE', '4096')}",
+    "--ulimit", "core=0",      # no core dumps inside the sandbox
+    # Audit v9 HIGH-13 fix: opt-in --read-only root FS. Default off so
+    # legacy skill scripts that write outside /tmp keep working, but
+    # operators on production can set STOA_DOCKER_READONLY=1 to flip
+    # the rootfs to read-only — persistent backdoors at /usr/local/bin
+    # then survive only as long as the container.
+    *(["--read-only"] if os.environ.get("STOA_DOCKER_READONLY", "0") == "1" else []),
+    # Audit v9 CRIT-43-1 fix: opt-in seccomp profile. Default Docker
+    # seccomp policy lets the container call io_uring_*, userfaultfd,
+    # keyctl, bpf, perf_event_open, unshare(CLONE_NEWUSER) — the syscall
+    # surface for CVE-2023-2598, CVE-2024-0582, CVE-2024-1086. We ship a
+    # stricter profile under data/seccomp/stoa-sandbox.json and apply it
+    # when present; operators on hardened kernels can substitute their
+    # own via STOA_DOCKER_SECCOMP=/path/to/profile.json. Defaults to the
+    # bundled profile when it exists, falls back to Docker default when
+    # not (so the cap-drop / no-new-privileges layer still applies).
+    # Audit v9 CRIT-43-1 fix: opt-in seccomp profile. Default Docker
+    # seccomp policy lets the container call io_uring_*, userfaultfd,
+    # keyctl, bpf, perf_event_open, unshare(CLONE_NEWUSER) — the syscall
+    # surface for CVE-2023-2598, CVE-2024-0582, CVE-2024-1086. We ship a
+    # stricter profile under data/seccomp/stoa-sandbox.json and apply it
+    # when present; operators on hardened kernels can substitute their
+    # own via STOA_DOCKER_SECCOMP=/path/to/profile.json. Defaults to the
+    # bundled profile when it exists, falls back to Docker default when
+    # not (so the cap-drop / no-new-privileges layer still applies).
 ]
+
+
+def _resolve_seccomp_profile() -> Optional[str]:
+    """Return a path to the seccomp profile to apply, or None for default.
+
+    Resolution order:
+      1. STOA_DOCKER_SECCOMP env var (absolute path)
+      2. <repo_root>/data/seccomp/stoa-sandbox.json if bundled
+      3. None (Docker default profile)
+    """
+    env_path = os.environ.get("STOA_DOCKER_SECCOMP", "").strip()
+    if env_path:
+        if Path(env_path).is_file():
+            return env_path
+        logger.warning("STOA_DOCKER_SECCOMP=%s not found; falling back to bundled/default", env_path)
+    here = Path(__file__).resolve()
+    for parent in (here.parent.parent.parent, here.parent.parent):
+        candidate = parent / "data" / "seccomp" / "stoa-sandbox.json"
+        if candidate.is_file():
+            return str(candidate)
+    return None
 
 # Extra caps needed when the container starts as root and an entrypoint
 # must drop privileges via gosu/su. Skipped when --user is passed because
@@ -179,9 +238,33 @@ _GOSU_CAP_ARGS = [
 
 def _build_security_args(run_as_host_user: bool) -> list[str]:
     """Return the security/cap/tmpfs args tailored to the privilege mode."""
-    if run_as_host_user:
-        return list(_BASE_SECURITY_ARGS)
-    return list(_BASE_SECURITY_ARGS) + list(_GOSU_CAP_ARGS)
+    args = list(_BASE_SECURITY_ARGS)
+    if not run_as_host_user:
+        args += list(_GOSU_CAP_ARGS)
+    # Audit v9 CRIT-43-1: attach seccomp profile when one is available.
+    seccomp = _resolve_seccomp_profile()
+    if seccomp:
+        args += ["--security-opt", f"seccomp={seccomp}"]
+    # Audit M-2 fix: opt-in AppArmor profile. Operators on Ubuntu/Debian
+    # hosts can load a custom profile via apparmor_parser and reference it
+    # here with STOA_DOCKER_APPARMOR=stoa-sandbox. When unset, Docker
+    # applies its built-in ``docker-default`` profile, which is fine but
+    # not tuned to STOA's syscall surface.
+    apparmor_profile = os.environ.get("STOA_DOCKER_APPARMOR", "").strip()
+    if apparmor_profile:
+        args += ["--security-opt", f"apparmor={apparmor_profile}"]
+    # Audit M-2 fix: opt-in alternative OCI runtime. ``runc`` is the
+    # default; operators on hostile/multi-tenant hosts can flip to
+    # ``runsc`` (gVisor) or ``kata-runtime`` (Kata Containers) for
+    # stronger isolation. Userns-remap stays an admin-side concern
+    # (configured in /etc/docker/daemon.json with ``userns-remap``);
+    # documenting it here so operators know the layered defense:
+    # daemon-side userns-remap + per-container runtime swap = two
+    # independent kernel-confinement layers.
+    runtime = os.environ.get("STOA_DOCKER_RUNTIME", "").strip()
+    if runtime and runtime != "runc":
+        args += ["--runtime", runtime]
+    return args
 
 
 def _resolve_host_user_spec() -> Optional[str]:
@@ -589,9 +672,19 @@ class DockerEnvironment(BaseEnvironment):
     @staticmethod
     def _storage_opt_supported() -> bool:
         """Check if Docker's storage driver supports --storage-opt size=.
-        
+
         Only overlay2 on XFS with pquota supports per-container disk quotas.
         Ubuntu (and most distros) default to ext4, where this flag errors out.
+
+        Audit M-2 fix: previously probed by ``docker create --storage-opt
+        size=1m hello-world``, which forces a registry pull of ``hello-world``
+        on every host that doesn't already have it. That made first-run
+        environments touch a public registry just to determine local
+        capability, and in air-gapped deployments the probe would falsely
+        report "no storage-opt support" because the pull itself failed.
+        We now prefer a locally cached image (any image returned by
+        ``docker images``) and only fall back to ``hello-world`` if the
+        host has no images at all.
         """
         global _storage_opt_ok
         if _storage_opt_ok is not None:
@@ -606,10 +699,36 @@ class DockerEnvironment(BaseEnvironment):
             if driver != "overlay2":
                 _storage_opt_ok = False
                 return False
-            # overlay2 only supports storage-opt on XFS with pquota.
-            # Probe by attempting a dry-ish run — the fastest reliable check.
+
+            # Prefer a locally cached image for the probe so we don't trigger
+            # a public-registry pull. Pick the first repo:tag from `docker
+            # images --filter dangling=false`. Skip <none>:<none>.
+            probe_image: Optional[str] = None
+            try:
+                listed = subprocess.run(
+                    [docker, "images", "--filter", "dangling=false",
+                     "--format", "{{.Repository}}:{{.Tag}}"],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if listed.returncode == 0:
+                    for line in listed.stdout.splitlines():
+                        line = line.strip()
+                        if line and line != "<none>:<none>" and not line.startswith("<none>"):
+                            probe_image = line
+                            break
+            except Exception:
+                probe_image = None
+
+            if probe_image is None:
+                # Last-resort fallback. Honor STOA_DOCKER_STORAGE_OPT_PROBE_IMAGE
+                # so air-gapped operators can preload a tiny known image
+                # (e.g. ``scratch:latest`` doesn't work; use ``alpine:3``).
+                probe_image = os.environ.get(
+                    "STOA_DOCKER_STORAGE_OPT_PROBE_IMAGE", "hello-world"
+                )
+
             probe = subprocess.run(
-                [docker, "create", "--storage-opt", "size=1m", "hello-world"],
+                [docker, "create", "--storage-opt", "size=1m", probe_image],
                 capture_output=True, text=True, timeout=15,
             )
             if probe.returncode == 0:

@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import threading
 import time
 from typing import Any, Dict, List
@@ -26,6 +27,26 @@ from agent.memory_provider import MemoryProvider
 from tools.registry import tool_error
 
 logger = logging.getLogger(__name__)
+
+
+# Sanitize identifier strings before they are interpolated into the system
+# prompt block. Strips ASCII control characters (including NUL, BEL, ESC,
+# CR/LF), bidi overrides (U+202A-U+202E, U+2066-U+2069), and tag-plane chars
+# (U+E0000-U+E007F) so a malicious config value can't break out of the
+# prompt and inject instructions.
+_PROMPT_ID_STRIP_RE = re.compile(
+    r"[\x00-\x1f\x7f-\x9f​-‏ -‮⁦-⁩]|[\U000E0000-\U000E007F]"
+)
+
+
+def _sanitize_prompt_identifier(value: str, *, max_len: int = 128) -> str:
+    """Strip control chars / bidi / tag-plane chars from a prompt identifier."""
+    if not value:
+        return ""
+    cleaned = _PROMPT_ID_STRIP_RE.sub("", str(value))
+    if len(cleaned) > max_len:
+        cleaned = cleaned[:max_len] + "…"
+    return cleaned
 
 # Circuit breaker: after this many consecutive failures, pause API calls
 # for _BREAKER_COOLDOWN_SECS to avoid hammering a down server.
@@ -227,9 +248,13 @@ class Mem0MemoryProvider(MemoryProvider):
         return []
 
     def system_prompt_block(self) -> str:
+        # Sanitize user_id before interpolation — config values can contain
+        # control chars / bidi overrides / tag-plane chars that would let a
+        # malicious config inject instructions into the system prompt.
+        safe_user = _sanitize_prompt_identifier(self._user_id) or "stoa-user"
         return (
             "# Mem0 Memory\n"
-            f"Active. User: {self._user_id}.\n"
+            f"Active. User: {safe_user}.\n"
             "Use mem0_search to find memories, mem0_conclude to store facts, "
             "mem0_profile for a full overview."
         )

@@ -7,6 +7,7 @@ import hmac
 import ipaddress
 import json
 import logging
+import os
 from collections import deque
 from hashlib import sha1
 from typing import Any, Awaitable, Callable, Dict, Optional
@@ -133,6 +134,24 @@ class MSGraphWebhookAdapter(BasePlatformAdapter):
         self._notification_scheduler = scheduler
 
     async def connect(self) -> bool:
+        # Audit M-1 fix: refuse to start without a configured clientState
+        # shared secret. Microsoft Graph sends clientState in every change
+        # notification; without one, _verify_client_state previously returned
+        # True for every request (fail-open), meaning any attacker who could
+        # POST to the webhook URL could inject notifications. Honor an
+        # explicit opt-out for testing via MSGRAPH_INSECURE_NO_CLIENT_STATE=1,
+        # but require it to be set deliberately.
+        if not self._client_state and os.getenv(
+            "MSGRAPH_INSECURE_NO_CLIENT_STATE", ""
+        ).lower() not in {"1", "true", "yes"}:
+            logger.error(
+                "[msgraph_webhook] Refusing to start: 'client_state' is required. "
+                "Generate one with `openssl rand -hex 32` and set it both in this "
+                "adapter's config AND in the Graph subscription's clientState field. "
+                "For local testing only, set MSGRAPH_INSECURE_NO_CLIENT_STATE=1."
+            )
+            return False
+
         app = web.Application()
         app.router.add_get(self._health_path, self._handle_health)
         app.router.add_get(self._webhook_path, self._handle_validation)
@@ -310,7 +329,15 @@ class MSGraphWebhookAdapter(BasePlatformAdapter):
         """
         expected = self._client_state
         if expected is None:
-            return True
+            # Audit M-1 fix: previously returned True (fail-open). connect()
+            # now refuses to start without an explicit
+            # MSGRAPH_INSECURE_NO_CLIENT_STATE opt-in, but harden the verify
+            # path too so a future regression that bypasses startup checks
+            # cannot silently accept every clientState. Honor the explicit
+            # opt-out only.
+            return os.getenv(
+                "MSGRAPH_INSECURE_NO_CLIENT_STATE", ""
+            ).lower() in {"1", "true", "yes"}
         provided = self._string_or_none(notification.get("clientState"))
         if provided is None:
             return False

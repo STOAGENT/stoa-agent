@@ -66,6 +66,65 @@ _SENSITIVE_BODY_KEYS = frozenset({
 # downgrade — see `_log_redaction_status()` in gateway/run.py and cli.py.
 _REDACT_ENABLED = os.getenv("STOA_REDACT_SECRETS", "true").lower() in {"1", "true", "yes", "on"}
 
+
+# Audit v10 HIGH-55 + v9 HIGH-46 fix: ``_REDACT_ENABLED`` was a module-
+# load-time snapshot. An operator who started a session with redact:false
+# (e.g. while debugging) and then flipped redact:true via config edit
+# would NOT pick up the change without a process restart — the previous
+# defense ("snapshot defeats mid-session env mutation by LLM-generated
+# command") only addressed the dangerous direction. To make
+# "operator wants MORE redaction" instant, we expose a programmatic
+# re-enable helper that the config-reload path calls. The snapshot still
+# defeats `_REDACT_ENABLED=false` injection via os.environ poisoning
+# because the value comes from a function-scoped read, not the env.
+def force_enable_redaction() -> None:
+    """Flip ``_REDACT_ENABLED`` back ON regardless of current state.
+
+    Called by gateway/CLI when the operator changes
+    ``security.redact_secrets`` from false → true mid-session.
+    Idempotent. Never disables — to turn off, operators must restart
+    (deliberately friction-laden so a hostile prompt can't toggle it).
+    """
+    global _REDACT_ENABLED
+    if not _REDACT_ENABLED:
+        logger.warning(
+            "redact: forced ON via force_enable_redaction() (was OFF). "
+            "All sensitive-pattern matches will scrub from this point on."
+        )
+    _REDACT_ENABLED = True
+
+# Audit v11 HIGH-57-2 fix: PII regexes for GDPR-aware redaction.
+# Phone numbers, email addresses, IBAN, US SSN, credit-card BIN+last4.
+# These fire on .info-level log records that aren't sensitive enough
+# for the credential regexes but still trip a privacy review when
+# they leak into an export / debug dump / Sentry capture.
+_PII_PATTERNS = [
+    # Order matters: most-specific patterns first, otherwise the
+    # phone-number "any 10+ digit run" pattern eats IBAN / card prefix
+    # bytes. Email is unambiguous so it can stay at the top.
+    (r"\b([A-Za-z0-9._%+-]{1,64})@([A-Za-z0-9.-]+\.[A-Za-z]{2,24})\b",
+     lambda m: f"<email:{m.group(2)}>"),
+    # US SSN — fixed 3-2-4 digit shape, very low false-positive rate.
+    (r"\b\d{3}-\d{2}-\d{4}\b",
+     lambda m: "<ssn>"),
+    # IBAN: country + 2 check digits + 11-30 alphanumeric. Must come
+    # BEFORE the phone pattern so a digit-heavy IBAN tail doesn't get
+    # caught as a phone first.
+    (r"\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b",
+     lambda m: "<iban>"),
+    # Credit card (Luhn-loose). 13–19 contiguous digits with optional
+    # separators. Also has to come before phone — a 16-digit card with
+    # no separators otherwise gets eaten by the phone pattern.
+    (r"\b(?:\d[ -]?){13,19}\b",
+     lambda m: "<card>"),
+    # E.164-ish phone (10+ digits with optional +/spaces/dashes). Catches
+    # +905551234567, (415) 555-0100, etc. Last because everything above
+    # is more specific.
+    (r"\+?\d[\d\s().-]{8,16}\d",
+     lambda m: "<phone>"),
+]
+
+
 # Known API key prefixes -- match the prefix + contiguous token chars
 _PREFIX_PATTERNS = [
     r"sk-[A-Za-z0-9_-]{10,}",           # OpenAI / OpenRouter / Anthropic (sk-ant-*)
@@ -83,11 +142,17 @@ _PREFIX_PATTERNS = [
     r"bb_live_[A-Za-z0-9_-]{10,}",      # BrowserBase
     r"gAAAA[A-Za-z0-9_=-]{20,}",        # Codex encrypted tokens
     r"AKIA[A-Z0-9]{16}",                # AWS Access Key ID
+    r"ASIA[A-Z0-9]{16}",                # AWS STS temporary access key ID (M-12 audit follow-up)
     r"sk_live_[A-Za-z0-9]{10,}",        # Stripe secret key (live)
     r"sk_test_[A-Za-z0-9]{10,}",        # Stripe secret key (test)
     r"rk_live_[A-Za-z0-9]{10,}",        # Stripe restricted key
-    r"SG\.[A-Za-z0-9_-]{10,}",          # SendGrid API key
-    r"hf_[A-Za-z0-9]{10,}",             # HuggingFace token
+    r"rk_test_[A-Za-z0-9]{10,}",        # Stripe restricted key (test) — M-9 prefix-coverage gap
+    r"pk_live_[A-Za-z0-9]{10,}",        # Stripe publishable live — usually safe but treated as secret-adjacent
+    r"whsec_[A-Za-z0-9]{10,}",          # Stripe / Svix / generic webhook signing secret (M-9)
+    r"SG\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}",  # SendGrid API key (M-9 — two-segment shape; old single-seg also caught by next line for compat)
+    r"SG\.[A-Za-z0-9_-]{20,}",          # SendGrid API key (legacy single-segment shape)
+    r"hf_[A-Za-z0-9]{10,}",             # HuggingFace token (read/write)
+    r"hf_oauth_[A-Za-z0-9_-]{10,}",     # HuggingFace OAuth token (M-9 — separate prefix variant)
     r"r8_[A-Za-z0-9]{10,}",             # Replicate API token
     r"npm_[A-Za-z0-9]{10,}",            # npm access token
     r"pypi-[A-Za-z0-9_-]{10,}",         # PyPI API token
@@ -152,7 +217,40 @@ _JWT_RE = re.compile(
 
 # Discord user/role mentions: <@123456789012345678> or <@!123456789012345678>
 # Snowflake IDs are 17-20 digit integers that resolve to specific Discord accounts.
-_DISCORD_MENTION_RE = re.compile(r"<@!?(\d{17,20})>")
+# Audit M-9 (Lens 12): also masks <@&roleid> role mentions and the leading `!`/`&`
+# token shape so the result reads `<@***>` / `<@!***>` / `<@&***>` consistently.
+_DISCORD_MENTION_RE = re.compile(r"<@([!&]?)(\d{17,20})>")
+
+# Slack user/channel/group mentions: <@U01ABCDEF>, <#C01ABCDEF|channel>,
+# <!subteam^S01ABCDEF>. Slack IDs are uppercase-letter + alphanumeric, length
+# 9-13. Bounded quantifier per audit M-9 (Lens 21 ReDoS narrowing).
+_SLACK_MENTION_RE = re.compile(
+    r"<(@|#|!subteam\^)([UWCGS][A-Z0-9]{8,12})(\|[^>]{0,80})?>"
+)
+
+# WhatsApp media URLs — `https://mmg.whatsapp.net/...` and
+# `https://media-*.cdninstagram.com/...` (sibling Meta CDN used for WA media).
+# These URLs carry a session-bound token that's effectively a credential for
+# the duration of the media's lifetime; redact the entire query string when
+# we see one. Bounded so a pathological 10 MB log doesn't trigger ReDoS.
+_WHATSAPP_MEDIA_RE = re.compile(
+    r"https://(?:mmg\.whatsapp\.net|media-[a-z0-9-]{1,40}\.cdninstagram\.com)/[^?\s]{0,1000}\?[^\s]{0,2000}"
+)
+
+# IPv4 + IPv6 address patterns (opt-in via STOA_REDACT_IP=1). Bounded
+# quantifiers (each octet capped at 3 digits; IPv6 group capped at 4 hex).
+# Audit M-9 Lens 12 — operators in regulated industries (healthcare,
+# financial) need to scrub source IPs from audit dumps even though our
+# default posture keeps them for debugging.
+_IPV4_RE = re.compile(
+    r"\b(?:(?:\d{1,3}\.){3}\d{1,3})\b"
+)
+_IPV6_RE = re.compile(
+    # Conservative match — full 8-group form OR `::`-compressed; no
+    # unbounded character classes. The pre-check (`":"` in text) gates
+    # cheaply.
+    r"\b(?:[0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}\b|\b::1\b|\b::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}\b"
+)
 
 # E.164 phone numbers: +<country><number>, 7-15 digits
 # Negative lookahead prevents matching hex strings or identifiers
@@ -401,9 +499,27 @@ def redact_sensitive_text(text: str, *, force: bool = False, code_file: bool = F
     if "&" in text and "=" in text:
         text = _redact_form_body(text)
 
-    # Discord user/role mentions (<@snowflake_id>)
+    # Discord user/role mentions (<@snowflake_id>, <@!snowflake_id>, <@&roleid>)
     if "<@" in text:
-        text = _DISCORD_MENTION_RE.sub(lambda m: f"<@{'!' if '!' in m.group(0) else ''}***>", text)
+        text = _DISCORD_MENTION_RE.sub(
+            lambda m: f"<@{m.group(1)}***>", text
+        )
+
+    # Slack user/channel/group mentions
+    if "<@" in text or "<#" in text or "<!subteam" in text:
+        def _redact_slack(m: re.Match) -> str:
+            prefix = m.group(1)
+            label = m.group(3) or ""
+            # Preserve human-readable label (e.g. `|channel`) but mask the ID.
+            return f"<{prefix}***{label}>"
+        text = _SLACK_MENTION_RE.sub(_redact_slack, text)
+
+    # WhatsApp / Meta-CDN media URLs — strip query string entirely
+    if "whatsapp.net" in text or "cdninstagram.com" in text:
+        text = _WHATSAPP_MEDIA_RE.sub(
+            lambda m: m.group(0).split("?", 1)[0] + "?***",
+            text,
+        )
 
     # E.164 phone numbers (Signal, WhatsApp)
     if "+" in text:
@@ -413,6 +529,37 @@ def redact_sensitive_text(text: str, *, force: bool = False, code_file: bool = F
                 return phone[:2] + "****" + phone[-2:]
             return phone[:4] + "****" + phone[-4:]
         text = _SIGNAL_PHONE_RE.sub(_redact_phone, text)
+
+    # Audit v11 HIGH-57 fix: PII patterns. Gated behind STOA_REDACT_PII=1
+    # so opt-in users (EU operators, regulated industries) flip on
+    # without breaking the existing "credentials only" baseline that
+    # many users rely on for log readability. Default off.
+    if os.getenv("STOA_REDACT_PII", "0") == "1":
+        for pat, repl in _PII_PATTERNS:
+            try:
+                text = re.sub(pat, repl, text)
+            except Exception:
+                continue
+
+    # Audit M-9 (Lens 12) fix: source-IP redaction. Opt-in via
+    # STOA_REDACT_IP=1. Default OFF because many debug flows
+    # (gateway egress trace, web-tool URL probes) lose readability
+    # when IPs are masked. Separate from STOA_REDACT_PII because
+    # IPs are not GDPR special-category data in every jurisdiction.
+    if os.getenv("STOA_REDACT_IP", "0") == "1":
+        # IPv4 — pre-check with `.` is cheap and avoids the regex on
+        # text that obviously has no dotted-quad shape.
+        if "." in text:
+            try:
+                text = _IPV4_RE.sub("<ip>", text)
+            except Exception:
+                pass
+        # IPv6 — pre-check `:` plus at least one hex digit nearby
+        if ":" in text:
+            try:
+                text = _IPV6_RE.sub("<ip>", text)
+            except Exception:
+                pass
 
     return text
 

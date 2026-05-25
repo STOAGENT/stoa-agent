@@ -110,6 +110,29 @@ class SmsAdapter(BasePlatformAdapter):
             self._set_fatal_error("sms_missing_webhook_url", msg, retryable=False)
             return False
 
+        # Audit M-1 fix: refuse SMS_INSECURE_NO_SIGNATURE on non-loopback binds.
+        # The escape hatch is for local dev only — running it on 0.0.0.0 or a
+        # routable interface lets any client that can reach the port inject
+        # arbitrary inbound SMS, which then become agent inputs (RCE-equivalent
+        # via skill invocation). Match the same loopback-only rule the generic
+        # webhook adapter applies to INSECURE_NO_AUTH.
+        if insecure_no_sig:
+            normalized_host = (self._webhook_host or "").strip().lower()
+            _loopback_hosts = {"127.0.0.1", "localhost", "::1", "ip6-localhost", "ip6-loopback"}
+            if normalized_host not in _loopback_hosts:
+                msg = (
+                    f"[sms] Refusing to start: SMS_INSECURE_NO_SIGNATURE=true is only "
+                    f"permitted when SMS_WEBHOOK_HOST is a loopback address. "
+                    f"Current host: '{self._webhook_host}'. Either bind to 127.0.0.1 "
+                    f"for local testing, or configure SMS_WEBHOOK_URL and unset "
+                    f"SMS_INSECURE_NO_SIGNATURE for production."
+                )
+                logger.error(msg)
+                self._set_fatal_error(
+                    "sms_insecure_non_loopback", msg, retryable=False
+                )
+                return False
+
         if insecure_no_sig and not self._webhook_url:
             logger.warning(
                 "[sms] SMS_INSECURE_NO_SIGNATURE=true — Twilio signature validation "

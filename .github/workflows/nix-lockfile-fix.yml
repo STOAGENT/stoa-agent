@@ -175,6 +175,29 @@ jobs:
               repo: context.repo.repo,
               pull_number: Number(prNumber),
             });
+
+            // Audit v5 CRIT Q-01 fix: refuse to checkout fork PRs.
+            // This job grants CACHIX_AUTH_TOKEN write access to the
+            // binary cache. A maintainer clicking "Apply lockfile fix"
+            // on a fork PR would have run arbitrary Nix derivations
+            // from that fork — and any post-build payload could push
+            // a poisoned closure into the shared cache, hitting every
+            // downstream `nix develop` user.
+            //
+            // Require the PR head to live in this same repository.
+            const headRepoFull = `${pr.head.repo.owner.login}/${pr.head.repo.name}`;
+            const baseRepoFull = `${context.repo.owner}/${context.repo.repo}`;
+            if (headRepoFull !== baseRepoFull) {
+              core.setFailed(
+                `Refusing to run nix lockfile fix on fork PR ` +
+                `${headRepoFull} (base: ${baseRepoFull}). Cachix write ` +
+                `token must never be exposed to untrusted code paths. ` +
+                `Maintainers can re-create the PR from a branch in the ` +
+                `base repo if a lockfile refresh is needed.`
+              );
+              return;
+            }
+
             core.setOutput('ref', pr.head.ref);
             core.setOutput('repo', pr.head.repo.name);
             core.setOutput('owner', pr.head.repo.owner.login);

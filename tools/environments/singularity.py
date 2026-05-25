@@ -104,8 +104,49 @@ def _get_apptainer_cache_dir() -> Path:
 _sif_build_lock = threading.Lock()
 
 
+def _verify_sif_signature(sif_path: Path, executable: str) -> bool:
+    """Run ``apptainer/singularity verify`` against a SIF file.
+
+    Audit M-2 fix: when ``STOA_SINGULARITY_VERIFY_SIF=1`` (default off for
+    backward compat with unsigned local builds), require the SIF image to
+    carry a valid signature before we exec into it. The verify command
+    exits 0 only when at least one signature is present AND every present
+    signature checks out against the keyring; any failure mode (no
+    signature, unknown key, tampered partition) is fail-closed.
+    """
+    try:
+        result = subprocess.run(
+            [executable, "verify", str(sif_path)],
+            capture_output=True, text=True, timeout=30,
+        )
+        if result.returncode == 0:
+            return True
+        logger.error(
+            "[singularity] SIF signature verification failed for %s: %s",
+            sif_path, (result.stderr or result.stdout).strip()[:500],
+        )
+        return False
+    except subprocess.TimeoutExpired:
+        logger.error("[singularity] SIF verify timed out for %s", sif_path)
+        return False
+    except Exception as exc:
+        logger.error("[singularity] SIF verify error for %s: %s", sif_path, exc)
+        return False
+
+
+def _verify_required() -> bool:
+    return os.environ.get("STOA_SINGULARITY_VERIFY_SIF", "").lower() in {"1", "true", "yes"}
+
+
 def _get_or_build_sif(image: str, executable: str = "apptainer") -> str:
     if image.endswith('.sif') and Path(image).exists():
+        # Audit M-2 fix: enforce signature verification on caller-supplied
+        # SIF paths too when opt-in is enabled.
+        if _verify_required() and not _verify_sif_signature(Path(image), executable):
+            raise RuntimeError(
+                f"SIF signature verification failed for {image} and "
+                f"STOA_SINGULARITY_VERIFY_SIF is enabled. Refusing to run."
+            )
         return image
     if not image.startswith('docker://'):
         return image
@@ -115,6 +156,11 @@ def _get_or_build_sif(image: str, executable: str = "apptainer") -> str:
     sif_path = cache_dir / f"{image_name}.sif"
 
     if sif_path.exists():
+        if _verify_required() and not _verify_sif_signature(sif_path, executable):
+            raise RuntimeError(
+                f"Cached SIF signature verification failed for {sif_path} and "
+                f"STOA_SINGULARITY_VERIFY_SIF is enabled. Refusing to run."
+            )
         return str(sif_path)
 
     with _sif_build_lock:
@@ -142,6 +188,19 @@ def _get_or_build_sif(image: str, executable: str = "apptainer") -> str:
                 logger.warning("  Error: %s", result.stderr[:500])
                 return image
             logger.info("SIF image built successfully")
+            # Audit M-2 fix: post-build verify gate. A freshly built SIF from
+            # an unsigned docker:// source will fail verify; in that case
+            # refuse to return the cached path so callers can fall back to
+            # an authenticated source.
+            if _verify_required() and not _verify_sif_signature(sif_path, executable):
+                try:
+                    sif_path.unlink()
+                except Exception:
+                    pass
+                raise RuntimeError(
+                    f"Freshly built SIF at {sif_path} did not verify and "
+                    f"STOA_SINGULARITY_VERIFY_SIF is enabled."
+                )
             return str(sif_path)
         except subprocess.TimeoutExpired:
             logger.warning("SIF build timed out, falling back to docker:// URL")

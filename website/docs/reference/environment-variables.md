@@ -564,8 +564,10 @@ Advanced per-platform knobs for throttling the outbound message batcher. Most us
 | `STOA_BACKGROUND_NOTIFICATIONS` | Background process notification mode in gateway: `all` (default), `result`, `error`, `off` |
 | `STOA_EPHEMERAL_SYSTEM_PROMPT` | Ephemeral system prompt injected at API-call time (never persisted to sessions) |
 | `STOA_PREFILL_MESSAGES_FILE` | Path to a JSON file of ephemeral prefill messages injected at API-call time. |
-| `STOA_ALLOW_PRIVATE_URLS` | `true`/`false` — allow tools to fetch localhost/private-network URLs. Off by default in gateway mode. |
-| `STOA_REDACT_SECRETS` | `true`/`false` — control secret redaction in tool output, logs, and chat responses (default: `true`). |
+| `STOA_ALLOW_PRIVATE_URLS` | `true`/`false` — allow tools to fetch localhost/private-network URLs. Off by default in gateway mode. Cloud metadata endpoints (169.254.169.254, ECS task IAM, Tailscale ULA `fd7a:115c:a1e0::/48`, IPv6 link-local `fe80::/10`, IPv6 multicast `ff00::/8`) remain blocked even when this is `true`. |
+| `STOA_REDACT_SECRETS` | `true`/`false` — control secret redaction in tool output, logs, and chat responses (default: `true`). Covers vendor API key prefixes (OpenAI, Anthropic, GitHub, Stripe `sk_*`/`rk_*`/`whsec_*`, SendGrid, HuggingFace `hf_*`/`hf_oauth_*`, Replicate, AWS `AKIA*`/`ASIA*`, etc.), URL query secrets, form-urlencoded bodies, JWT, DB connection strings, Discord/Slack mentions, and WhatsApp/Instagram CDN media URLs. |
+| `STOA_REDACT_PII` | `1` to mask email / phone / IBAN / SSN / credit-card patterns from logs and tool output (default: `0`). Opt-in — multi-tenant + EU + regulated-industry posture (audit v11 HIGH-57). |
+| `STOA_REDACT_IP` | `1` to mask IPv4 / IPv6 addresses (`<ip>`) from logs and tool output (default: `0`). Opt-in — turns on for healthcare / financial deployments where source IPs are considered PII (audit M-9 Lens 12). Note: also catches benign IPs in egress-trace and gateway-debug output, so leave OFF for normal debugging. |
 | `STOA_WRITE_SAFE_ROOT` | Optional directory prefix that restricts `write_file`/`patch` writes; paths outside require approval. |
 | `STOA_DISABLE_FILE_STATE_GUARD` | Set to `1` to turn off the "file changed since you read it" guard on `patch`/`write_file`. |
 | `STOA_CORE_TOOLS` | Comma-separated override for the canonical core tool list (advanced; rarely needed). |

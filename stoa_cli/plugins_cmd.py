@@ -414,8 +414,21 @@ def _install_plugin_core(identifier: str, *, force: bool) -> tuple[Path, dict, s
 
         mv = manifest.get("manifest_version")
         if mv is not None:
+            # Audit v8 HIGH-35 fix: explicit int-type check. The previous
+            # `int(mv)` silently truncated `1.9` (float YAML literal) to
+            # `1`, letting a manifest claiming v1 features sneak past the
+            # version gate. Now we accept ONLY bool/int (and reject bool
+            # which Python's `isinstance(x, int)` treats as int, hence
+            # the explicit not-bool check).
+            if isinstance(mv, bool) or not isinstance(mv, int):
+                raise PluginOperationError(
+                    f"Plugin '{plugin_name}' has invalid manifest_version "
+                    f"'{mv}' (expected a YAML integer, got {type(mv).__name__}).",
+                )
+            mv_int = mv
+            # Defensive re-cast in case of subclass shenanigans.
             try:
-                mv_int = int(mv)
+                mv_int = int(mv_int)
             except (ValueError, TypeError):
                 raise PluginOperationError(
                     f"Plugin '{plugin_name}' has invalid manifest_version "

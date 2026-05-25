@@ -5579,7 +5579,14 @@ class STOACLI:
             )
 
     def _handle_copy_command(self, cmd_original: str) -> None:
-        """Handle /copy [number] — copy assistant output to clipboard."""
+        """Handle /copy [number] — copy assistant output to clipboard.
+
+        When an explicit index is given, show a sanitized preview (first 200
+        chars, ANSI/BEL/control chars stripped) and a heuristic warning if
+        the payload looks like a destructive shell command. This prevents
+        a malicious assistant turn from silently planting `rm -rf /` or a
+        `curl … | sh` one-liner on the user's clipboard via OSC 52.
+        """
         parts = cmd_original.split(maxsplit=1)
         arg = parts[1].strip() if len(parts) > 1 else ""
 
@@ -5588,6 +5595,7 @@ class STOACLI:
             _cprint("  Nothing to copy yet.")
             return
 
+        explicit_idx = False
         if arg:
             try:
                 idx = int(arg) - 1
@@ -5597,6 +5605,7 @@ class STOACLI:
             if idx < 0 or idx >= len(assistant):
                 _cprint(f"  Invalid response number. Use 1-{len(assistant)}.")
                 return
+            explicit_idx = True
         else:
             idx = len(assistant) - 1
             while idx >= 0 and not _assistant_copy_text(assistant[idx].get("content")):
@@ -5609,6 +5618,36 @@ class STOACLI:
         if not text:
             _cprint("  Nothing to copy in that assistant response.")
             return
+
+        if explicit_idx:
+            # Strip ANSI/OSC/DCS/C1 + BEL/other C0 control bytes for the preview
+            # so a malicious payload can't hide its real content behind escape
+            # sequences when the user inspects the prompt.
+            try:
+                from tools.ansi_strip import strip_ansi
+                preview_src = strip_ansi(text)
+            except Exception:
+                preview_src = text
+            preview_src = "".join(
+                ch for ch in preview_src if ch == "\n" or ch == "\t" or ord(ch) >= 0x20
+            )
+            preview = preview_src[:200]
+            if len(preview_src) > 200:
+                preview += "…"
+            # Destructive-command heuristic
+            _DANGER_RE = re.compile(
+                r"(?:rm\s+-[a-zA-Z]*r[a-zA-Z]*f|rm\s+-[a-zA-Z]*f[a-zA-Z]*r|mkfs\.|dd\s+if=|"
+                r":\(\)\{|curl[^|]*\|\s*(?:sh|bash|zsh)|wget[^|]*\|\s*(?:sh|bash|zsh)|"
+                r"chmod\s+777|>\s*/dev/sda|sudo\s+rm|format\s+[A-Z]:)",
+                re.IGNORECASE,
+            )
+            danger_hit = bool(_DANGER_RE.search(preview_src))
+            _cprint(f"  Preview (#{idx + 1}, first 200 chars):\n    {preview}")
+            if danger_hit:
+                _cprint(
+                    "  ⚠  WARNING: this payload looks like a destructive shell command. "
+                    "Inspect before pasting into a terminal."
+                )
 
         try:
             self._write_osc52_clipboard(text)

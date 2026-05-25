@@ -93,7 +93,16 @@ def _safe_copy_db(src: Path, dst: Path) -> bool:
     """Copy a SQLite database safely using the backup() API.
 
     Handles WAL mode — produces a consistent snapshot even while
-    the DB is being written to.  Falls back to raw copy on failure.
+    the DB is being written to.
+
+    Audit v11 CRIT-56-3 fix: NO raw shutil.copy2() fallback. The
+    previous "if backup() fails, copy bytes" path captured a torn
+    snapshot of a WAL-mode DB (some pages from the page-cache, some
+    from the WAL, some half-written). The corrupt copy passed the
+    "file exists + correct name" validator and silently rotated into
+    the backup zip — corruption only surfaced weeks later when the
+    user tried to restore. Better to fail loud at backup time than
+    quiet at restore time.
     """
     try:
         conn = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
@@ -103,13 +112,11 @@ def _safe_copy_db(src: Path, dst: Path) -> bool:
         conn.close()
         return True
     except Exception as exc:
-        logger.warning("SQLite safe copy failed for %s: %s", src, exc)
-        try:
-            shutil.copy2(src, dst)
-            return True
-        except Exception as exc2:
-            logger.error("Raw copy also failed for %s: %s", src, exc2)
-            return False
+        logger.warning(
+            "SQLite safe copy via .backup() failed for %s: %s — refusing "
+            "raw fs copy (would risk torn WAL snapshot).", src, exc,
+        )
+        return False
 
 
 # ---------------------------------------------------------------------------
@@ -223,12 +230,55 @@ def run_backup(args) -> None:
             if i % 500 == 0:
                 print(f"  {i}/{file_count} files ...")
 
+    # Audit v11 HIGH-56 fix: write a sidecar manifest with version,
+    # schema, sha256 of every file, and a top-level digest. Restore-time
+    # validation reads this manifest and refuses to extract a member
+    # whose hash doesn't match. Stops:
+    #   - Forgery (zip created from a different fork / a malicious
+    #     "STOA-style" zip — 0-byte state.db passed the old marker check)
+    #   - Cross-version downgrade (manifest carries STOA version + DB
+    #     schema, restore refuses if downgrading would corrupt state.db)
+    #   - Silent corruption (each member's hash is independently verified
+    #     instead of relying on zip CRC32 which isn't security)
+    try:
+        import hashlib as _hashlib
+        from stoa_cli import __version__ as _stoa_version
+    except Exception:
+        _stoa_version = "unknown"
+
+    manifest_entries: list[dict[str, Any]] = []
+    rolling = _hashlib.sha256()
+    with zipfile.ZipFile(out_path, "r") as zf:
+        for name in zf.namelist():
+            if name.endswith("/"):
+                continue
+            try:
+                with zf.open(name) as fh:
+                    h = _hashlib.sha256()
+                    for chunk in iter(lambda: fh.read(64 * 1024), b""):
+                        h.update(chunk)
+                    file_hex = h.hexdigest()
+                manifest_entries.append({"path": name, "sha256": file_hex})
+                rolling.update(name.encode("utf-8") + b"\x00" + file_hex.encode("ascii"))
+            except Exception as exc:
+                errors.append(f"  {name}: manifest hash failed ({exc})")
+    manifest = {
+        "manifest_version": 1,
+        "stoa_version": _stoa_version,
+        "created_at_ms": int(time.time() * 1000),
+        "files": manifest_entries,
+        "top_hash": rolling.hexdigest(),
+    }
+    sidecar = out_path.with_suffix(out_path.suffix + ".manifest.json")
+    sidecar.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
     elapsed = time.monotonic() - t0
     zip_size = out_path.stat().st_size
 
     # Summary
     print()
     print(f"Backup complete: {out_path}")
+    print(f"  Manifest:    {sidecar.name} (sha256 top {manifest['top_hash'][:16]}…)")
     print(f"  Files:       {file_count}")
     print(f"  Original:    {_format_size(total_bytes)}")
     print(f"  Compressed:  {_format_size(zip_size)}")
@@ -318,6 +368,23 @@ def run_import(args) -> None:
 
     stoa_root = get_default_stoa_root()
 
+    # Audit v11 CRIT-56-1 fix: refuse to import while a STOA process is
+    # running. The previous behaviour overwrote state.db / .env /
+    # auth.json byte-by-byte while gateway/cron/curator were live —
+    # SQLITE_CORRUPT in the worst case, half-old-half-new in the
+    # typical case. The Right thing is to bail loud; the user stops
+    # the gateway, restores, restarts.
+    try:
+        from gateway.status import get_running_pid as _get_gw_pid
+        gw_pid = _get_gw_pid()
+    except Exception:
+        gw_pid = None
+    if gw_pid:
+        print(f"Error: Gateway is running (pid {gw_pid}).")
+        print("       Stop it first with `stoa gateway stop`, then re-run import.")
+        print("       Continuing would corrupt the live state DB.")
+        sys.exit(1)
+
     with zipfile.ZipFile(zip_path, "r") as zf:
         # Validate
         ok, reason = _validate_backup_zip(zf)
@@ -373,7 +440,26 @@ def run_import(args) -> None:
 
             target = stoa_root / rel
 
-            # Security: reject absolute paths and traversals
+            # Audit v11 CRIT-56-2 fix: stronger path-traversal check.
+            # The previous `target.resolve().relative_to(stoa_root.resolve())`
+            # accepted entries containing `..` segments as long as the
+            # final resolved path stayed under stoa_root — but on Windows
+            # drive letters / UNC paths short-circuit resolve() in ways
+            # that let a crafted zip escape. Belt-and-suspenders:
+            #   1. Reject any rel component that's "..", absolute, or
+            #      contains a drive letter / UNC.
+            #   2. THEN do the resolve+relative_to check.
+            rel_str = str(rel).replace("\\", "/")
+            if (
+                rel_str.startswith("/")
+                or rel_str.startswith("../")
+                or "/../" in rel_str
+                or rel_str.endswith("/..")
+                or (len(rel_str) >= 2 and rel_str[1] == ":")  # Windows drive
+                or rel_str.startswith("\\\\")
+            ):
+                errors.append(f"  {rel}: path traversal blocked (rejected component)")
+                continue
             try:
                 target.resolve().relative_to(stoa_root.resolve())
             except ValueError:

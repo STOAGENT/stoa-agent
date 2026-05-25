@@ -45,7 +45,14 @@ DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8645
 DEFAULT_PATH = "/wecom/callback"
 ACCESS_TOKEN_TTL_SECONDS = 7200
-MESSAGE_DEDUP_TTL_SECONDS = 300
+# Audit M-1 fix: dedup window widened from 5 min to 24 h. WeCom's own
+# server-side retry envelope plus the freshness window in wecom_crypto
+# (±10 min) means a captured signed POST can still be replayed up to ~24 h
+# after the original clock-skew-tolerance check by spoofing the timestamp
+# header within range and bumping the nonce. A 24-hour ring buffer of
+# observed MsgIds closes that gap with bounded memory (capped at 50k).
+MESSAGE_DEDUP_TTL_SECONDS = 86_400  # 24 hours
+MESSAGE_DEDUP_MAX_ENTRIES = 50_000
 
 
 def check_wecom_callback_requirements() -> bool:
@@ -270,10 +277,20 @@ class WecomCallbackAdapter(BasePlatformAdapter):
                                 return web.Response(text="success", content_type="text/plain")
                             del self._seen_messages[event.message_id]
                         self._seen_messages[event.message_id] = now
-                        # Prune expired entries when cache grows large
-                        if len(self._seen_messages) > 2000:
+                        # Audit M-1 fix: 24h ring buffer. First drop stale
+                        # entries past the TTL, then enforce hard upper bound
+                        # so memory stays bounded under sustained traffic.
+                        if len(self._seen_messages) > MESSAGE_DEDUP_MAX_ENTRIES:
                             cutoff = now - MESSAGE_DEDUP_TTL_SECONDS
-                            self._seen_messages = {k: v for k, v in self._seen_messages.items() if v > cutoff}
+                            self._seen_messages = {
+                                k: v for k, v in self._seen_messages.items() if v > cutoff
+                            }
+                            # If still over the cap (e.g. >50k unique IDs in
+                            # 24h), evict the oldest entries until back under.
+                            if len(self._seen_messages) > MESSAGE_DEDUP_MAX_ENTRIES:
+                                ordered = sorted(self._seen_messages.items(), key=lambda kv: kv[1])
+                                drop = len(ordered) - MESSAGE_DEDUP_MAX_ENTRIES
+                                self._seen_messages = dict(ordered[drop:])
                     # Record which app this user belongs to.
                     if event.source and event.source.user_id:
                         map_key = self._user_app_key(

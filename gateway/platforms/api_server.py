@@ -598,9 +598,16 @@ def _derive_chat_session_id(
     them produces a deterministic session ID that lets the API server reuse
     the same STOA session (and therefore the same Docker container sandbox
     directory) across turns.
+
+    Audit v9 HIGH-41 fix: digest widened from 64-bit (16 hex chars,
+    2^32 birthday) to 256-bit (full SHA-256). The narrower digest was a
+    cross-tenant hijack oracle once multiple users hit the same OpenAI-
+    compatible endpoint — finding a colliding (system_prompt, first_msg)
+    pair within 16-char prefix takes under a minute on commodity GPUs,
+    and lands the attacker in someone else's sandbox container.
     """
     seed = f"{system_prompt or ''}\n{first_user_message}"
-    digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
+    digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()
     return f"api-{digest}"
 
 
@@ -2071,9 +2078,20 @@ class APIServerAdapter(BasePlatformAdapter):
             _persist_incomplete_if_needed()
             agent_error = _tb.format_exc()
             try:
+                # Audit v5 HIGH L-03 fix: redact the exception message
+                # before shipping it to the API client. Provider errors
+                # routinely echo back fragments of the original request
+                # (system prompt slice, header values, occasionally
+                # bearer-token suffix). Without redact, those land in
+                # OpenAI-compat client logs + Sentry-style capture.
+                try:
+                    from agent.redact import redact_sensitive_text
+                    _safe_exc_msg = redact_sensitive_text(str(_exc)[:500], force=True)
+                except Exception:
+                    _safe_exc_msg = "<server error — redact unavailable>"
                 failed_env = _envelope("failed")
                 failed_env["output"] = list(emitted_items)
-                failed_env["error"] = {"message": str(_exc)[:500], "type": "server_error"}
+                failed_env["error"] = {"message": _safe_exc_msg, "type": "server_error"}
                 failed_env["usage"] = {
                     "input_tokens": usage.get("input_tokens", 0),
                     "output_tokens": usage.get("output_tokens", 0),

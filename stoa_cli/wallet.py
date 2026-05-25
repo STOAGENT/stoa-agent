@@ -40,6 +40,19 @@ logger = logging.getLogger(__name__)
 STOA_TOKEN_CONTRACT = os.getenv("STOA_TOKEN_CONTRACT", "")
 MONAD_RPC = os.getenv("STOA_MONAD_RPC", "https://rpc.monad.xyz")
 
+# Audit v8 CRIT-34-01 fix: chainId selection. Monad mainnet is 143,
+# testnet is 10143. SIWE messages MUST bind the chainId the wallet was
+# on when the user signed, otherwise a signature minted on testnet can
+# unlock the gate on mainnet (or vice versa). STOA_CHAIN_ID env lets
+# the user choose; default is 10143 (testnet) per audit recommendation
+# until the M5 token + mainnet operations actually land.
+MONAD_CHAIN_ID = int(os.getenv("STOA_CHAIN_ID", "10143"))
+
+# Audit v7 CRIT-25-1 fix: SIWE Issued At freshness. A signature is only
+# valid for SIWE_FRESHNESS_WINDOW_MS milliseconds from its bound_at. Any
+# replay outside that window is rejected at verify time.
+SIWE_FRESHNESS_WINDOW_MS = int(os.getenv("STOA_SIWE_FRESHNESS_MS", str(10 * 60 * 1000)))  # 10 min
+
 # Minimum STOA holding (in wei-equivalent 18-decimal units) to unlock
 # council mode + on-chain attestation. v0.x default is 0 (no gate);
 # set in env to enforce. The point when enforced is "skin in the game",
@@ -90,7 +103,7 @@ def _canonical_bind_message(address: str, bound_at_ms: int) -> str:
         "Bind this address to STOA Agent for council mode.\n\n"
         f"URI: https://stoax.xyz\n"
         f"Version: 1\n"
-        f"Chain ID: 143\n"
+        f"Chain ID: {MONAD_CHAIN_ID}\n"
         f"Issued At: {bound_at_ms}\n"
     )
 
@@ -124,25 +137,107 @@ def _verify_siwe_signature(address: str, signature: str, message: str) -> bool:
         return False
 
 
-def bind_wallet(address: str, signature: str, note: str = "") -> WalletBinding:
+# Audit v7 CRIT-25-1: SIWE nonce store. Each (address, issued_at_ms)
+# pair may only be consumed once. Persisted to ~/.stoa/wallet_nonces.json
+# so the protection survives process restart.
+
+def _siwe_nonce_path() -> Path:
+    return get_stoa_home() / "wallet_nonces.json"
+
+
+def _siwe_nonce_load() -> dict[str, list[int]]:
+    p = _siwe_nonce_path()
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _siwe_nonce_consumed(address: str, issued_at_ms: int) -> bool:
+    store = _siwe_nonce_load()
+    return issued_at_ms in store.get(address.lower(), [])
+
+
+def _siwe_nonce_record(address: str, issued_at_ms: int) -> None:
+    """Append a consumed nonce for ``address``. Prunes entries older than
+    24h × freshness window to keep the file bounded."""
+    store = _siwe_nonce_load()
+    addr = address.lower()
+    nonces = store.get(addr, [])
+    # Prune: anything older than 24h × freshness can never be reused anyway.
+    cutoff = int(__import__("time").time() * 1000) - 24 * SIWE_FRESHNESS_WINDOW_MS
+    nonces = [n for n in nonces if n >= cutoff]
+    nonces.append(issued_at_ms)
+    store[addr] = nonces
+    p = _siwe_nonce_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(store, indent=2), encoding="utf-8")
+
+
+def bind_wallet(
+    address: str,
+    signature: str,
+    note: str = "",
+    issued_at_ms: int | None = None,
+) -> WalletBinding:
     """Persist a wallet binding to ``~/.stoa/wallet.json``.
 
-    V-AGENT-018 fix: the signature is now verified before persistence.
-    The caller must have signed the canonical bind message
-    (``_canonical_bind_message``) with the private key that controls the
-    claimed address. ``eth-account`` recovers the signer from the
-    signature; we require recovered == claimed before writing the file.
+    V-AGENT-018 fix: the signature is verified before persistence.
+    Audit v7 CRIT-25-1 fix: ``Issued At`` freshness check + nonce store.
+
+    The caller must:
+      1. Read the canonical bind message via ``_canonical_bind_message``
+         using a fresh ``issued_at_ms`` (within ``SIWE_FRESHNESS_WINDOW_MS``)
+      2. Sign that exact message with the private key for ``address``
+      3. Pass ``signature`` + the same ``issued_at_ms`` here
+
+    If ``issued_at_ms`` is ``None`` we generate one now (CLI fast-path
+    where the user hands us a sig produced from "stoa wallet challenge"
+    a moment ago). For external integrations always pass the explicit
+    timestamp the user signed.
 
     Raises ``ValueError`` on:
       - malformed address (not 0x + 40 hex chars)
+      - ``issued_at_ms`` outside ``[now - window, now + 30s clock skew]``
       - signature that doesn't recover to ``address``
       - eth-account not installed (fail closed)
+      - nonce already consumed (replay attempt)
     """
     address = address.lower()
     if not address.startswith("0x") or len(address) != 42:
         raise ValueError(f"not a valid EOA: {address}")
+    # Lightweight hex check — eth-account would fail later but we want
+    # a clean error before crypto.
+    try:
+        int(address, 16)
+    except ValueError:
+        raise ValueError(f"address contains non-hex characters: {address}")
 
-    bound_at = int(__import__("time").time() * 1000)
+    now_ms = int(__import__("time").time() * 1000)
+    bound_at = issued_at_ms if issued_at_ms is not None else now_ms
+
+    # Audit v7 CRIT-25-1: freshness window. A signature whose ``Issued At``
+    # is older than SIWE_FRESHNESS_WINDOW_MS or claims to come from the
+    # future (>30s of allowed clock skew) is rejected. Without this, an
+    # attacker who once captured a victim's signature can replay it years
+    # later to take over the binding.
+    SKEW_MS = 30_000
+    if bound_at > now_ms + SKEW_MS:
+        raise ValueError(
+            f"issued_at_ms {bound_at} is in the future (now={now_ms}); "
+            "reject as either clock-skew attack or tampered timestamp."
+        )
+    if bound_at < now_ms - SIWE_FRESHNESS_WINDOW_MS:
+        raise ValueError(
+            f"signature is too old: issued_at={bound_at}, now={now_ms}, "
+            f"window={SIWE_FRESHNESS_WINDOW_MS}ms. "
+            "Run `stoa wallet challenge` to get a fresh message to sign, "
+            "then `stoa wallet bind <addr> --signature 0x...` within "
+            f"{SIWE_FRESHNESS_WINDOW_MS // 60_000} minutes."
+        )
+
     canonical = _canonical_bind_message(address, bound_at)
     if not _verify_siwe_signature(address, signature, canonical):
         raise ValueError(
@@ -151,7 +246,19 @@ def bind_wallet(address: str, signature: str, note: str = "") -> WalletBinding:
             "key and pass the result as `--signature 0x...`. "
             "The exact message to sign is logged at DEBUG level."
         )
-    logger.debug("SIWE signature OK for %s", address)
+
+    # Audit v7 CRIT-25-1 nonce store: each (address, issued_at_ms) pair
+    # may only be consumed once. Prevents the captured-signature replay
+    # even within the freshness window.
+    if _siwe_nonce_consumed(address, bound_at):
+        raise ValueError(
+            f"signature replay rejected: this (address, issued_at_ms) "
+            f"pair was already used to bind. Run `stoa wallet challenge` "
+            "to get a fresh message."
+        )
+    _siwe_nonce_record(address, bound_at)
+
+    logger.debug("SIWE signature OK for %s (issued_at_ms=%d)", address, bound_at)
 
     binding = WalletBinding(
         address=address,
@@ -167,14 +274,44 @@ def bind_wallet(address: str, signature: str, note: str = "") -> WalletBinding:
 
 
 def load_wallet() -> WalletBinding | None:
+    """Read + re-verify the persisted wallet binding.
+
+    Audit v4 V-03 fix: re-recover the signer from the persisted signature
+    every time ``load_wallet`` is called. Without this, any process that
+    can write ``~/.stoa/wallet.json`` (different malicious tool, backup
+    restore, leaked dotfile) can hand-craft a whale address + dummy
+    signature and pass the council gate without ever owning the key.
+
+    The freshness window from ``SIWE_FRESHNESS_WINDOW_MS`` is intentionally
+    NOT enforced here — once a user has bound their wallet, they shouldn't
+    have to re-sign every 10 minutes. The window applies only at bind time
+    (``bind_wallet``) to stop captured-before-bind replay. Long-lived
+    bindings are accepted as long as the signature still recovers to the
+    claimed address with the chainId stamped in the message.
+    """
     p = _wallet_path()
     if not p.exists():
         return None
     try:
         data = json.loads(p.read_text(encoding="utf-8"))
-        return WalletBinding(**data)
-    except Exception:
+        binding = WalletBinding(**data)
+    except Exception as e:
+        logger.warning("wallet.json unreadable: %s", e)
         return None
+
+    # Re-recover signer to confirm on-disk binding actually proves custody.
+    canonical = _canonical_bind_message(binding.address, binding.bound_at)
+    if not _verify_siwe_signature(binding.address, binding.signature, canonical):
+        logger.warning(
+            "wallet.json signature does NOT recover to %s — refusing to load. "
+            "Run `stoa wallet bind <addr> --signature 0x...` again. "
+            "(Possible causes: someone tampered with ~/.stoa/wallet.json, "
+            "STOA_CHAIN_ID changed since bind, or eth-account uninstalled.)",
+            binding.address,
+        )
+        return None
+
+    return binding
 
 
 # ──────────────────────────────────────────────────────────────────────────

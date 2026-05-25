@@ -73,6 +73,43 @@ _BWS_RUN_TIMEOUT = 30
 _CacheKey = Tuple[str, str]  # (access_token_fingerprint, project_id)
 _CACHE: Dict[_CacheKey, "_CachedFetch"] = {}
 
+# Audit M-7 #1 + #8: Bitwarden Secrets Manager pulls arbitrary key=value
+# pairs into os.environ. Without a denylist, a hostile / misconfigured
+# BSM project could overwrite PATH, LD_PRELOAD, PYTHONPATH, etc. and
+# divert every subprocess launched by STOA (terminal tool, cron scripts,
+# subagents) to attacker-controlled binaries. The denylist refuses to
+# override these names regardless of `override_existing` — they are
+# never legitimately rotated via a secrets manager.
+_BWS_ENV_NAME_DENYLIST: frozenset = frozenset({
+    "PATH",
+    "LD_PRELOAD",
+    "LD_LIBRARY_PATH",
+    "LD_AUDIT",
+    "DYLD_INSERT_LIBRARIES",
+    "DYLD_LIBRARY_PATH",
+    "DYLD_FALLBACK_LIBRARY_PATH",
+    "PYTHONPATH",
+    "PYTHONHOME",
+    "PYTHONSTARTUP",
+    "PYTHONEXECUTABLE",
+    "PYTHONUSERBASE",
+    "NODE_OPTIONS",
+    "NODE_PATH",
+    "PERL5LIB",
+    "PERL5OPT",
+    "RUBYLIB",
+    "RUBYOPT",
+    "GIT_SSH_COMMAND",
+    "GIT_SSH",
+    "BASH_ENV",
+    "ENV",
+    "IFS",
+    "PROMPT_COMMAND",
+    "PS1",
+    "HOME",
+    "SHELL",
+})
+
 
 @dataclass
 class _CachedFetch:
@@ -495,6 +532,20 @@ def apply_bitwarden_secrets(
             # Don't let BSM clobber the very token we used to fetch
             # itself — that would be a footgun if someone stored the
             # token as a BSM secret too.
+            result.skipped.append(key)
+            continue
+        # Audit M-7 #1 + #8: refuse to override env names in the denylist
+        # (PATH, LD_PRELOAD, PYTHONPATH, etc.) regardless of override_existing.
+        # These never legitimately rotate via a secrets manager; treating a
+        # BSM-supplied value as authoritative would give an attacker who
+        # compromised the BSM project a free RCE on every subprocess STOA
+        # spawns.
+        if key in _BWS_ENV_NAME_DENYLIST:
+            result.warnings.append(
+                f"Refused to apply BSM secret {key!r}: name is in the "
+                f"runtime-injection denylist (PATH / LD_PRELOAD / PYTHONPATH "
+                f"class). Rename the secret in Bitwarden if it must be applied."
+            )
             result.skipped.append(key)
             continue
         if not override_existing and os.environ.get(key):

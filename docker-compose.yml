@@ -21,13 +21,28 @@
 #     and API_SERVER_HOST. See docs/user-guide/api-server.md before doing
 #     this on an internet-facing host.
 #
+#
+# Audit v5 HIGH Q-02 + v9 HIGH-17 + v10 HIGH-8 fix: container network
+# isolation. Default is now a private bridge network with NO ports
+# published — the gateway/dashboard are reachable only by sibling
+# containers and by `docker exec`. To expose anything to the host or
+# LAN, run a reverse proxy (Caddy/nginx) as a sibling service or use
+# `docker compose run --service-ports`. The previous `network_mode:
+# host` skipped namespace isolation entirely, which let a compromised
+# in-container process reach cloud metadata at 169.254.169.254 + any
+# loopback service the host runs.
+#
+networks:
+  stoa-internal:
+    driver: bridge
+
 services:
   gateway:
     build: .
     image: stoa-agent
     container_name: stoa
     restart: unless-stopped
-    network_mode: host
+    networks: [stoa-internal]
     volumes:
       - ~/.stoa:/opt/data
     environment:
@@ -59,7 +74,12 @@ services:
     image: stoa-agent
     container_name: stoa-dashboard
     restart: unless-stopped
-    network_mode: host
+    networks: [stoa-internal]
+    # Bind the dashboard port to host loopback only so `ssh -L 9119:…`
+    # tunnels still work but LAN clients can't reach it. Override with
+    # a sibling reverse proxy if you need authenticated external access.
+    ports:
+      - "127.0.0.1:9119:9119"
     depends_on:
       - gateway
     volumes:
@@ -67,5 +87,7 @@ services:
     environment:
       - STOA_UID=${STOA_UID:-10000}
       - STOA_GID=${STOA_GID:-10000}
-    # Localhost-only. For remote access, tunnel via `ssh -L 9119:localhost:9119`.
-    command: ["dashboard", "--host", "127.0.0.1", "--no-open"]
+    # Bind to 0.0.0.0 INSIDE the container so the bridge-network port
+    # publish reaches the dashboard; host-side it still only listens on
+    # 127.0.0.1 thanks to the explicit ports: mapping above.
+    command: ["dashboard", "--host", "0.0.0.0", "--no-open"]

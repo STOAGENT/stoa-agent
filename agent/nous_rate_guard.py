@@ -15,15 +15,83 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import tempfile
 import time
-from typing import Any, Mapping, Optional
+from contextlib import contextmanager
+from typing import Any, Iterator, Mapping, Optional
 from utils import atomic_replace
 
 logger = logging.getLogger(__name__)
 
 _STATE_SUBDIR = "rate_limits"
 _STATE_FILENAME = "nous.json"
+_LOCK_FILENAME = "nous.lock"
+
+
+@contextmanager
+def _state_file_lock(lock_path: str) -> Iterator[None]:
+    """Cross-platform advisory file lock guarding R-M-W on the state file.
+
+    Lens 19: ``record_nous_rate_limit`` and ``nous_rate_limit_remaining`` are
+    invoked concurrently from CLI, gateway, cron, and aux workers. Without a
+    lock the read+merge+write window allows lost updates and torn JSON on
+    crash. POSIX uses ``fcntl.flock``; Windows uses ``msvcrt.locking``.
+
+    On unexpected lock errors (e.g. EBADF, OSError on tmpfs) we degrade to
+    "no lock" rather than crashing the caller — recording a rate limit is
+    advisory, never load-bearing.
+    """
+    lock_dir = os.path.dirname(lock_path)
+    try:
+        os.makedirs(lock_dir, exist_ok=True)
+    except Exception:
+        yield
+        return
+    try:
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    except OSError as exc:
+        logger.debug("Nous rate guard: could not open lock file: %s", exc)
+        yield
+        return
+    locked = False
+    try:
+        if sys.platform == "win32":
+            try:
+                import msvcrt
+                # Lock 1 byte; blocking call retries via LK_LOCK.
+                msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+                locked = True
+            except OSError as exc:
+                logger.debug("Nous rate guard: msvcrt lock failed: %s", exc)
+        else:
+            try:
+                import fcntl
+                fcntl.flock(fd, fcntl.LOCK_EX)
+                locked = True
+            except OSError as exc:
+                logger.debug("Nous rate guard: fcntl lock failed: %s", exc)
+        yield
+    finally:
+        if locked:
+            try:
+                if sys.platform == "win32":
+                    import msvcrt
+                    # Rewind before unlock — msvcrt.locking unlocks at cursor.
+                    try:
+                        os.lseek(fd, 0, 0)
+                    except OSError:
+                        pass
+                    msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(fd, fcntl.LOCK_UN)
+            except Exception:
+                pass
+        try:
+            os.close(fd)
+        except OSError:
+            pass
 
 
 def _state_path() -> str:
@@ -104,29 +172,49 @@ def record_nous_rate_limit(
         reset_at = now + default_cooldown
 
     path = _state_path()
+    state_dir = os.path.dirname(path)
+    lock_path = os.path.join(state_dir, _LOCK_FILENAME)
     try:
-        state_dir = os.path.dirname(path)
         os.makedirs(state_dir, exist_ok=True)
 
-        state = {
-            "reset_at": reset_at,
-            "recorded_at": now,
-            "reset_seconds": reset_at - now,
-        }
-
-        # Atomic write: write to temp file + rename
-        fd, tmp_path = tempfile.mkstemp(dir=state_dir, suffix=".tmp")
-        try:
-            with os.fdopen(fd, "w") as f:
-                json.dump(state, f)
-            atomic_replace(tmp_path, path)
-        except Exception:
-            # Clean up temp file on failure
+        # Lens 19: hold the lock across the read-merge-write so a concurrent
+        # writer cannot clobber a longer cooldown with a shorter one.
+        with _state_file_lock(lock_path):
+            existing_reset_at: Optional[float] = None
             try:
-                os.unlink(tmp_path)
-            except OSError:
+                with open(path, encoding="utf-8") as f:
+                    existing = json.load(f)
+                if isinstance(existing, dict):
+                    raw = existing.get("reset_at")
+                    if isinstance(raw, (int, float)) and raw > now:
+                        existing_reset_at = float(raw)
+            except (FileNotFoundError, json.JSONDecodeError, OSError):
                 pass
-            raise
+
+            # Keep the *longer* cooldown: a concurrent 429 may have observed
+            # a stricter reset window than this caller did.
+            if existing_reset_at is not None and existing_reset_at > reset_at:
+                reset_at = existing_reset_at
+
+            state = {
+                "reset_at": reset_at,
+                "recorded_at": now,
+                "reset_seconds": reset_at - now,
+            }
+
+            # Atomic write: write to temp file + rename
+            fd, tmp_path = tempfile.mkstemp(dir=state_dir, suffix=".tmp")
+            try:
+                with os.fdopen(fd, "w") as f:
+                    json.dump(state, f)
+                atomic_replace(tmp_path, path)
+            except Exception:
+                # Clean up temp file on failure
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+                raise
 
         logger.info(
             "Nous rate limit recorded: resets in %.0fs (at %.0f)",
@@ -143,20 +231,27 @@ def nous_rate_limit_remaining() -> Optional[float]:
         Seconds remaining until reset, or None if not rate-limited.
     """
     path = _state_path()
+    lock_path = os.path.join(os.path.dirname(path), _LOCK_FILENAME)
+    # Lens 19: serialize read+unlink against concurrent recorders so we
+    # don't unlink a file that another caller just refreshed under us.
     try:
-        with open(path, encoding="utf-8") as f:
-            state = json.load(f)
-        reset_at = state.get("reset_at", 0)
-        remaining = reset_at - time.time()
-        if remaining > 0:
-            return remaining
-        # Expired — clean up
-        try:
-            os.unlink(path)
-        except OSError:
-            pass
-        return None
-    except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError):
+        with _state_file_lock(lock_path):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    state = json.load(f)
+                reset_at = state.get("reset_at", 0)
+                remaining = reset_at - time.time()
+                if remaining > 0:
+                    return remaining
+                # Expired — clean up
+                try:
+                    os.unlink(path)
+                except OSError:
+                    pass
+                return None
+            except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError):
+                return None
+    except Exception:
         return None
 
 

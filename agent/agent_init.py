@@ -969,10 +969,18 @@ def init_agent(
         # Use provided session ID (e.g., from CLI)
         agent.session_id = session_id
     else:
-        # Generate a new session ID
+        # Generate a new session ID.
+        #
+        # Audit v8 HIGH-33-04 fix: 24-bit (6 hex char) suffix was a
+        # ~16M brute-force window per second of timestamp granularity.
+        # In multi-user gateway deploys, finding a collision against
+        # an active session (and therefore landing in someone else's
+        # context / sandbox container) was practical on a single
+        # workstation. Widen to 22 hex chars (88-bit) — `secrets.token_hex`
+        # is CSPRNG-backed and stays human-skimmable in logs.
+        import secrets as _secrets_sid
         timestamp_str = agent.session_start.strftime("%Y%m%d_%H%M%S")
-        short_uuid = uuid.uuid4().hex[:6]
-        agent.session_id = f"{timestamp_str}_{short_uuid}"
+        agent.session_id = f"{timestamp_str}_{_secrets_sid.token_hex(11)}"
 
     # Expose session ID to tools (terminal, execute_code) so agents can
     # reference their own session for --resume commands, cross-session

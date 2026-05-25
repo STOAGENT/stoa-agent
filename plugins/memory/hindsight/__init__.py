@@ -35,6 +35,7 @@ import json
 import logging
 import os
 import queue
+import string
 import threading
 
 from datetime import datetime, timezone
@@ -478,6 +479,44 @@ def _sanitize_bank_segment(value: str) -> str:
     return "".join(out).strip("-_")
 
 
+class _SafeBankIdFormatter(string.Formatter):
+    """Restricted :class:`string.Formatter` for bank_id_template.
+
+    Python's default ``str.format`` allows attribute walks (``{x.__class__}``)
+    and index lookups (``{x[0]}``) that an attacker controlling the template
+    string could use to traverse to ``__globals__`` / ``__builtins__`` and
+    exfiltrate config. This subclass rejects any field reference that contains
+    attribute or item access syntax — only bare placeholder names like
+    ``{profile}`` are accepted.
+    """
+
+    def get_field(self, field_name, args, kwargs):  # type: ignore[override]
+        if "." in field_name or "[" in field_name:
+            raise ValueError(
+                f"bank_id_template field {field_name!r} uses attribute or item "
+                "access, which is not allowed"
+            )
+        return super().get_field(field_name, args, kwargs)
+
+    def convert_field(self, value, conversion):  # type: ignore[override]
+        # Reject !r / !s / !a conversions — they're not needed for bank IDs
+        # and could be used to coerce unexpected types.
+        if conversion is not None:
+            raise ValueError(
+                f"bank_id_template conversion {conversion!r} is not allowed"
+            )
+        return value
+
+    def format_field(self, value, format_spec):  # type: ignore[override]
+        # Disallow format specs (e.g. {x:0>1000} → 1000-char DoS).
+        if format_spec:
+            raise ValueError("bank_id_template format spec is not allowed")
+        return str(value)
+
+
+_BANK_ID_FORMATTER = _SafeBankIdFormatter()
+
+
 def _resolve_bank_id_template(template: str, fallback: str, **placeholders: str) -> str:
     """Resolve a bank_id template string with the given placeholders.
 
@@ -493,13 +532,17 @@ def _resolve_bank_id_template(template: str, fallback: str, **placeholders: str)
 
     If the template is empty, resolution falls back to *fallback*.
     Returns the sanitized bank id.
+
+    Uses a restricted Formatter that rejects attribute walks (``{x.__class__}``)
+    and item access (``{x[0]}``) so a malicious template string can't reach
+    ``__globals__`` / ``__builtins__``.
     """
     if not template:
         return fallback
     sanitized = {k: _sanitize_bank_segment(v) for k, v in placeholders.items()}
     try:
-        rendered = template.format(**sanitized)
-    except (KeyError, IndexError) as exc:
+        rendered = _BANK_ID_FORMATTER.vformat(template, (), sanitized)
+    except (KeyError, IndexError, ValueError) as exc:
         logger.warning("Invalid bank_id_template %r: %s — using fallback %r",
                        template, exc, fallback)
         return fallback

@@ -34,6 +34,7 @@ import logging
 import re
 import subprocess
 import time
+import uuid
 from typing import Any, Dict, List, Optional
 
 try:
@@ -468,10 +469,14 @@ class WebhookAdapter(BasePlatformAdapter):
             except Exception as e:
                 logger.warning("[webhook] Skill loading failed: %s", e)
 
-        # Build a unique delivery ID
+        # Build a unique delivery ID. Audit M-1 fix: previously used
+        # ``str(int(time.time() * 1000))`` as the fallback, which is
+        # predictable and collides across concurrent requests in the same
+        # millisecond, letting one request silently dedup another out.
+        # UUID4 fallback eliminates both classes of failure.
         delivery_id = request.headers.get(
             "X-GitHub-Delivery",
-            request.headers.get("X-Request-ID", str(int(time.time() * 1000))),
+            request.headers.get("X-Request-ID", str(uuid.uuid4())),
         )
 
         # ── Idempotency ─────────────────────────────────────────
@@ -616,7 +621,17 @@ class WebhookAdapter(BasePlatformAdapter):
     def _validate_signature(
         self, request: "web.Request", body: bytes, secret: str
     ) -> bool:
-        """Validate webhook signature (GitHub, GitLab, generic HMAC-SHA256)."""
+        """Validate webhook signature (GitHub, GitLab, generic HMAC-SHA256).
+
+        Audit v7 HIGH-12 fix: for the GENERIC HMAC scheme, the canonical
+        string now includes ``X-Webhook-Timestamp`` so signatures bind to
+        a moment in time. Captured signed POSTs no longer replay forever
+        after the per-delivery dedup TTL elapses. GitHub + GitLab paths
+        keep their vendor-defined schemes (those vendors don't sign a
+        timestamp into the canonical string — they expect the recipient
+        to enforce vendor-side TTL or replay-protect via Idempotency-Key
+        cache, which we do via _seen_deliveries).
+        """
         # GitHub: X-Hub-Signature-256 = sha256=<hex>
         gh_sig = request.headers.get("X-Hub-Signature-256", "")
         if gh_sig:
@@ -630,9 +645,36 @@ class WebhookAdapter(BasePlatformAdapter):
         if gl_token:
             return hmac.compare_digest(gl_token, secret)
 
-        # Generic: X-Webhook-Signature = <hex HMAC-SHA256>
+        # Generic: X-Webhook-Signature = <hex HMAC-SHA256 of
+        # ``f"{timestamp}.{body}"``> with required X-Webhook-Timestamp.
+        # 10 min freshness window. Backward-compat: if no timestamp header
+        # is sent, fall back to the legacy body-only scheme but log a
+        # deprecation warning so operators migrate before next major.
         generic_sig = request.headers.get("X-Webhook-Signature", "")
         if generic_sig:
+            ts_hdr = request.headers.get("X-Webhook-Timestamp", "")
+            if ts_hdr:
+                try:
+                    ts = int(ts_hdr)
+                    now = int(time.time())
+                    if abs(now - ts) > 600:
+                        logger.warning(
+                            "[webhook] X-Webhook-Timestamp out of window: ts=%d now=%d",
+                            ts, now,
+                        )
+                        return False
+                except (TypeError, ValueError):
+                    logger.warning("[webhook] X-Webhook-Timestamp not integer: %r", ts_hdr)
+                    return False
+                canonical = f"{ts}.".encode() + body
+                expected = hmac.new(secret.encode(), canonical, hashlib.sha256).hexdigest()
+                return hmac.compare_digest(generic_sig, expected)
+            # Legacy body-only — log and accept once; senders should upgrade.
+            logger.warning(
+                "[webhook] Generic signature scheme without X-Webhook-Timestamp "
+                "is DEPRECATED (replayable). Send X-Webhook-Timestamp=<unix-s> + "
+                "compute HMAC over '<ts>.<body>'."
+            )
             expected = hmac.new(
                 secret.encode(), body, hashlib.sha256
             ).hexdigest()
@@ -748,13 +790,42 @@ class WebhookAdapter(BasePlatformAdapter):
                 success=False, error="Missing repo or pr_number"
             )
 
+        # Audit M-1 fix: validate pr_number as a positive integer before
+        # passing it to the ``gh`` CLI. Templates can substitute arbitrary
+        # payload values into delivery_extra, so a malicious webhook payload
+        # could otherwise inject ``--repo other/repo`` or ``;rm -rf`` style
+        # tokens via pr_number. Even though we already invoke gh as a list
+        # (no shell), gh itself accepts ``--`` separated arguments and a
+        # non-numeric pr_number would either fail confusingly or — worse —
+        # pick up an argv parsing edge case in a future gh release.
+        pr_str = str(pr_number).strip()
+        if not pr_str.isdigit() or int(pr_str) <= 0:
+            logger.error(
+                "[webhook] github_comment pr_number is not a positive integer: %r",
+                pr_number,
+            )
+            return SendResult(
+                success=False, error="pr_number must be a positive integer"
+            )
+        # Basic repo sanity: owner/name, no path traversal or argv tricks.
+        if (
+            not repo
+            or "/" not in repo
+            or repo.startswith("-")
+            or any(c in repo for c in (" ", "\t", "\n", ";", "&", "|", "`", "$"))
+        ):
+            logger.error("[webhook] github_comment repo is malformed: %r", repo)
+            return SendResult(
+                success=False, error="repo must be 'owner/name'"
+            )
+
         try:
             result = subprocess.run(
                 [
                     "gh",
                     "pr",
                     "comment",
-                    str(pr_number),
+                    pr_str,
                     "--repo",
                     repo,
                     "--body",

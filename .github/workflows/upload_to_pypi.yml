@@ -94,7 +94,9 @@ jobs:
       name: pypi
       url: https://pypi.org/p/stoa-agent
     permissions:
-      id-token: write  # OIDC trusted publishing
+      id-token: write       # OIDC trusted publishing
+      attestations: write   # Audit v9 HIGH-42: in-toto build provenance
+      contents: read
 
     steps:
       - name: Download distribution artifacts
@@ -103,10 +105,25 @@ jobs:
           name: python-package-distributions
           path: dist/
 
+      # Audit v9 HIGH-42 fix: in-toto build provenance attestation.
+      # PyPI now displays a "Build provenance" badge for packages that
+      # ship an attestation file in the .sigstore/.intoto.jsonl format.
+      # This binds the wheel/sdist back to the exact workflow run +
+      # commit + builder identity — anyone validating supply-chain
+      # integrity can verify with `gh attestation verify`.
+      - name: Generate build-provenance attestation
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be  # v2
+        with:
+          subject-path: 'dist/*'
+
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # v1.14.0
         with:
           skip-existing: true
+          # PEP 740 attestations — uses the OIDC token already in scope
+          # to surface the attestation we generated above on PyPI's
+          # project page (the "Provenance" badge).
+          attestations: true
 
   sign:
     name: Sign and attach to GitHub Release

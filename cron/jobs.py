@@ -8,6 +8,7 @@ Output is saved to ~/.stoa/cron/output/{job_id}/{timestamp}.md
 import copy
 import json
 import logging
+import secrets
 import shutil
 import tempfile
 import threading
@@ -44,6 +45,16 @@ JOBS_FILE = CRON_DIR / "jobs.json"
 _jobs_file_lock = threading.Lock()
 OUTPUT_DIR = CRON_DIR / "output"
 ONESHOT_GRACE_SECONDS = 120
+
+# Audit M-3 hardening constants.
+# MIN_INTERVAL_SECONDS clamps "every Xm" and cron rapid-fire patterns
+# so a single user can't schedule a job to fire faster than once every
+# 10 seconds (which would DoS the scheduler tick + agent pool).
+MIN_INTERVAL_SECONDS = 10
+# Per-user cron job cap. Enforced at create_job() time. Set high enough
+# that legitimate setups are unaffected, low enough that a buggy script
+# or hostile prompt can't flood jobs.json with millions of entries.
+MAX_JOBS_PER_USER = 100
 
 
 def _normalize_skill_list(skill: Optional[str] = None, skills: Optional[Any] = None) -> List[str]:
@@ -210,12 +221,18 @@ def parse_schedule(schedule: str) -> Dict[str, Any]:
     if schedule_lower.startswith("every "):
         duration_str = schedule[6:].strip()
         minutes = parse_duration(duration_str)
+        # Audit M-3 #1: clamp DoS-grade interval durations. parse_duration
+        # only accepts m/h/d units (no seconds), so the floor is 1 minute
+        # for legitimate inputs. Anything <1 min is clamped to 1 min so a
+        # later "0 minute" edge can't tight-loop the scheduler tick.
+        if minutes * 60 < MIN_INTERVAL_SECONDS:
+            minutes = max(1, (MIN_INTERVAL_SECONDS + 59) // 60)
         return {
             "kind": "interval",
             "minutes": minutes,
             "display": f"every {minutes}m"
         }
-    
+
     # Check for cron expression (5 or 6 space-separated fields)
     # Cron fields: minute hour day month weekday [year]
     parts = schedule.split()
@@ -224,6 +241,30 @@ def parse_schedule(schedule: str) -> Dict[str, Any]:
     ):
         if not HAS_CRONITER:
             raise ValueError("Cron expressions require 'croniter' package. Install with: pip install croniter")
+        # Audit M-3 #1: reject rapid-fire cron patterns that fire every minute
+        # (or sub-minute via */N with N<1) — these DoS the scheduler tick when
+        # combined with heavy LLM jobs. The classic "* * * * *" pattern (every
+        # minute, every hour, every day) plus its trivially-rewritten variants
+        # like "*/1 * * * *" are the common rapid-fire forms. We compute the
+        # actual period via croniter and reject anything under MIN_INTERVAL_SECONDS.
+        if HAS_CRONITER:
+            try:
+                _probe = croniter(schedule, datetime(2024, 1, 1))
+                _first = _probe.get_next(datetime)
+                _second = _probe.get_next(datetime)
+                _period_s = (_second - _first).total_seconds()
+                if _period_s < MIN_INTERVAL_SECONDS:
+                    raise ValueError(
+                        f"Cron expression {schedule!r} fires every {int(_period_s)}s; "
+                        f"minimum interval is {MIN_INTERVAL_SECONDS}s. Use a less "
+                        f"aggressive schedule (e.g. '*/5 * * * *' for every 5 minutes)."
+                    )
+            except ValueError:
+                raise
+            except Exception:
+                # Fall through to the dedicated validator below — it will
+                # produce a clearer error than the probe.
+                pass
         # Validate cron expression
         try:
             croniter(schedule)
@@ -591,8 +632,37 @@ def create_job(
     if deliver is None:
         deliver = "origin" if origin else "local"
 
-    job_id = uuid.uuid4().hex[:12]
+    # Audit M-3 #3: bump job ID entropy from 48-bit (uuid4().hex[:12]) to
+    # 88-bit via secrets.token_hex(11) (22 hex chars, CSPRNG). Cron job
+    # IDs appear in output paths, context_from references, and origin
+    # metadata — a 48-bit space is brute-forceable for an attacker who
+    # can guess an ID and trigger output path overwrite or context
+    # injection. 88-bit closes the gap with negligible UX cost.
+    # Also enforce the per-user job cap (M-3 #2) at create time so a
+    # buggy automation can't flood the scheduler.
+    job_id = secrets.token_hex(11)
     now = _stoa_now().isoformat()
+
+    # Enforce cron.max_jobs cap from config (defaults to MAX_JOBS_PER_USER).
+    # Loaded lazily to avoid a circular import: jobs.py is imported by
+    # scheduler.py, which is imported during config-driven module init.
+    _existing_jobs = load_jobs()
+    _cap = MAX_JOBS_PER_USER
+    try:
+        from stoa_cli.config import load_config as _load_config
+        _ucfg = _load_config() or {}
+        _cron_cfg = _ucfg.get("cron", {}) if isinstance(_ucfg, dict) else {}
+        _configured = _cron_cfg.get("max_jobs")
+        if _configured is not None:
+            _cap = max(1, int(_configured))
+    except Exception:
+        _cap = MAX_JOBS_PER_USER
+    if len(_existing_jobs) >= _cap:
+        raise ValueError(
+            f"Cron job limit reached: {_cap} jobs configured. "
+            f"Remove existing jobs (`stoa cron rm <id>`) or raise "
+            f"cron.max_jobs in config.yaml before creating new ones."
+        )
 
     normalized_skills = _normalize_skill_list(skill, skills)
     normalized_model = str(model).strip() if isinstance(model, str) else None
@@ -664,7 +734,7 @@ def create_job(
         "profile": normalized_profile,
     }
 
-    jobs = load_jobs()
+    jobs = _existing_jobs
     jobs.append(job)
     save_jobs(jobs)
 
@@ -869,6 +939,22 @@ def mark_job_run(job_id: str, success: bool, error: Optional[str] = None,
         jobs = load_jobs()
         for i, job in enumerate(jobs):
             if job["id"] == job_id:
+                # Audit M-3 #5: capture pre-mutation snapshot of the
+                # fields we touch so we can suppress save_jobs() when
+                # nothing actually changed (rare but possible for idle
+                # ticks that hit retry/no-op paths). Saves I/O + reduces
+                # contention on the shared jobs.json without changing
+                # observable behaviour.
+                _before = (
+                    job.get("last_run_at"),
+                    job.get("last_status"),
+                    job.get("last_error"),
+                    job.get("last_delivery_error"),
+                    job.get("next_run_at"),
+                    job.get("state"),
+                    job.get("enabled"),
+                    (job.get("repeat") or {}).get("completed"),
+                )
                 now = _stoa_now().isoformat()
                 job["last_run_at"] = now
                 job["last_status"] = "ok" if success else "error"
@@ -921,7 +1007,18 @@ def mark_job_run(job_id: str, success: bool, error: Optional[str] = None,
                 elif job.get("state") != "paused":
                     job["state"] = "scheduled"
 
-                save_jobs(jobs)
+                _after = (
+                    job.get("last_run_at"),
+                    job.get("last_status"),
+                    job.get("last_error"),
+                    job.get("last_delivery_error"),
+                    job.get("next_run_at"),
+                    job.get("state"),
+                    job.get("enabled"),
+                    (job.get("repeat") or {}).get("completed"),
+                )
+                if _after != _before:
+                    save_jobs(jobs)
                 return
 
         logger.warning("mark_job_run: job_id %s not found, skipping save", job_id)
