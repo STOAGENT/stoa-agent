@@ -1631,9 +1631,15 @@ DEFAULT_CONFIG = {
         # When true, prune ended sessions older than retention_days once
         # per (roughly) min_interval_hours at CLI/gateway/cron startup.
         # Only touches ended sessions — active sessions are always preserved.
-        # Default false: session history is valuable for search recall, and
-        # silently deleting it could surprise users.  Opt in explicitly.
-        "auto_prune": False,
+        #
+        # Audit v11 CRIT-57-3 fix: default flipped to True. Indefinite
+        # retention violates GDPR Art. 5(1)(e) "storage limitation" by
+        # default — the user data tables grew unbounded until the user
+        # manually pruned. A 90-day default (see retention_days below)
+        # gives substantially more headroom than typical SaaS while
+        # still being defensible at audit time. Users who want longer
+        # retention set retention_days higher or auto_prune: False.
+        "auto_prune": True,
         # How many days of ended-session history to keep.  Matches the
         # default of ``stoa sessions prune``.
         "retention_days": 90,

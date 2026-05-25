@@ -25,7 +25,7 @@ from pathlib import Path
 
 from agent.memory_manager import sanitize_context
 from stoa_constants import get_stoa_home
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -2540,6 +2540,100 @@ class SessionDB:
                     pass
         except OSError:
             pass
+
+    def delete_user(
+        self,
+        user_id: str,
+        sessions_dir: Optional[Path] = None,
+    ) -> Dict[str, int]:
+        """Delete EVERY session + message belonging to ``user_id``.
+
+        Audit v11 CRIT-57-1 fix: GDPR Art. 17 right-to-erasure.
+        Without this, an EU user's "delete my data" request was
+        unsatisfiable without hand-written SQL. The schema already
+        scopes sessions to ``user_id``; this is the surgical sweep.
+
+        Returns a dict of counts: ``{"sessions": N, "messages": M}``.
+        Side-effect: removes on-disk transcript files for every
+        deleted session if ``sessions_dir`` is provided.
+        """
+        if not user_id:
+            return {"sessions": 0, "messages": 0}
+
+        # Collect first so we can cleanup files after the txn commits.
+        session_ids: list[str] = []
+
+        def _do(conn):
+            rows = conn.execute(
+                "SELECT id FROM sessions WHERE user_id = ?", (user_id,),
+            ).fetchall()
+            ids = [r[0] for r in rows]
+            session_ids.extend(ids)
+            if not ids:
+                return {"sessions": 0, "messages": 0}
+            placeholders = ",".join("?" * len(ids))
+            # Orphan children of soon-to-be-deleted sessions (FK satisfaction)
+            conn.execute(
+                f"UPDATE sessions SET parent_session_id = NULL "
+                f"WHERE parent_session_id IN ({placeholders})",
+                ids,
+            )
+            mcur = conn.execute(
+                f"DELETE FROM messages WHERE session_id IN ({placeholders})",
+                ids,
+            )
+            scur = conn.execute(
+                f"DELETE FROM sessions WHERE id IN ({placeholders})",
+                ids,
+            )
+            return {"sessions": scur.rowcount, "messages": mcur.rowcount}
+
+        counts = self._execute_write(_do)
+        for sid in session_ids:
+            self._remove_session_files(sessions_dir, sid)
+        return counts
+
+    def export_user_data(self, user_id: str) -> Dict[str, Any]:
+        """Return every session + message + meta row owned by ``user_id``.
+
+        Audit v11 CRIT-57-2 fix: GDPR Art. 20 Subject Access Request.
+        Returns plain dict ready for `json.dump` — caller writes to
+        the export file. Sensitive credentials never appear (those
+        live in auth.json / .env, not in the user-data tables).
+        """
+        if not user_id:
+            return {"user_id": user_id, "sessions": [], "messages": []}
+        sessions = self._read_only_query(
+            "SELECT * FROM sessions WHERE user_id = ?", (user_id,),
+        )
+        session_ids = [s["id"] for s in sessions]
+        messages: list[Dict[str, Any]] = []
+        if session_ids:
+            placeholders = ",".join("?" * len(session_ids))
+            messages = self._read_only_query(
+                f"SELECT * FROM messages WHERE session_id IN ({placeholders}) "
+                f"ORDER BY id",
+                session_ids,
+            )
+        return {
+            "user_id": user_id,
+            "exported_at_ms": int(time.time() * 1000),
+            "sessions": sessions,
+            "messages": messages,
+        }
+
+    def _read_only_query(self, sql: str, params: Iterable[Any]) -> list[Dict[str, Any]]:
+        """Helper for export_user_data — runs read-only SELECT, returns dicts.
+
+        Uses the existing write-helper connection path for thread-safety
+        even though we don't write — the same lock keeps a concurrent
+        DELETE from racing our export, so the dump is consistent.
+        """
+        def _do(conn: sqlite3.Connection) -> list[Dict[str, Any]]:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(sql, list(params)).fetchall()
+            return [dict(r) for r in rows]
+        return self._execute_write(_do)
 
     def delete_session(
         self,
