@@ -733,6 +733,13 @@ def content_hash(skill_path: Path) -> str:
     produce the same digest for the same skill (one operates on disk,
     one on an in-memory bundle), so any change to the hash shape MUST
     land in both places at once.
+
+    Audit v9 CRIT-41 fix: truncation widened from 64-bit (16 hex chars,
+    2^32 birthday) to 256-bit (full SHA-256, 2^128 birthday). The
+    previous 16-char prefix would have been a collision oracle the
+    moment the integrity gate at v7 CRIT-30-01 activated — anyone could
+    swap a benign skill for malicious content and find a brute-forced
+    bundle whose hash collided in the leading 16 hex chars within hours.
     """
     h = hashlib.sha256()
     if skill_path.is_dir():
@@ -747,7 +754,7 @@ def content_hash(skill_path: Path) -> str:
                     continue
     elif skill_path.is_file():
         h.update(skill_path.read_bytes())
-    return f"sha256:{h.hexdigest()[:16]}"
+    return f"sha256:{h.hexdigest()}"
 
 
 # ---------------------------------------------------------------------------

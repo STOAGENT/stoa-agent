@@ -3003,6 +3003,21 @@ def install_from_quarantine(
         metadata=bundle.metadata,
     )
 
+    # Audit v7 CRIT-30-01: pin the post-install content hash so the
+    # next loader can refuse to bring up a tampered skill. The pin
+    # records WHAT WAS INSTALLED at the moment of consent — any
+    # subsequent on-disk edit (malicious or accidental) trips the
+    # mismatch gate in agent/skill_utils.iter_skill_index_files.
+    try:
+        from agent.skill_utils import pin_skill_integrity
+        pin_skill_integrity(install_dir)
+    except Exception as exc:
+        logger.warning(
+            "Failed to pin skill integrity for %s: %s — gate will warn "
+            "but not block this skill on next load.",
+            safe_skill_name, exc,
+        )
+
     append_audit_log(
         "INSTALL", safe_skill_name, bundle.source,
         bundle.trust_level, scan_result.verdict,
@@ -3030,6 +3045,14 @@ def uninstall_skill(skill_name: str) -> Tuple[bool, str]:
     if install_path.exists():
         shutil.rmtree(install_path)
 
+    # Audit v7 CRIT-30-01: drop the integrity manifest entry so a
+    # future install at the same path doesn't inherit a stale pin.
+    try:
+        from agent.skill_utils import unpin_skill_integrity
+        unpin_skill_integrity(install_path)
+    except Exception as exc:
+        logger.debug("unpin_skill_integrity failed: %s", exc)
+
     lock.record_uninstall(skill_name)
     append_audit_log("UNINSTALL", skill_name, entry["source"], entry["trust_level"], "n/a", "user_request")
 
@@ -3037,7 +3060,18 @@ def uninstall_skill(skill_name: str) -> Tuple[bool, str]:
 
 
 def bundle_content_hash(bundle: SkillBundle) -> str:
-    """Compute a deterministic hash for an in-memory skill bundle."""
+    """Compute a deterministic hash for an in-memory skill bundle.
+
+    Audit v9 CRIT-41 fix: widened from 64-bit (16 hex chars) to full
+    256-bit SHA-256. The truncation was a chosen-prefix collision
+    oracle once the load-time integrity gate (v7 CRIT-30-01) goes
+    live: an attacker could brute-force a malicious bundle with the
+    same leading 16 hex chars in well under a day on commodity GPUs.
+    Full digest moves the brute-force horizon past 2^128.
+
+    Stays symmetric with ``tools.skills_guard.content_hash`` — same
+    feed order, same null separator, same width.
+    """
     h = hashlib.sha256()
     for rel_path in sorted(bundle.files):
         # Include the path so swapping file contents between two paths
@@ -3049,7 +3083,7 @@ def bundle_content_hash(bundle: SkillBundle) -> str:
             h.update(content)
         else:
             h.update(content.encode("utf-8"))
-    return f"sha256:{h.hexdigest()[:16]}"
+    return f"sha256:{h.hexdigest()}"
 
 
 def _source_matches(source: SkillSource, source_name: str) -> bool:
