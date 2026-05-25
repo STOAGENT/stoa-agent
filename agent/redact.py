@@ -66,6 +66,33 @@ _SENSITIVE_BODY_KEYS = frozenset({
 # downgrade — see `_log_redaction_status()` in gateway/run.py and cli.py.
 _REDACT_ENABLED = os.getenv("STOA_REDACT_SECRETS", "true").lower() in {"1", "true", "yes", "on"}
 
+
+# Audit v10 HIGH-55 + v9 HIGH-46 fix: ``_REDACT_ENABLED`` was a module-
+# load-time snapshot. An operator who started a session with redact:false
+# (e.g. while debugging) and then flipped redact:true via config edit
+# would NOT pick up the change without a process restart — the previous
+# defense ("snapshot defeats mid-session env mutation by LLM-generated
+# command") only addressed the dangerous direction. To make
+# "operator wants MORE redaction" instant, we expose a programmatic
+# re-enable helper that the config-reload path calls. The snapshot still
+# defeats `_REDACT_ENABLED=false` injection via os.environ poisoning
+# because the value comes from a function-scoped read, not the env.
+def force_enable_redaction() -> None:
+    """Flip ``_REDACT_ENABLED`` back ON regardless of current state.
+
+    Called by gateway/CLI when the operator changes
+    ``security.redact_secrets`` from false → true mid-session.
+    Idempotent. Never disables — to turn off, operators must restart
+    (deliberately friction-laden so a hostile prompt can't toggle it).
+    """
+    global _REDACT_ENABLED
+    if not _REDACT_ENABLED:
+        logger.warning(
+            "redact: forced ON via force_enable_redaction() (was OFF). "
+            "All sensitive-pattern matches will scrub from this point on."
+        )
+    _REDACT_ENABLED = True
+
 # Known API key prefixes -- match the prefix + contiguous token chars
 _PREFIX_PATTERNS = [
     r"sk-[A-Za-z0-9_-]{10,}",           # OpenAI / OpenRouter / Anthropic (sk-ant-*)
