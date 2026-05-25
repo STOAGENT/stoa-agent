@@ -616,7 +616,17 @@ class WebhookAdapter(BasePlatformAdapter):
     def _validate_signature(
         self, request: "web.Request", body: bytes, secret: str
     ) -> bool:
-        """Validate webhook signature (GitHub, GitLab, generic HMAC-SHA256)."""
+        """Validate webhook signature (GitHub, GitLab, generic HMAC-SHA256).
+
+        Audit v7 HIGH-12 fix: for the GENERIC HMAC scheme, the canonical
+        string now includes ``X-Webhook-Timestamp`` so signatures bind to
+        a moment in time. Captured signed POSTs no longer replay forever
+        after the per-delivery dedup TTL elapses. GitHub + GitLab paths
+        keep their vendor-defined schemes (those vendors don't sign a
+        timestamp into the canonical string — they expect the recipient
+        to enforce vendor-side TTL or replay-protect via Idempotency-Key
+        cache, which we do via _seen_deliveries).
+        """
         # GitHub: X-Hub-Signature-256 = sha256=<hex>
         gh_sig = request.headers.get("X-Hub-Signature-256", "")
         if gh_sig:
@@ -630,9 +640,36 @@ class WebhookAdapter(BasePlatformAdapter):
         if gl_token:
             return hmac.compare_digest(gl_token, secret)
 
-        # Generic: X-Webhook-Signature = <hex HMAC-SHA256>
+        # Generic: X-Webhook-Signature = <hex HMAC-SHA256 of
+        # ``f"{timestamp}.{body}"``> with required X-Webhook-Timestamp.
+        # 10 min freshness window. Backward-compat: if no timestamp header
+        # is sent, fall back to the legacy body-only scheme but log a
+        # deprecation warning so operators migrate before next major.
         generic_sig = request.headers.get("X-Webhook-Signature", "")
         if generic_sig:
+            ts_hdr = request.headers.get("X-Webhook-Timestamp", "")
+            if ts_hdr:
+                try:
+                    ts = int(ts_hdr)
+                    now = int(time.time())
+                    if abs(now - ts) > 600:
+                        logger.warning(
+                            "[webhook] X-Webhook-Timestamp out of window: ts=%d now=%d",
+                            ts, now,
+                        )
+                        return False
+                except (TypeError, ValueError):
+                    logger.warning("[webhook] X-Webhook-Timestamp not integer: %r", ts_hdr)
+                    return False
+                canonical = f"{ts}.".encode() + body
+                expected = hmac.new(secret.encode(), canonical, hashlib.sha256).hexdigest()
+                return hmac.compare_digest(generic_sig, expected)
+            # Legacy body-only — log and accept once; senders should upgrade.
+            logger.warning(
+                "[webhook] Generic signature scheme without X-Webhook-Timestamp "
+                "is DEPRECATED (replayable). Send X-Webhook-Timestamp=<unix-s> + "
+                "compute HMAC over '<ts>.<body>'."
+            )
             expected = hmac.new(
                 secret.encode(), body, hashlib.sha256
             ).hexdigest()

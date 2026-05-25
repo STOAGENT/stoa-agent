@@ -3282,11 +3282,33 @@ class FeishuAdapter(BasePlatformAdapter):
         Feishu signature algorithm:
             SHA256(timestamp + nonce + encrypt_key + body_string)
         Headers checked: x-lark-request-timestamp, x-lark-request-nonce, x-lark-signature.
+
+        Audit v7 HIGH-11 fix: timestamp freshness gate. The signature
+        formula already binds the timestamp into the digest, so an
+        attacker can't tamper with it — but a captured-and-replayed
+        ``(headers, body)`` pair sails through indefinitely unless we
+        bound the acceptable age. 10 min matches Feishu server's own
+        clock-skew tolerance.
         """
         timestamp = str(headers.get("x-lark-request-timestamp", "") or "")
         nonce = str(headers.get("x-lark-request-nonce", "") or "")
         signature = str(headers.get("x-lark-signature", "") or "")
         if not timestamp or not nonce or not signature:
+            return False
+        # Freshness check (audit v7 HIGH-11): Feishu sends ms-precision
+        # epoch in this header. Reject if older than 10 min OR more than
+        # 30s in the future (clock skew).
+        try:
+            ts_ms = int(timestamp)
+            now_ms = int(time.time() * 1000)
+            if ts_ms < now_ms - 600_000 or ts_ms > now_ms + 30_000:
+                logger.warning(
+                    "[Feishu] Signature timestamp out of freshness window: ts=%d now=%d",
+                    ts_ms, now_ms,
+                )
+                return False
+        except (TypeError, ValueError):
+            logger.warning("[Feishu] Signature timestamp not an integer: %r", timestamp)
             return False
         try:
             body_str = body_bytes.decode("utf-8", errors="replace")
