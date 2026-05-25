@@ -1344,6 +1344,31 @@ class MCPServerTask:
             )
 
         url = config["url"]
+        # Audit v10 HIGH-51 fix: SSE/HTTP MCP transports never went
+        # through is_safe_url, so an MCP server URL pointing at
+        # `http://[fe80::%eth0]`, `http://169.254.169.254`, or any
+        # link-local / Tailscale / cloud-metadata range would let a
+        # hostile config drain cloud IAM credentials. is_safe_url
+        # blocks loopback/link-local/multicast/cloud-metadata on both
+        # IPv4 and IPv6.
+        try:
+            from tools.url_safety import is_safe_url
+            ok, reason = is_safe_url(url)
+            if not ok:
+                raise RuntimeError(
+                    f"MCP server '{self.name}': refusing URL {url!r} — "
+                    f"flagged by url_safety: {reason}"
+                )
+        except ImportError:
+            # url_safety unavailable: fall back to a minimal denylist
+            # so the gate at least catches the cloud-metadata address.
+            low = url.lower()
+            for bad in ("169.254.169.254", "[fe80", "[fc00", "[ff00", "::1"):
+                if bad in low:
+                    raise RuntimeError(
+                        f"MCP server '{self.name}': refusing URL {url!r} — "
+                        f"matched fallback denylist token {bad!r}"
+                    )
         headers = dict(config.get("headers") or {})
         # Some MCP servers require MCP-Protocol-Version on the initial
         # initialize request and reject session-less POSTs otherwise.

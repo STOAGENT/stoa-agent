@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 from pathlib import Path
 from typing import Any, AsyncIterator, Awaitable, Callable
@@ -10,6 +11,8 @@ from typing import Any, AsyncIterator, Awaitable, Callable
 import httpx
 
 from tools.microsoft_graph_auth import GraphCredentials, MicrosoftGraphTokenProvider
+
+logger = logging.getLogger(__name__)
 
 
 DEFAULT_GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
@@ -20,7 +23,17 @@ class MicrosoftGraphClientError(RuntimeError):
 
 
 class MicrosoftGraphAPIError(MicrosoftGraphClientError):
-    """Raised when a Graph API request fails."""
+    """Raised when a Graph API request fails.
+
+    Audit v10 HIGH-49 fix: ``payload`` is no longer stored as a raw
+    Python attribute on the exception instance. The previous design
+    let chained tracebacks (``__cause__``) expose Graph's response
+    body — which routinely includes UPNs, $skiptoken cursors, and
+    occasionally bearer-token fragments — into any error path that
+    captures ``repr(exc)``. Now we keep only the short status+message
+    pair on the exception; full payload goes through the redactor and
+    lands in operator logs only.
+    """
 
     def __init__(
         self,
@@ -36,7 +49,26 @@ class MicrosoftGraphAPIError(MicrosoftGraphClientError):
         self.method = method
         self.url = url
         self.retry_after_seconds = retry_after_seconds
-        self.payload = payload
+        # Audit v10 HIGH-49: drop the raw payload from the instance.
+        # Operators who need the payload for debugging can re-enable
+        # via STOA_MSGRAPH_KEEP_PAYLOAD=1 (logs a warning).
+        import os
+        if payload is not None and os.environ.get("STOA_MSGRAPH_KEEP_PAYLOAD") == "1":
+            self.payload = payload  # opt-in, loud
+        else:
+            self.payload = None
+            if payload is not None:
+                try:
+                    from agent.redact import redact_sensitive_text
+                    safe = redact_sensitive_text(str(payload)[:500], force=True)
+                except Exception:
+                    safe = "<payload-redact-failed>"
+                logger.warning(
+                    "MS Graph %s %s returned a payload that was elided from the "
+                    "exception (set STOA_MSGRAPH_KEEP_PAYLOAD=1 to retain). "
+                    "Redacted preview: %s",
+                    method, url, safe,
+                )
         super().__init__(
             f"Microsoft Graph API error {status_code} for {method} {url}: {message}"
         )

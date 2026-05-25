@@ -157,7 +157,36 @@ def should_auto_approve_edit(proposal: EditProposal, policy: str, cwd: str | Non
         return False
     path = Path(proposal.path).expanduser().resolve(strict=False)
     if policy == AUTO_APPROVE_SESSION:
-        return True
+        # Audit v4 CRIT A-02 fix: SESSION mode now uses the same
+        # cwd/HOME/tmp envelope as WORKSPACE_SESSION. Previously
+        # SESSION returned True for ANY path on disk — including
+        # /etc/sudoers, ~/.bashrc, ~/.aws/credentials. With dont_ask
+        # mode set, the agent could silently plant backdoors anywhere
+        # the OS user had write access. The pre-resolved sensitive
+        # check above already short-circuited the most obvious paths,
+        # but the post-resolve envelope adds the directory-prefix
+        # protection (symlink under cwd → ~/.ssh/authorized_keys etc).
+        tmp_root = Path(tempfile.gettempdir()).resolve(strict=False)
+        try:
+            path.relative_to(tmp_root)
+            return True
+        except ValueError:
+            pass
+        home = Path("~").expanduser().resolve(strict=False)
+        try:
+            path.relative_to(home)
+            # Permit writes under HOME EXCEPT for the deny-prefix
+            # set (resolved against home in build_write_denied_prefixes
+            # — same set the file_safety write gate uses).
+            try:
+                from agent.file_safety import is_write_denied
+                if is_write_denied(str(path)):
+                    return False
+            except Exception:
+                pass
+            return True
+        except ValueError:
+            return False
     if policy == AUTO_APPROVE_WORKSPACE:
         # `/tmp` is the POSIX path but tempfile.gettempdir() is the real one on
         # every platform: `/private/tmp` on macOS (because `/tmp` is a symlink

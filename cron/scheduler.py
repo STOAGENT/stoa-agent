@@ -1484,11 +1484,31 @@ def _run_job_impl(job: dict) -> tuple[bool, str, str, Optional[str]]:
             # no explicit provider is requested. Passing the env var here short-
             # circuits that precedence and can resurrect old providers (for
             # example DeepSeek) for cron jobs that do not pin provider/model.
+            #
+            # Audit v6 HIGH-8 fix: cron base_url goes through an allowlist.
+            # Without this, an attacker who poisoned ~/.stoa/cron/jobs.json
+            # (or who exploited the web PUT mass-assignment hole below)
+            # could re-point a scheduled job's LLM endpoint at an
+            # attacker-controlled URL — silently piping every prompt +
+            # context + tool-result into their MITM proxy. Allowlist is
+            # STOA_CRON_ALLOWED_BASE_URLS (comma-separated). Default is
+            # empty = no base_url override accepted at all.
+            requested_base_url = job.get("base_url")
+            if requested_base_url:
+                allowed = os.environ.get("STOA_CRON_ALLOWED_BASE_URLS", "").strip()
+                allowed_set = {u.strip().rstrip("/") for u in allowed.split(",") if u.strip()}
+                if requested_base_url.rstrip("/") not in allowed_set:
+                    logger.warning(
+                        "Job '%s': base_url %r not in STOA_CRON_ALLOWED_BASE_URLS "
+                        "allowlist (%s) — ignoring per-job override.",
+                        job_id, requested_base_url, sorted(allowed_set),
+                    )
+                    requested_base_url = None
             runtime_kwargs = {
                 "requested": job.get("provider"),
             }
-            if job.get("base_url"):
-                runtime_kwargs["explicit_base_url"] = job.get("base_url")
+            if requested_base_url:
+                runtime_kwargs["explicit_base_url"] = requested_base_url
             runtime = resolve_runtime_provider(**runtime_kwargs)
         except AuthError as auth_exc:
             # Primary provider auth failed — try fallback chain before giving up.

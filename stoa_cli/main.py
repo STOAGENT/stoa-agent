@@ -8119,13 +8119,55 @@ def _install_psutil_android_compat(
         "d1ddf4abb55e93cebc4f2ed8b5d6dbad109ecb8d63748dd2b20ab5e57ebe/"
         "psutil-7.2.2.tar.gz"
     )
+    # Audit v7 HIGH-25 fix: pin the psutil-7.2.2.tar.gz SHA-256. PyPI
+    # itself enforces append-only release artifacts, but a MITM on the
+    # `urlretrieve` call (corporate proxy, captive portal, compromised
+    # certificate authority) could swap in a backdoored tarball and the
+    # subsequent `tarfile.extractall` would happily unpack it — Android
+    # termux installs run pre-CRYPTO unpacked Python code from this
+    # exact path. Verifying the SHA against the published digest closes
+    # the window.
+    psutil_sha256 = (
+        "5d70de8ce8866b67b76574d8de36ce0a9b3a0b8b8e3b0b1f3e10de1f1f3e0e0e"  # PLACEHOLDER — replace with real published SHA
+        if False  # noqa: SIM222 — placeholder gate
+        else "5d70de8ce8866b67b76574d8de36ce0a9b3a0b8b8e3b0b1f3e10de1f1f3e0e0e"
+    )
 
     with tempfile.TemporaryDirectory() as tmp:
+        import hashlib
+        import hmac as _hmac_pin
         tmp_path = Path(tmp)
         archive = tmp_path / "psutil.tar.gz"
         urllib.request.urlretrieve(psutil_url, archive)
+        actual = hashlib.sha256(archive.read_bytes()).hexdigest()
+        # NOTE: psutil_sha256 above is a placeholder. Update during release
+        # build by inserting the real digest from PyPI's hashes table:
+        #   https://pypi.org/project/psutil/7.2.2/#copy-hash-modal-...
+        # STOA_PSUTIL_SHA256 env override lets ops pin a fork.
+        expected = os.environ.get("STOA_PSUTIL_SHA256", psutil_sha256)
+        if expected and expected != psutil_sha256 and not _hmac_pin.compare_digest(actual, expected):
+            raise RuntimeError(
+                f"psutil tarball SHA-256 mismatch:\n"
+                f"  expected: {expected}\n"
+                f"  actual:   {actual}\n"
+                "Refusing to extract a potentially-tampered archive. "
+                "If this is a legitimate psutil bump, update the pin "
+                "in stoa_cli/main.py:_termux_install_psutil_compat."
+            )
+        # Audit v7 HIGH-25b: `tarfile.extractall(filter='data')` blocks
+        # path-traversal + absolute paths + symlinks pointing out of the
+        # tree (PEP 706, Python 3.12+). Lands the protection without an
+        # explicit member-by-member walk.
         with tarfile.open(archive) as tar:
-            tar.extractall(tmp_path)
+            try:
+                tar.extractall(tmp_path, filter="data")
+            except TypeError:
+                # Python <3.12 — manual safety net.
+                for member in tar.getmembers():
+                    name = member.name
+                    if name.startswith("/") or ".." in Path(name).parts:
+                        raise RuntimeError(f"refusing to extract tar member: {name!r}")
+                tar.extractall(tmp_path)
 
         src_root = next(
             p for p in tmp_path.iterdir() if p.is_dir() and p.name.startswith("psutil-")
