@@ -253,4 +253,75 @@ def get_read_block_error(path: str) -> Optional[str]:
             "security boundary; the terminal tool can still bypass.)"
         )
 
+    # Audit v5 CRIT T-01: user-level credential stores.
+    # The read-deny was previously STOA-only; this missed every popular
+    # cloud-credential store on disk (~/.ssh, ~/.aws, ~/.gnupg, ~/.kube,
+    # /etc/shadow, etc.). The same defense-in-depth justification applies:
+    # models that respect tool denials stop here, and even when they reach
+    # for the shell the visible refusal lands in audit logs.
+    home = Path(os.path.expanduser("~")).resolve()
+    user_secret_files = (
+        home / ".netrc",
+        home / ".pgpass",
+        home / ".npmrc",
+        home / ".pypirc",
+        home / ".gitconfig",
+        Path("/etc/shadow"),
+        Path("/etc/sudoers"),
+    )
+    for blocked in user_secret_files:
+        try:
+            if resolved == blocked.resolve(strict=False):
+                return (
+                    f"Access denied: {path} is a user-level credential / "
+                    "system secret file. (Defense-in-depth — not a security "
+                    "boundary; the terminal tool can still bypass.)"
+                )
+        except Exception:
+            continue
+
+    user_secret_dirs = (
+        home / ".ssh",
+        home / ".aws",
+        home / ".gnupg",
+        home / ".kube",
+        home / ".docker",
+        home / ".azure",
+        home / ".config" / "gh",
+        home / ".gcloud",
+        home / ".config" / "gcloud",
+        Path("/etc/sudoers.d"),
+    )
+    for d in user_secret_dirs:
+        try:
+            d_real = d.resolve(strict=False)
+        except Exception:
+            continue
+        if resolved == d_real:
+            return (
+                f"Access denied: {path} is a user-level credential directory "
+                "and may contain private keys / tokens. (Defense-in-depth — "
+                "not a security boundary; the terminal tool can still bypass.)"
+            )
+        try:
+            resolved.relative_to(d_real)
+        except ValueError:
+            continue
+        return (
+            f"Access denied: {path} sits inside a user-level credential "
+            "directory ({d_real}). Provider tools consume these credentials "
+            "through internal channels. (Defense-in-depth — not a security "
+            "boundary; the terminal tool can still bypass.)"
+        )
+
+    # /proc/<pid>/environ leaks every env var of any process the user can
+    # read — including STOA's own credentials. Block reads regardless of pid.
+    p_str = str(resolved).replace("\\", "/")
+    if p_str.startswith("/proc/") and p_str.endswith("/environ"):
+        return (
+            f"Access denied: {path} exposes process environment variables "
+            "which routinely contain credentials. (Defense-in-depth — not a "
+            "security boundary; the terminal tool can still bypass.)"
+        )
+
     return None
