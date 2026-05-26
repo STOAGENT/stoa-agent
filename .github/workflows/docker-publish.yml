@@ -37,7 +37,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  IMAGE_NAME: nousresearch/stoa-agent
+  IMAGE_NAME: stoagent/stoa-agent
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -263,7 +263,7 @@ jobs:
         id: main_check
         run: |
           set -euo pipefail
-          image=nousresearch/stoa-agent
+          image=stoagent/stoa-agent
 
           image_json=$(
             docker buildx imagetools inspect "${image}:main" \
@@ -425,7 +425,7 @@ jobs:
         id: latest_check
         run: |
           set -euo pipefail
-          image=nousresearch/stoa-agent
+          image=stoagent/stoa-agent
 
           image_json=$(
             docker buildx imagetools inspect "${image}:latest" \
@@ -491,7 +491,7 @@ jobs:
           RELEASE_TAG: ${{ needs.merge.outputs.release_tag }}
         run: |
           set -euo pipefail
-          image=nousresearch/stoa-agent
+          image=stoagent/stoa-agent
           docker buildx imagetools create \
             --tag "${image}:latest" \
             "${image}:${RELEASE_TAG}"
