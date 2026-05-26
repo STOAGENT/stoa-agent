@@ -4727,8 +4727,31 @@ def call_llm(
     # Handle unsupported temperature, max_tokens vs max_completion_tokens retry,
     # then payment fallback.
     try:
-        return _validate_llm_response(
-            client.chat.completions.create(**kwargs), task)
+        # M-11c — egress trace: timing wrap around the primary chat.completions
+        # call. Failure paths (retry, refresh, fallback) below intentionally
+        # re-issue without re-tracing because (a) they hit the same host with
+        # the same provider label and (b) the timing for the first attempt is
+        # already the load-bearing data point. Body/headers/keys never reach
+        # record_egress by construction — see agent/egress_trace.py.
+        import time as _t_trace
+        _t0_trace = _t_trace.monotonic()
+        _resp = client.chat.completions.create(**kwargs)
+        try:
+            from agent.egress_trace import record_egress as _record_egress
+            _record_egress(
+                provider=str(resolved_provider or provider or task or "auxiliary"),
+                url=str(resolved_base_url or base_url or ""),
+                model=str(resolved_model or model or kwargs.get("model") or ""),
+                method="POST",
+                status=200,
+                latency_ms=int((_t_trace.monotonic() - _t0_trace) * 1000),
+                tokens_in=getattr(getattr(_resp, "usage", None), "prompt_tokens", None),
+                tokens_out=getattr(getattr(_resp, "usage", None), "completion_tokens", None),
+            )
+        except Exception:
+            # Tracer must never block the response path.
+            pass
+        return _validate_llm_response(_resp, task)
     except Exception as first_err:
         if "temperature" in kwargs and _is_unsupported_temperature_error(first_err):
             retry_kwargs = dict(kwargs)

@@ -10846,6 +10846,79 @@ def cmd_audit(args):
         sys.exit(2)
 
 
+def cmd_egress_show(args):
+    """``stoa egress show`` — pretty-print the recent egress records."""
+    from agent.egress_trace import read_recent, get_log_path
+
+    limit = getattr(args, "limit", 50) or 50
+    provider_filter = getattr(args, "provider", None)
+
+    log_path = get_log_path()
+    if not log_path.exists():
+        print(
+            f"egress: no log at {log_path} yet. "
+            "Records appear after the first LLM call from a recorder-wired adapter."
+        )
+        return
+
+    # Read more than `limit` if we'll filter, so the result still has
+    # `limit` rows in the worst case. Cap the inflation so a wildly
+    # broad filter doesn't slurp the whole file.
+    fetch = limit if not provider_filter else min(limit * 10, 10_000)
+    rows = read_recent(fetch)
+    if provider_filter:
+        rows = [r for r in rows if r.get("provider") == provider_filter][-limit:]
+
+    if not rows:
+        print(f"egress: no matching records in {log_path}")
+        return
+
+    for row in rows:
+        ts = row.get("ts", "?")
+        provider = row.get("provider", "?")
+        host = row.get("host", "-")
+        status = row.get("status", "-")
+        latency = row.get("latency_ms", "-")
+        tokens_in = row.get("tokens_in", "-")
+        tokens_out = row.get("tokens_out", "-")
+        print(
+            f"{ts}  {provider:<14} {host:<32} "
+            f"status={status} lat={latency}ms in={tokens_in} out={tokens_out}"
+        )
+
+
+def cmd_egress_export(args):
+    """``stoa egress export <out_file>`` — copy raw JSONL to *out_file*."""
+    import shutil
+    from pathlib import Path
+
+    from agent.egress_trace import get_log_path
+
+    log_path = get_log_path()
+    if not log_path.exists():
+        print(f"egress: no log to export (expected {log_path})")
+        sys.exit(1)
+
+    out_path = Path(getattr(args, "out_file"))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(log_path, out_path)
+    size = out_path.stat().st_size
+    print(f"egress: exported {size} bytes → {out_path}")
+
+
+def cmd_egress(args):
+    """Dispatch ``stoa egress <subcommand>``."""
+    sub = getattr(args, "egress_action", None)
+    if sub == "show":
+        cmd_egress_show(args)
+    elif sub == "export":
+        cmd_egress_export(args)
+    else:
+        # No subcommand → treat as `show` with defaults so a bare
+        # `stoa egress` is still useful.
+        cmd_egress_show(args)
+
+
 def cmd_logs(args):
     """View and filter STOA log files."""
     from stoa_cli.logs import tail_log, list_logs
@@ -14067,6 +14140,58 @@ Examples:
         help="STOA profile name (consumed before argparse).",
     )
     audit_export.set_defaults(func=cmd_audit)
+
+    # =========================================================================
+    # egress command (audit Lens 46 / M-11c — per-provider egress trace)
+    # =========================================================================
+    egress_parser = subparsers.add_parser(
+        "egress",
+        help="View or export the per-provider LLM egress log",
+        description=(
+            "Inspect ~/.stoa/egress/per-provider.jsonl — one line per outbound "
+            "LLM HTTP call. Each line carries provider name + scheme://host[:port] "
+            "+ token counts + latency, with NO prompt / response body / API keys. "
+            "Use 'show' to tail the recent calls, 'export' to dump the full log "
+            "to a target path."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""\
+Examples:
+    stoa egress show
+    stoa egress show --limit 200
+    stoa egress show --provider anthropic
+    stoa egress export /tmp/egress-2026-05.jsonl
+""",
+    )
+    egress_subparsers = egress_parser.add_subparsers(dest="egress_action")
+    egress_parser.set_defaults(func=cmd_egress)
+
+    egress_show = egress_subparsers.add_parser(
+        "show",
+        help="Tail the recent egress records (default: last 50)",
+    )
+    egress_show.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        help="Maximum number of records to display (default: 50).",
+    )
+    egress_show.add_argument(
+        "--provider",
+        default=None,
+        help="Filter to records whose 'provider' field equals this string.",
+    )
+    egress_show.set_defaults(func=cmd_egress)
+
+    egress_export = egress_subparsers.add_parser(
+        "export",
+        help="Copy the egress log to a target path (raw JSONL)",
+    )
+    egress_export.add_argument(
+        "out_file",
+        help="Output path. Parent directory created if missing.",
+    )
+    egress_export.set_defaults(func=cmd_egress)
 
     # =========================================================================
     # logs command
