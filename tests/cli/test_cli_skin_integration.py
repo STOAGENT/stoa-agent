@@ -34,7 +34,9 @@ class TestCliSkinPromptIntegration:
         cli = _make_cli_stub()
 
         set_active_skin("default")
-        assert cli._get_tui_prompt_fragments() == [("class:prompt", "❯ ")]
+        # The "default" skin's prompt_symbol is "›" (single chevron) post-rebrand.
+        # "❯" remains the absolute fallback when no skin is active (cli.py:12127).
+        assert cli._get_tui_prompt_fragments() == [("class:prompt", "› ")]
 
     def test_ares_prompt_fragments_use_skin_symbol(self):
         cli = _make_cli_stub()

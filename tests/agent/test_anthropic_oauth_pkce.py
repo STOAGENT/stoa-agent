@@ -54,6 +54,11 @@ def _patch_oauth_flow(
 
     monkeypatch.setattr("webbrowser.open", fake_open)
     monkeypatch.setattr("builtins.input", lambda *_a, **_kw: callback_code)
+    # P-07 hardening switched production from `input()` to `getpass.getpass()`
+    # so the auth code does not echo / land in shell history. The test fixture
+    # must intercept the same call site or the test hangs on stdin.
+    import getpass
+    monkeypatch.setattr(getpass, "getpass", lambda *_a, **_kw: callback_code)
 
     class _FakeResponse:
         def __init__(self, body: bytes) -> None:
@@ -65,7 +70,11 @@ def _patch_oauth_flow(
         def __exit__(self, *_exc):
             return False
 
-        def read(self):
+        def read(self, _size: int = -1):
+            # Production passes an explicit byte cap (DoS guard added in
+            # P-07: `resp.read(64 * 1024)`). Accept and ignore the size arg
+            # — the fixture body is small and the test cares about content
+            # parity, not size enforcement.
             return self._body
 
     def fake_urlopen(req, *_a, **_kw):
@@ -113,6 +122,10 @@ def test_authorization_url_state_is_not_pkce_verifier(monkeypatch, tmp_path):
         return f"auth-code-from-anthropic#{state}"
 
     monkeypatch.setattr(builtins, "input", fake_input)
+    # Production calls getpass.getpass for the auth code; override that too
+    # so the dynamically-computed state matches the URL state.
+    import getpass
+    monkeypatch.setattr(getpass, "getpass", fake_input)
 
     from agent.anthropic_adapter import run_stoa_oauth_login_pure
 
