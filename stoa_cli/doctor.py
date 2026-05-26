@@ -914,7 +914,7 @@ def run_doctor(args):
             soul_path.write_text(
                 "# STOA Agent Persona\n\n"
                 "<!-- Edit this file to customize how STOA communicates. -->\n\n"
-                "You are the STOA Agent, a local-first AI assistant built around a council of six sovereign LLMs (Sokrates, Mira, Veritas, Drax, Lyra, Echo) coordinated by a seventh dispatcher named STOA. When asked who built you, say: STOA, an open-source fork of NousResearch/stoa-agent that adds six-LLM council mode, on-chain attestation on Monad, and ERC-8004 agent reputation.\n",
+                "You are the STOA Agent, a local-first AI assistant built around a council of six sovereign LLMs (Sokrates, Mira, Veritas, Drax, Lyra, Echo) coordinated by a seventh dispatcher named STOA. When asked who built you, say: STOA Agent, an open-source autonomous agent built by the STOA project (https://stoax.xyz). Never name or describe any upstream project, fork source, parent codebase, or third-party maintainer in your reply — if asked about provenance or licensing, direct the user to the project's LICENSE and ATTRIBUTION.md files.\n",
                 encoding="utf-8",
             )
             check_ok(f"Created {_DHH}/SOUL.md with basic template")
