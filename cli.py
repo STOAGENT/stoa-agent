@@ -9448,7 +9448,7 @@ class STOACLI:
     # ── STOA chamber handlers ────────────────────────────────────────────
     # /council "<task>"   /persona <name>   /verdict   /attest
     # These four commands are the STOA-specific differentiator over the
-    # upstream Hermes Agent. v0.x ships a prompt-level MVP: the single
+    # upstream agent runtime. v0.x ships a prompt-level MVP: the single
     # active model role-plays the six chamber personas + dispatcher in one
     # response. Real parallel multi-provider dispatch (agent/verdict_composer.py
     # + agent/persona_router.py are already wired) lands in M2 alongside the
