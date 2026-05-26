@@ -689,8 +689,16 @@ def iter_skill_index_files(skills_dir: Path, filename: str):
 
     Audit v5 CRIT B-02 fix: ``followlinks=False`` — the previous default
     of True let a symlink ``project/skills/safe → ~/.stoa/skills/evil``
-    inject out-of-tree SKILL.md content. We now refuse to descend through
-    symlinks; bundled skills live in real directories.
+    inject out-of-tree SKILL.md content from arbitrary depth. We now
+    refuse to descend through symlinks DEEP in the tree (depth > 1).
+
+    Audit v5 CRIT B-02 follow-up (Loop 10 / 2026-05-26): operators
+    legitimately symlink skills at depth 1 — e.g. ``~/.stoa/skills/myskill
+    → /opt/our-team-skills/myskill``. Refusing depth-1 symlinks broke
+    every shared-team skill setup. Compromise: depth-1 symlinks ARE
+    followed (each symlink is resolved to its real target, then walked
+    with ``followlinks=False``). Anything below that is still refused,
+    so a malicious skill can't smuggle a deeper symlink.
 
     Audit v5 CRIT B-01 / K-01 fix: filter out any SKILL.md whose path
     looks like a red-teaming / safety-bypass skill (obliteratus, godmode,
@@ -712,15 +720,69 @@ def iter_skill_index_files(skills_dir: Path, filename: str):
          turns this into a block too)
     """
     matches = []
-    for root, dirs, files in os.walk(skills_dir, followlinks=False):
-        dirs[:] = [d for d in dirs if d not in EXCLUDED_SKILL_DIRS]
-        if filename in files:
-            matches.append(Path(root) / filename)
+
+    # Walk the immediate children first. For each child that is a symlink
+    # pointing at a directory, resolve it and walk the target with
+    # ``followlinks=False``; for each real subdirectory walk it directly.
+    # This is the depth-1 symlink exemption documented above.
+    try:
+        top_entries = list(os.scandir(skills_dir))
+    except (FileNotFoundError, NotADirectoryError, PermissionError):
+        top_entries = []
+
+    # Also catch the case where the user dropped a SKILL.md directly in
+    # the root of skills_dir.
+    if filename in {e.name for e in top_entries if e.is_file()}:
+        matches.append(Path(skills_dir) / filename)
+
+    for entry in top_entries:
+        if entry.name in EXCLUDED_SKILL_DIRS:
+            continue
+        # Resolve depth-1 symlinks to their real target before walking.
+        is_symlinked_root = entry.is_symlink()
+        if is_symlinked_root:
+            try:
+                walk_root = os.path.realpath(entry.path)
+            except OSError:
+                continue
+            if not os.path.isdir(walk_root):
+                continue
+        elif entry.is_dir():
+            walk_root = entry.path
+        else:
+            continue
+        for root, dirs, files in os.walk(walk_root, followlinks=False):
+            dirs[:] = [d for d in dirs if d not in EXCLUDED_SKILL_DIRS]
+            if filename not in files:
+                continue
+            if is_symlinked_root:
+                # Preserve the apparent path under the depth-1 symlink so
+                # downstream `relative_to(skills_dir)` continues to work.
+                # Without this, the real path lands outside skills_dir and
+                # consumers (skill_view, _load_skill_payload) refuse to
+                # load the file because they can't anchor it to a trusted
+                # root.
+                rel = os.path.relpath(root, walk_root)
+                apparent_root = (
+                    Path(entry.path) if rel == "." else Path(entry.path) / rel
+                )
+                matches.append(apparent_root / filename)
+            else:
+                matches.append(Path(root) / filename)
     redteam_on = is_redteam_enabled()
     integrity_index = _load_skill_integrity_manifest()
     strict_mode = os.getenv("STOA_REQUIRE_SKILL_INTEGRITY", "0") == "1"
 
-    for path in sorted(matches, key=lambda p: str(p.relative_to(skills_dir))):
+    def _sort_key(p: Path) -> str:
+        # Depth-1 symlinks were resolved to their real paths above, which can
+        # land outside skills_dir. Fall back to the absolute path for sorting
+        # in that case so relative_to() never raises ValueError.
+        try:
+            return str(p.relative_to(skills_dir))
+        except ValueError:
+            return str(p)
+
+    for path in sorted(matches, key=_sort_key):
         if not redteam_on and is_redteam_skill_path(path):
             continue
         if not _skill_integrity_ok(path, integrity_index, strict_mode):
