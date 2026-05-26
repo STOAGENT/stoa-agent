@@ -33,7 +33,7 @@ def test_agent_json_matches_official_registry_required_fields():
     assert data["name"] == "STOA Agent"
     assert data["description"]
     assert data["repository"] == "https://github.com/STOAGENT/stoa-agent"
-    assert data["website"].startswith("https://stoa-agent.nousresearch.com/")
+    assert data["website"].startswith("https://stoax.xyz/")
     assert data["authors"] == ["STOA"]
     assert data["license"] == "MIT"
     assert set(data["distribution"]) <= ALLOWED_DISTRIBUTIONS
