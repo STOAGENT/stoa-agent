@@ -3,10 +3,10 @@ class StoaAgent < Formula
 
   desc "STOA Agent — a chamber of six sovereign LLMs + one dispatcher (CLI)"
   homepage "https://stoax.xyz"
-  # Stable source should point at the semver-named sdist asset attached by
-  # scripts/release.py, not the CalVer tag tarball.
-  url "https://github.com/STOAGENT/stoa-agent/releases/download/v0.14.0/stoa_agent-0.14.0.tar.gz"
-  sha256 "<replace-with-release-asset-sha256>"
+  # Stable source: PyPI sdist (more reliable + cacheable than GitHub Release
+  # asset; trusted-publisher OIDC chain guarantees authenticity).
+  url "https://files.pythonhosted.org/packages/c3/5d/1f0212a5548b560f4609616b58891eda7b63c508d13a01f748e67f6a9fb4/stoa_agent-0.14.1.tar.gz"
+  sha256 "e17d51374ac9ad91b2fee5d89166f697b75b9d49aeac096725477ea6ca16b6e6"
   license "MIT"
 
   depends_on "certifi" => :no_linkage
