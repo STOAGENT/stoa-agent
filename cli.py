@@ -23,6 +23,17 @@ except ModuleNotFoundError:
     # means UTF-8 stdio setup is skipped on Windows; POSIX is unaffected.
     pass
 
+# Audit Lens 46 / M-11c — boot integrity hash.  One SHA-256 line per
+# CLI invocation lands in ``~/.stoa/boot-integrity.log``; a tampered
+# install shows up as a digest jump between sessions.  Fail-safe: any
+# exception is swallowed so a broken hash NEVER prevents startup.  Opt
+# out with ``STOA_BOOT_INTEGRITY=0``.
+try:
+    from stoa_cli.boot_integrity import record_boot as _record_boot
+    _record_boot()
+except Exception:
+    pass
+
 import logging
 import os
 import shutil
