@@ -749,6 +749,12 @@ def mcp_command(args):
         run_mcp_server(verbose=getattr(args, "verbose", False))
         return
 
+    from stoa_cli.mcp_allowlist import (
+        cmd_mcp_allow,
+        cmd_mcp_deny,
+        cmd_mcp_allowlist,
+    )
+
     handlers = {
         "add": cmd_mcp_add,
         "remove": cmd_mcp_remove,
@@ -759,6 +765,11 @@ def mcp_command(args):
         "configure": cmd_mcp_configure,
         "config": cmd_mcp_configure,
         "login": cmd_mcp_login,
+        "allow": cmd_mcp_allow,
+        "deny": cmd_mcp_deny,
+        "disallow": cmd_mcp_deny,
+        "block": cmd_mcp_deny,
+        "allowlist": cmd_mcp_allowlist,
     }
 
     handler = handlers.get(action)
@@ -777,4 +788,7 @@ def mcp_command(args):
         _info("stoa mcp test <name>                        Test connection")
         _info("stoa mcp configure <name>                   Toggle tools")
         _info("stoa mcp login <name>                       Re-authenticate OAuth")
+        _info("stoa mcp allow <name>[:<tool>]              Enable server or whitelist tool")
+        _info("stoa mcp deny <name>[:<tool>]               Disable server or blacklist tool")
+        _info("stoa mcp allowlist                          Show current allow/deny state")
         print()
