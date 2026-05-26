@@ -23,7 +23,9 @@ class TestSkinConfig:
         from stoa_cli.skin_engine import load_skin
         skin = load_skin("default")
         assert skin.name == "default"
-        assert skin.tool_prefix == "┊"
+        # Post-rebrand default skin uses "·" (middle dot) as the tool prefix;
+        # "┊" remains in named skins (ares, etc.) and as the legacy docstring example.
+        assert skin.tool_prefix == "·"
         assert "banner_title" in skin.colors
         assert "banner_border" in skin.colors
         assert "agent_name" in skin.branding
@@ -31,7 +33,10 @@ class TestSkinConfig:
     def test_get_color_with_fallback(self):
         from stoa_cli.skin_engine import load_skin
         skin = load_skin("default")
-        assert skin.get_color("banner_title") == "#FFD700"
+        # Post-rebrand: default banner_title is "#ffe6cb" (cream) — kills the
+        # gold-gradient Hermes look. "#FFD700" remains in the docstring as the
+        # legacy example.
+        assert skin.get_color("banner_title") == "#ffe6cb"
         assert skin.get_color("nonexistent", "#000") == "#000"
 
     def test_get_branding_with_fallback(self):
@@ -208,8 +213,10 @@ class TestUserSkins:
         assert skin.get_color("banner_title") == "#FF0000"
         assert skin.get_branding("agent_name") == "Custom Agent"
         assert skin.tool_prefix == "▸"
-        # Should inherit defaults for unspecified colors
-        assert skin.get_color("banner_border") == "#CD7F32"  # from default
+        # Should inherit defaults for unspecified colors. Post-rebrand: default
+        # banner_border is "#2a2620" (near-black warm brown), not the legacy
+        # "#CD7F32" bronze.
+        assert skin.get_color("banner_border") == "#2a2620"  # from default
 
     def test_load_user_skin_invalid_section_types_fall_back_to_defaults(self, tmp_path, monkeypatch):
         from stoa_cli.skin_engine import load_skin
@@ -236,7 +243,8 @@ class TestUserSkins:
         skin = load_skin("broken")
 
         assert skin.name == "broken"
-        assert skin.get_color("banner_title") == "#FFD700"
+        # Falls back to post-rebrand default banner_title ("#ffe6cb" cream).
+        assert skin.get_color("banner_title") == "#ffe6cb"
         assert skin.get_branding("agent_name") == "STOA Agent"
         assert skin.spinner.get("waiting_faces", []) == []
         assert skin.tool_emojis == {}
@@ -263,7 +271,8 @@ class TestUserSkins:
 class TestDisplayIntegration:
     def test_get_skin_tool_prefix_default(self):
         from agent.display import get_skin_tool_prefix
-        assert get_skin_tool_prefix() == "┊"
+        # Post-rebrand default skin tool prefix is "·".
+        assert get_skin_tool_prefix() == "·"
 
     def test_get_skin_tool_prefix_custom(self):
         from stoa_cli.skin_engine import set_active_skin
@@ -282,7 +291,8 @@ class TestDisplayIntegration:
     def test_tool_message_default_prefix(self):
         from agent.display import get_cute_tool_message
         msg = get_cute_tool_message("terminal", {"command": "ls"}, 0.5)
-        assert msg.startswith("┊")
+        # Post-rebrand default skin tool prefix is "·".
+        assert msg.startswith("·")
 
 
 class TestCliBrandingHelpers:
@@ -392,5 +402,7 @@ class TestCliBrandingHelpers:
         set_active_skin("daylight")
         skin = get_active_skin()
         overrides = get_prompt_toolkit_style_overrides()
-        assert overrides["status-bar"] == f"bg:{skin.get_color('status_bar_bg')} {skin.get_color('banner_text')}"
+        # Production uses status_bar_text (with banner_text only as fallback);
+        # see stoa_cli/skin_engine.py:884 — `status_text = skin.get_color("status_bar_text", text)`.
+        assert overrides["status-bar"] == f"bg:{skin.get_color('status_bar_bg')} {skin.get_color('status_bar_text')}"
         assert overrides["voice-status"] == f"bg:{skin.get_color('voice_status_bg')} {skin.get_color('ui_label')}"

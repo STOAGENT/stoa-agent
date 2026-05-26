@@ -93,14 +93,21 @@ class TestCliSkinPromptIntegration:
 
 
 class TestCompactBannerSkinIntegration:
-    def test_default_compact_banner_keeps_legacy_nous_stoa_branding(self):
+    def test_default_compact_banner_uses_stoa_agent_branding(self):
+        """Post-rebrand: the default skin's compact banner emits
+        ``⁂ STOA Agent — six sovereign LLMs`` (cli.py:2614) and does NOT
+        carry the upstream ``NOUS STOA`` brand. The legacy NOUS string was
+        purged with the rebrand; this test now guards against accidental
+        re-introduction."""
         set_active_skin("default")
 
         with patch("cli.shutil.get_terminal_size", return_value=SimpleNamespace(columns=90)), \
              patch.dict(_build_compact_banner.__globals__, {"format_banner_version_label": lambda: "STOA Agent v0.1.0 (test)"}):
             banner = _build_compact_banner()
 
-        assert "NOUS STOA" in banner
+        assert "STOA Agent" in banner
+        assert "six sovereign LLMs" in banner
+        assert "NOUS STOA" not in banner
 
     def test_poseidon_compact_banner_uses_skin_branding_instead_of_nous_stoa(self):
         set_active_skin("poseidon")
