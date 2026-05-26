@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stoa-agent"
-version = "0.14.1"
+version = "0.14.2"
 description = "STOA Agent — a chamber of six sovereign LLMs + one dispatcher. Local-first, on-chain verifiable, ERC-8004 reputation. Forked from NousResearch/hermes-agent."
 readme = "README.md"
 requires-python = ">=3.11"
