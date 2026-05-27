@@ -6,7 +6,7 @@
 # Uses uv for desktop/server installs and Python's stdlib venv + pip on Termux.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/STOAGENT/stoa-agent/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/STOAGENT/stoa-agent/master/scripts/install.sh | bash
 #
 # Or with options:
 #   curl -fsSL ... | bash -s -- --no-venv --skip-setup
@@ -70,7 +70,7 @@ DETECTED_BROWSER_EXECUTABLE=""
 USE_VENV=true
 RUN_SETUP=true
 SKIP_BROWSER=false
-BRANCH="main"
+BRANCH="master"
 ENSURE_DEPS=""
 POSTINSTALL_MODE=false
 
@@ -128,7 +128,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --no-venv      Don't create virtual environment"
             echo "  --skip-setup   Skip interactive setup wizard"
             echo "  --skip-browser Skip Playwright/Chromium install (browser tools won't work)"
-            echo "  --branch NAME  Git branch to install (default: main)"
+            echo "  --branch NAME  Git branch to install (default: master)"
             echo "  --dir PATH     Installation directory"
             echo "                   default (non-root):  ~/.stoa/stoa-agent"
             echo "                   default (root, Linux): /usr/local/lib/stoa-agent"
@@ -337,7 +337,7 @@ detect_os() {
             OS="windows"
             DISTRO="windows"
             log_error "Windows detected. Please use the PowerShell installer:"
-            log_info "  iex (irm https://raw.githubusercontent.com/STOAGENT/stoa-agent/main/scripts/install.ps1)"
+            log_info "  iex (irm https://raw.githubusercontent.com/STOAGENT/stoa-agent/master/scripts/install.ps1)"
             exit 1
             ;;
         *)
@@ -600,14 +600,20 @@ install_node() {
             ;;
     esac
 
-    # Resolve the latest v22.x.x tarball name from the index page
+    # Resolve the latest v22.x.x tarball name from the index page.
+    # Prefer .tar.xz ONLY when the `xz` binary is available — minimal containers
+    # (alpine, ubuntu base images, locked-down corporate boxes) often ship
+    # without xz-utils, and tar then dies with "xz: Cannot exec" which set -e
+    # turns into a silent install abort. .tar.gz is universally extractable.
     local index_url="https://nodejs.org/dist/latest-v${NODE_VERSION}.x/"
-    local tarball_name
-    tarball_name=$(curl -fsSL "$index_url" \
-        | grep -oE "node-v${NODE_VERSION}\.[0-9]+\.[0-9]+-${node_os}-${node_arch}\.tar\.xz" \
-        | head -1)
+    local tarball_name=""
+    if command -v xz >/dev/null 2>&1; then
+        tarball_name=$(curl -fsSL "$index_url" \
+            | grep -oE "node-v${NODE_VERSION}\.[0-9]+\.[0-9]+-${node_os}-${node_arch}\.tar\.xz" \
+            | head -1)
+    fi
 
-    # Fallback to .tar.gz if .tar.xz not available
+    # Fallback to .tar.gz when xz is missing OR no .tar.xz asset is published.
     if [ -z "$tarball_name" ]; then
         tarball_name=$(curl -fsSL "$index_url" \
             | grep -oE "node-v${NODE_VERSION}\.[0-9]+\.[0-9]+-${node_os}-${node_arch}\.tar\.gz" \
@@ -634,10 +640,22 @@ install_node() {
     fi
 
     log_info "Extracting to ~/.stoa/node/..."
+    # set -e would kill the entire install if extraction fails; wrap so we
+    # degrade to HAS_NODE=false instead. Common failure: xz binary missing
+    # on minimal containers (now also prevented at format-selection above,
+    # but keep the guard defensive).
+    local _extract_ok=true
     if [[ "$tarball_name" == *.tar.xz ]]; then
-        tar xf "$tmp_dir/$tarball_name" -C "$tmp_dir"
+        tar xf "$tmp_dir/$tarball_name" -C "$tmp_dir" 2>/dev/null || _extract_ok=false
     else
-        tar xzf "$tmp_dir/$tarball_name" -C "$tmp_dir"
+        tar xzf "$tmp_dir/$tarball_name" -C "$tmp_dir" 2>/dev/null || _extract_ok=false
+    fi
+    if [ "$_extract_ok" != "true" ]; then
+        log_warn "Node.js archive extraction failed (likely missing xz-utils on this host)."
+        log_info "Install xz-utils (apt install xz-utils) and re-run, or skip Node features for now."
+        rm -rf "$tmp_dir"
+        HAS_NODE=false
+        return 0
     fi
 
     local extracted_dir
@@ -663,8 +681,21 @@ install_node() {
 
     export PATH="$STOA_HOME/node/bin:$PATH"
 
-    local installed_ver
-    installed_ver=$("$STOA_HOME/node/bin/node" --version 2>/dev/null)
+    # On Alpine / musl-libc distros the official nodejs.org x64 build is
+    # glibc-linked and will refuse to exec (exit 127). `set -e` would then
+    # kill the whole install. Trap the failure so the install continues
+    # gracefully without Node features.
+    local installed_ver=""
+    installed_ver=$("$STOA_HOME/node/bin/node" --version 2>/dev/null) || installed_ver=""
+    if [ -z "$installed_ver" ]; then
+        log_warn "Node.js binary downloaded but cannot exec on this host"
+        log_warn "(probably musl-libc — e.g. Alpine — incompatible with the official glibc build)"
+        log_info "Skipping Node features. Install via your package manager (e.g. apk add nodejs npm) and re-run if you need them."
+        rm -rf "$STOA_HOME/node"
+        rm -f "$HOME/.local/bin/node" "$HOME/.local/bin/npm" "$HOME/.local/bin/npx"
+        HAS_NODE=false
+        return 0
+    fi
     log_success "Node.js $installed_ver installed to ~/.stoa/node/"
     HAS_NODE=true
 }
