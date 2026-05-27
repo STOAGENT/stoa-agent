@@ -5,26 +5,28 @@
 #   iex (irm https://raw.githubusercontent.com/STOAGENT/stoa-agent/master/scripts/install.ps1)
 #
 # What it does:
-#   1. Checks for Python 3.11+ (auto-installs via winget if missing)
-#   2. Checks for git (auto-installs via winget if missing)
-#   3. Installs uv (Astral's fast Python package manager)
-#   4. Clones the repo into ~/.stoa/stoa-agent
-#   5. Creates a venv + installs stoa-agent into it
-#   6. Wires the `stoa` command onto PATH
+#   1. Installs uv (Astral's fast Python package manager) into ~/.local/bin
+#   2. Uses `uv python install 3.13` to fetch a portable Python 3.13
+#      (no admin rights, no system-wide install, no winget dependency)
+#   3. Downloads PortableGit from git-for-windows if git is missing
+#      (also no admin, no winget — works on locked-down boxes)
+#   4. Clones the repo into %LOCALAPPDATA%\stoa\stoa-agent
+#   5. Creates a venv via uv + editable-installs stoa-agent into it
+#   6. Wires the `stoa` command onto PATH via %LOCALAPPDATA%\stoa\bin
 #
 # Safety properties:
 #   - NEVER uses `exit` or `$ErrorActionPreference = 'Stop'` in a way that
-#     terminates the host shell. On error, prints the diagnosis + pauses
-#     for `Read-Host` so the user can READ what went wrong before closing.
-#   - All external network calls show what they're fetching first.
-#   - If a prereq cannot be auto-installed (e.g. winget itself is missing
-#     on Windows < 10 1809), prints a precise manual remediation step.
+#     silently terminates the host shell. On error, prints the diagnosis +
+#     pauses for `Read-Host` so the user can READ what went wrong.
+#   - No winget dependency — works on Windows < 10 1809.
+#   - No admin rights — everything lands under %LOCALAPPDATA% and the user's
+#     local PATH. Uninstall = `Remove-Item -Recurse %LOCALAPPDATA%\stoa`.
+#   - Parity with the Hermes Agent install pattern (the upstream STOA forks
+#     from) so behaviour matches what experienced users already expect.
 #
 # Repo: https://github.com/STOAGENT/stoa-agent
 # Docs: https://stoax.xyz/docs
 
-# Continue on errors — we catch + display them ourselves so the window
-# never slams shut without the user seeing why.
 $ErrorActionPreference = "Continue"
 $ProgressPreference    = "SilentlyContinue"
 
@@ -59,82 +61,36 @@ function Stop-WithError($Message) {
     throw $Message
 }
 
-# ─── prereq: winget (the bootstrap dependency) ───────────────────────
-
-function Test-Winget {
-    if (Get-Command winget -ErrorAction SilentlyContinue) { return $true }
-    return $false
-}
-
-function Install-PrereqViaWinget($PackageId, $FriendlyName, $ManualUrl) {
-    if (-not (Test-Winget)) {
-        Stop-WithError @"
-$FriendlyName is missing and winget (Windows Package Manager) is also
-not available on this machine, so we can't auto-install it.
-
-  Manual fix (one time, 2 minutes):
-    1. Install '$FriendlyName' from:
-       $ManualUrl
-    2. Close + reopen PowerShell so PATH refreshes.
-    3. Re-run this installer.
-
-  Or: install winget itself first via the Microsoft Store
-  ('App Installer'), then re-run this script.
-"@
-    }
-    Write-StoaInfo "Installing $FriendlyName via winget..."
-    & winget install --id $PackageId --silent --accept-package-agreements --accept-source-agreements 2>&1 | ForEach-Object { Write-StoaDim "    $_" }
-    if ($LASTEXITCODE -ne 0) {
-        Stop-WithError "winget failed to install $FriendlyName (exit $LASTEXITCODE). Try installing manually from $ManualUrl and re-run."
-    }
-    # winget puts new tools on PATH via the user profile; refresh PATH for THIS session.
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-}
-
-function Ensure-Python {
-    $pyCmd = Get-Command python -ErrorAction SilentlyContinue
-    if (-not $pyCmd) {
-        Write-StoaWarn "Python not found."
-        Install-PrereqViaWinget "Python.Python.3.13" "Python 3.13" "https://www.python.org/downloads/windows/"
-        $pyCmd = Get-Command python -ErrorAction SilentlyContinue
-        if (-not $pyCmd) {
-            Stop-WithError "Python install completed but the python command is still not on PATH. Close + reopen PowerShell and re-run this installer."
-        }
-    }
-    $ver = & python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($ver)) {
-        Stop-WithError "Could not determine Python version. Check with 'python --version' and re-run."
-    }
-    if ([version]$ver -lt [version]"3.11") {
-        Stop-WithError "Python 3.11+ is required (you have $ver). Upgrade from https://www.python.org/downloads/windows/ and re-run."
-    }
-    Write-StoaOk "Python $ver OK"
-}
-
-function Ensure-Git {
-    if (Get-Command git -ErrorAction SilentlyContinue) {
-        Write-StoaOk "git OK"
-        return
-    }
-    Write-StoaWarn "git not found."
-    Install-PrereqViaWinget "Git.Git" "Git" "https://git-scm.com/download/win"
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        Stop-WithError "git install completed but the git command is still not on PATH. Close + reopen PowerShell and re-run."
-    }
-    Write-StoaOk "git OK"
-}
+# ─── uv (Astral's Python package + interpreter manager) ──────────────
 
 function Ensure-Uv {
     if (Get-Command uv -ErrorAction SilentlyContinue) {
         Write-StoaOk "uv OK"
         return
     }
-    Write-StoaInfo "Installing uv (fast Python package manager)..."
+    # Common existing locations the official installer drops uv into.
+    $uvCandidates = @(
+        (Join-Path $env:USERPROFILE ".local\bin\uv.exe"),
+        (Join-Path $env:USERPROFILE ".cargo\bin\uv.exe")
+    )
+    foreach ($c in $uvCandidates) {
+        if (Test-Path $c) {
+            $dir = Split-Path $c
+            $env:Path = "$dir;$env:Path"
+            if (Get-Command uv -ErrorAction SilentlyContinue) {
+                Write-StoaOk "uv OK"
+                return
+            }
+        }
+    }
+    Write-StoaInfo "Installing uv (fast Python interpreter + package manager)..."
     try {
         irm https://astral.sh/uv/install.ps1 | iex
     } catch {
         Stop-WithError "uv install failed: $_. Install manually from https://docs.astral.sh/uv/getting-started/installation/ and re-run."
     }
+    # Astral's installer drops uv into ~/.local/bin and updates User PATH —
+    # but that change doesn't apply to the CURRENT shell session. Force it.
     $uvBin = Join-Path $env:USERPROFILE ".local\bin"
     if (Test-Path $uvBin) { $env:Path = "$uvBin;$env:Path" }
     if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
@@ -143,19 +99,117 @@ function Ensure-Uv {
     Write-StoaOk "uv OK"
 }
 
+# ─── Python via uv (no winget, no system-wide install) ───────────────
+
+function Ensure-Python {
+    # Let uv manage its own Python install. We do NOT call `python` from
+    # PATH because the user may have an unrelated Python 2.7 / Microsoft
+    # Store stub / partial 3.x install that breaks the rest of the flow.
+    # `uv python install 3.13` is idempotent — if 3.13 is already in uv's
+    # store, it returns instantly.
+    Write-StoaInfo "Ensuring Python 3.13 (via uv)..."
+    & uv python install 3.13 2>&1 | ForEach-Object { Write-StoaDim "    $_" }
+    if ($LASTEXITCODE -ne 0) {
+        Stop-WithError "uv could not install Python 3.13 (exit $LASTEXITCODE). Inspect the error above and re-run."
+    }
+    Write-StoaOk "Python 3.13 OK (managed by uv)"
+}
+
+# ─── git via PortableGit (no winget, no admin) ───────────────────────
+
+function Get-PortableGitAsset {
+    # Pinned git-for-windows release. We deliberately avoid api.github.com
+    # /releases/latest because it's rate-limited to 60 req/hr per IP for
+    # unauthenticated callers — users behind CGNAT / corporate NAT routinely
+    # hit it and break the installer. Static asset URLs are NOT rate-limited.
+    $gitVer = "2.54.0"
+    $gitTag = "v$gitVer.windows.1"
+    if ([Environment]::Is64BitOperatingSystem) {
+        if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64" -or $env:PROCESSOR_ARCHITEW6432 -eq "ARM64") {
+            $asset = "PortableGit-$gitVer-arm64.7z.exe"
+        } else {
+            $asset = "PortableGit-$gitVer-64-bit.7z.exe"
+        }
+    } else {
+        # 32-bit Windows is genuinely uncommon in 2026, but we still hand it
+        # MinGit so install doesn't outright fail. Bash-dependent skills
+        # won't work on this machine — note that in the message and move on.
+        Write-StoaWarn "32-bit Windows detected. PortableGit is 64-bit only; using MinGit 32-bit as a last resort."
+        Write-StoaWarn "Bash-dependent features (terminal tool, agent-browser) won't work on this box."
+        $asset = "MinGit-$gitVer-32-bit.zip"
+    }
+    return @{
+        Url   = "https://github.com/git-for-windows/git/releases/download/$gitTag/$asset"
+        Asset = $asset
+        IsZip = ($asset -like "*.zip")
+    }
+}
+
+function Ensure-Git {
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        Write-StoaOk "git OK"
+        return
+    }
+    $StoaGitDir = Join-Path $env:LOCALAPPDATA "stoa\git"
+    if (Test-Path (Join-Path $StoaGitDir "cmd\git.exe")) {
+        $env:Path = "$(Join-Path $StoaGitDir 'cmd');$(Join-Path $StoaGitDir 'usr\bin');$env:Path"
+        if (Get-Command git -ErrorAction SilentlyContinue) {
+            Write-StoaOk "git OK (PortableGit at $StoaGitDir)"
+            return
+        }
+    }
+    Write-StoaInfo "git not found - downloading PortableGit into $StoaGitDir ..."
+    Write-StoaDim "(no admin rights, no winget dependency, no system Git interference)"
+    $info = Get-PortableGitAsset
+    $tmp = Join-Path $env:TEMP ("stoa-git-$([Guid]::NewGuid().ToString().Substring(0,8)).bin")
+    try {
+        Invoke-WebRequest -Uri $info.Url -OutFile $tmp -UseBasicParsing
+    } catch {
+        Stop-WithError @"
+Failed to download PortableGit from
+  $($info.Url)
+Reason: $_
+
+Manual fix:
+  1. Install Git from https://git-scm.com/download/win
+  2. Close + reopen PowerShell so PATH refreshes
+  3. Re-run this installer
+"@
+    }
+    if (-not (Test-Path $StoaGitDir)) {
+        New-Item -ItemType Directory -Force -Path $StoaGitDir | Out-Null
+    }
+    if ($info.IsZip) {
+        Expand-Archive -Path $tmp -DestinationPath $StoaGitDir -Force
+    } else {
+        # PortableGit ships as a self-extracting 7z.exe; -y suppresses prompts,
+        # -gm2 is silent mode, -nr forbids auto-restart on partial extract.
+        & $tmp -y -gm2 "-o$StoaGitDir" 2>&1 | ForEach-Object { Write-StoaDim "    $_" }
+        if ($LASTEXITCODE -ne 0) {
+            Stop-WithError "PortableGit extraction failed (exit $LASTEXITCODE). Try installing Git from https://git-scm.com/download/win and re-run."
+        }
+    }
+    Remove-Item $tmp -ErrorAction SilentlyContinue
+    $env:Path = "$(Join-Path $StoaGitDir 'cmd');$(Join-Path $StoaGitDir 'usr\bin');$env:Path"
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        Stop-WithError "git command still not on PATH after PortableGit extraction. Close + reopen PowerShell and re-run."
+    }
+    Write-StoaOk "git OK (PortableGit at $StoaGitDir)"
+}
+
 # ─── main install ────────────────────────────────────────────────────
 
 function Install-StoaAgent {
     Write-StoaBanner
 
     Write-StoaInfo "Checking prerequisites..."
+    Ensure-Uv
     Ensure-Python
     Ensure-Git
-    Ensure-Uv
     Write-Host ""
 
     $StoaRepo   = "https://github.com/STOAGENT/stoa-agent.git"
-    $StoaHome   = if ($env:STOA_HOME)        { $env:STOA_HOME }        else { Join-Path $HOME ".stoa" }
+    $StoaHome   = if ($env:STOA_HOME)        { $env:STOA_HOME }        else { Join-Path $env:LOCALAPPDATA "stoa" }
     $InstallDir = if ($env:STOA_INSTALL_DIR) { $env:STOA_INSTALL_DIR } else { Join-Path $StoaHome "stoa-agent" }
 
     if (Test-Path $InstallDir) {
@@ -172,7 +226,7 @@ function Install-StoaAgent {
         }
     }
 
-    Write-StoaInfo "Creating venv + installing stoa-agent..."
+    Write-StoaInfo "Creating venv + installing stoa-agent (via uv)..."
     Push-Location $InstallDir
     try {
         & uv venv .venv --python 3.13 2>&1 | ForEach-Object { Write-StoaDim "    $_" }
@@ -187,7 +241,7 @@ function Install-StoaAgent {
         Pop-Location
     }
 
-    # PATH wiring — drop a small launcher into a stable dir on PATH.
+    # PATH wiring — drop a small launcher into a stable user-PATH dir.
     $LauncherDir = Join-Path $env:LOCALAPPDATA "stoa\bin"
     if (-not (Test-Path $LauncherDir)) { New-Item -ItemType Directory -Force -Path $LauncherDir | Out-Null }
     $StoaCmd = Join-Path $LauncherDir "stoa.cmd"
@@ -213,6 +267,8 @@ function Install-StoaAgent {
     Write-Host ""
     Write-StoaDim "  If the stoa command isn't found, close and reopen this terminal"
     Write-StoaDim "  so PATH refreshes."
+    Write-StoaDim ""
+    Write-StoaDim "  Uninstall = Remove-Item -Recurse $StoaHome  (no admin needed)"
     Write-Host ""
     Pause-IfInteractive "Press Enter to close"
 }
