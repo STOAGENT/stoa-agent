@@ -15,6 +15,26 @@ Tags map to PyPI versions one-to-one: `v2026.5.26` → `0.14.1`, `v2026.5.26.1` 
 
 ---
 
+## [0.14.4] — 2026-05-27 — tag `v2026.5.27`
+
+The "stop telling people they're on the wrong version" release. Closes three real bugs that any user installing 0.14.1/0.14.2/0.14.3 was hitting silently.
+
+### Fixed
+
+- **`stoa --version` and the startup banner now report the actual installed version** (was permanently stuck on `v0.14.0 (2026.5.16)` across every previous PyPI release).
+  - `stoa_cli/__init__.py` `__version__` bumped 0.14.0 → 0.14.4 + `__release_date__` bumped 2026.5.16 → 2026.5.27. **The previous three releases shipped without bumping this file**, so every PyPI install reported `v0.14.0` regardless of what `pip show stoa-agent` said. `scripts/release.py` DOES touch this file via `VERSION_FILE` but those three releases bypassed `release.py` by hand-editing `pyproject.toml` — this PR makes the omission visible by also moving the banner off the static literal.
+  - `cli.py:2597` banner version string was a hard-coded `v0.14.0` literal disconnected from any package metadata. Rewritten as `_build_stoa_agent_logo()` that reads `stoa_cli.__version__` at call time. Future release bumps no longer have to remember the banner.
+
+- **`stoa update` no longer tries to check out a non-existent `main` branch.** Pre-fix behaviour (from the user-visible failure): `⚠ Currently on branch 'master' — switching to main for update... ⚠ Git update failed: ... 'checkout', 'main' returned non-zero exit status 1. → Falling back to ZIP download... ✗ ZIP update failed: HTTP Error 404: Not Found`. Root cause: the fork's default branch is `master` but the update flow hard-coded `main` in 15 places across `stoa_cli/main.py` + `stoa_cli/banner.py`. Replaced all hard-codes (push target, upstream/origin compares, fast-forward target, checkout target, commit-signature verify, fork-sync detection, behind-by counter, ZIP archive URL). Verified the new ZIP URL (`archive/refs/heads/master.zip`) returns HTTP 200 vs the old (`main.zip`) returning 404.
+
+- **Protect-branches list** in `cli.py` for git-destructive operations now includes both `main` (legacy, kept for safety) and `master` (the actual default branch).
+
+### Notes
+
+- Release reminder for future maintainers: `scripts/release.py --bump patch --publish` automates the `stoa_cli/__init__.py` + `pyproject.toml` lockstep. Don't hand-edit pyproject without also editing `__init__.py` — the banner + `stoa --version` will lag silently.
+
+---
+
 ## [0.14.3] — 2026-05-26 — tag `v2026.5.26.2`
 
 The "deferred-work bash-through" release — every item in the post-0.14.2 backlog landed in a single night. Twelve loops, eight PRs (Loop 2 was a non-PR GH-release-create operation), three dependabot merges + two defers, one final version bump.

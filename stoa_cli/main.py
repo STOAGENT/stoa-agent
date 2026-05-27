@@ -6952,7 +6952,7 @@ def _update_via_zip(args):
     import zipfile
     from urllib.request import urlretrieve
 
-    branch = "main"
+    branch = "master"
     zip_url = (
         f"https://github.com/STOAGENT/stoa-agent/archive/refs/heads/{branch}.zip"
     )
@@ -7413,7 +7413,7 @@ def _sync_fork_with_upstream(git_cmd: list[str], cwd: Path) -> bool:
     """
     try:
         result = subprocess.run(
-            git_cmd + ["push", "origin", "main", "--force-with-lease"],
+            git_cmd + ["push", "origin", "master", "--force-with-lease"],
             cwd=cwd,
             capture_output=True,
             text=True,
@@ -7428,8 +7428,8 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
 
     This implements the fork upstream sync logic:
     - If upstream remote doesn't exist, ask user if they want to add it
-    - Compare origin/main with upstream/main
-    - If origin/main is strictly behind upstream/main, pull from upstream
+    - Compare origin/master with upstream/master
+    - If origin/master is strictly behind upstream/master, pull from upstream
     - Try to sync fork back to origin if possible
     """
     has_upstream = _has_upstream_remote(git_cmd, cwd)
@@ -7483,23 +7483,23 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
         print("  ✗ Failed to fetch upstream. Skipping upstream sync.")
         return
 
-    # Compare origin/main with upstream/main
-    origin_ahead = _count_commits_between(git_cmd, cwd, "upstream/main", "origin/main")
+    # Compare origin/master with upstream/master
+    origin_ahead = _count_commits_between(git_cmd, cwd, "upstream/master", "origin/master")
     upstream_ahead = _count_commits_between(
-        git_cmd, cwd, "origin/main", "upstream/main"
+        git_cmd, cwd, "origin/master", "upstream/master"
     )
 
     if origin_ahead < 0 or upstream_ahead < 0:
         print("  ✗ Could not compare branches. Skipping upstream sync.")
         return
 
-    # If origin/main has commits not on upstream, don't trample
+    # If origin/master has commits not on upstream, don't trample
     if origin_ahead > 0:
         print()
         print(f"ℹ Your fork has {origin_ahead} commit(s) not on upstream.")
         print("  Skipping upstream sync to preserve your changes.")
         print("  If you want to merge upstream changes, run:")
-        print("    git pull upstream main")
+        print("    git pull upstream master")
         return
 
     # If upstream is not ahead, fork is up to date
@@ -7507,14 +7507,14 @@ def _sync_with_upstream_if_needed(git_cmd: list[str], cwd: Path) -> None:
         print("  ✓ Fork is up to date with upstream")
         return
 
-    # origin/main is strictly behind upstream/main (can fast-forward)
+    # origin/master is strictly behind upstream/master (can fast-forward)
     print()
     print(f"→ Fork is {upstream_ahead} commit(s) behind upstream")
     print("→ Pulling from upstream...")
 
     try:
         subprocess.run(
-            git_cmd + ["pull", "--ff-only", "upstream", "main"],
+            git_cmd + ["pull", "--ff-only", "upstream", "master"],
             cwd=cwd,
             check=True,
         )
@@ -8459,10 +8459,10 @@ def _cmd_update_check():
             text=True,
         )
         upstream_exists = False
-        compare_branch = "origin/main"
+        compare_branch = "origin/master"
     else:
         upstream_exists = True
-        compare_branch = "upstream/main"
+        compare_branch = "upstream/master"
 
     if fetch_result.returncode != 0:
         stderr = fetch_result.stderr.strip()
@@ -8855,20 +8855,20 @@ def _cmd_update_impl(args, gateway_mode: bool):
         current_branch = result.stdout.strip()
 
         # Always update against main
-        branch = "main"
+        branch = "master"
 
         # If user is on a non-main branch or detached HEAD, switch to main
-        if current_branch != "main":
+        if current_branch != "master":
             label = (
                 "detached HEAD"
                 if current_branch == "HEAD"
                 else f"branch '{current_branch}'"
             )
-            print(f"  ⚠ Currently on {label} — switching to main for update...")
+            print(f"  ⚠ Currently on {label} — switching to master for update...")
             # Stash before checkout so uncommitted work isn't lost
             auto_stash_ref = _stash_local_changes_if_needed(git_cmd, PROJECT_ROOT)
             subprocess.run(
-                git_cmd + ["checkout", "main"],
+                git_cmd + ["checkout", "master"],
                 cwd=PROJECT_ROOT,
                 capture_output=True,
                 text=True,
@@ -8904,7 +8904,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
                     prompt_user=prompt_for_restore,
                     input_fn=gw_input_fn,
                 )
-            if current_branch not in {"main", "HEAD"}:
+            if current_branch not in {"master", "HEAD"}:
                 subprocess.run(
                     git_cmd + ["checkout", current_branch],
                     cwd=PROJECT_ROOT,
@@ -8946,7 +8946,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
         # Default behavior (STOA_REQUIRE_SIGNED_UPDATES unset) is unchanged
         # so existing user flows don't break. Operators who care about
         # supply-chain integrity set STOA_REQUIRE_SIGNED_UPDATES=1; we then
-        # `git verify-commit origin/main` before fast-forwarding. The user
+        # `git verify-commit origin/master` before fast-forwarding. The user
         # must have the upstream signing key in their GPG/SSH keyring.
         if os.getenv("STOA_REQUIRE_SIGNED_UPDATES", "0") == "1":
             verify_result = subprocess.run(
@@ -8957,7 +8957,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
             )
             if verify_result.returncode != 0:
                 print()
-                print("✗ STOA_REQUIRE_SIGNED_UPDATES=1 but origin/main commit signature")
+                print("✗ STOA_REQUIRE_SIGNED_UPDATES=1 but origin/master commit signature")
                 print("  could not be verified. Refusing to pull untrusted code.")
                 err = (verify_result.stderr or verify_result.stdout).strip()
                 if err:
@@ -8993,7 +8993,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
                     if reset_result.stderr.strip():
                         print(f"  {reset_result.stderr.strip()}")
                     print(
-                        "  Try manually: git fetch origin && git reset --hard origin/main"
+                        "  Try manually: git fetch origin && git reset --hard origin/master"
                     )
                     sys.exit(1)
 
@@ -9069,7 +9069,7 @@ def _cmd_update_impl(args, gateway_mode: bool):
             )
 
         # Fork upstream sync logic (only for main branch on forks)
-        if is_fork and branch == "main":
+        if is_fork and branch == "master":
             _sync_with_upstream_if_needed(git_cmd, PROJECT_ROOT)
 
         # Reinstall Python dependencies. Prefer .[all], but if one optional extra

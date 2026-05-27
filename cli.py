@@ -1442,7 +1442,7 @@ def _prune_orphaned_branches(repo_root: str) -> None:
             active_branches.add(current)
     except Exception:
         pass
-    active_branches.add("main")
+    active_branches.add("main"); active_branches.add("master")
 
     orphaned = [
         b for b in all_branches
@@ -2587,14 +2587,29 @@ class ChatConsole:
         """
         yield self
 
-# ASCII Art - STOA logo (ansi_shadow figlet) + AGENT line + 6 dots + tagline
-STOA_AGENT_LOGO = """[bold #ffe6cb]    ███████╗████████╗ ██████╗  █████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]
-[bold #ffe6cb]    ██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗     ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]
-[bold #ffe6cb]    ███████╗   ██║   ██║   ██║███████║     ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   [/]
-[bold #ffe6cb]    ╚════██║   ██║   ██║   ██║██╔══██║     ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   [/]
-[bold #ffe6cb]    ███████║   ██║   ╚██████╔╝██║  ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   [/]
-[bold #ffe6cb]    ╚══════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   [/]
-[dim #9a968e]    v0.14.0  ·  six sovereign LLMs  ·  one agent  ·  on-chain verifiable[/]"""
+# ASCII Art - STOA logo (ansi_shadow figlet) + AGENT line + 6 dots + tagline.
+# The version line is built dynamically from stoa_cli.__version__ so a
+# release bump doesn't have to remember to also hand-edit the banner — bug
+# from 0.14.1/0.14.2/0.14.3 where every release shipped showing "v0.14.0"
+# because this string was a string literal disconnected from the package
+# version.
+def _build_stoa_agent_logo() -> str:
+    try:
+        from stoa_cli import __version__ as _v
+    except Exception:
+        _v = "unknown"
+    return (
+        "[bold #ffe6cb]    ███████╗████████╗ ██████╗  █████╗       █████╗  ██████╗ ███████╗███╗   ██╗████████╗[/]\n"
+        "[bold #ffe6cb]    ██╔════╝╚══██╔══╝██╔═══██╗██╔══██╗     ██╔══██╗██╔════╝ ██╔════╝████╗  ██║╚══██╔══╝[/]\n"
+        "[bold #ffe6cb]    ███████╗   ██║   ██║   ██║███████║     ███████║██║  ███╗█████╗  ██╔██╗ ██║   ██║   [/]\n"
+        "[bold #ffe6cb]    ╚════██║   ██║   ██║   ██║██╔══██║     ██╔══██║██║   ██║██╔══╝  ██║╚██╗██║   ██║   [/]\n"
+        "[bold #ffe6cb]    ███████║   ██║   ╚██████╔╝██║  ██║     ██║  ██║╚██████╔╝███████╗██║ ╚████║   ██║   [/]\n"
+        "[bold #ffe6cb]    ╚══════╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝  ╚═══╝   ╚═╝   [/]\n"
+        f"[dim #9a968e]    v{_v}  ·  six sovereign LLMs  ·  one agent  ·  on-chain verifiable[/]"
+    )
+
+
+STOA_AGENT_LOGO = _build_stoa_agent_logo()
 
 # ASCII Art - STOA Caduceus (compact, fits in left panel)
 STOA_CADUCEUS = """
