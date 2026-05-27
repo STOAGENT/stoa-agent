@@ -2,6 +2,18 @@ FROM ghcr.io/astral-sh/uv:0.11.6-python3.13-trixie@sha256:b3c543b6c4f23a5f2df228
 FROM tianon/gosu:1.19-trixie@sha256:3b176695959c71e123eb390d427efc665eeb561b1540e82679c15e992006b8b9 AS gosu_source
 FROM debian:13.4
 
+# OCI image-source label — links the GHCR package to the source repo so the
+# package inherits the repo's visibility on first push. Without this label,
+# the GitHub REST API offers NO way to flip user-scoped package visibility
+# from private → public (only org-scoped packages get the PATCH endpoint).
+# With this label, GHCR auto-promotes the package to match the source repo's
+# visibility, which makes `docker pull ghcr.io/stoagent/stoa-agent` work
+# anonymously without a manual web-UI click.
+LABEL org.opencontainers.image.source="https://github.com/STOAGENT/stoa-agent"
+LABEL org.opencontainers.image.description="STOA Agent — a chamber of six sovereign LLMs + one dispatcher (CLI)"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.url="https://stoax.xyz"
+
 # Disable Python stdout buffering to ensure logs are printed immediately
 ENV PYTHONUNBUFFERED=1
 
