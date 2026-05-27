@@ -1,2 +1,19 @@
 # Auto-generated files — collapse diffs and exclude from language stats
 web/package-lock.json linguist-generated=true
+
+# Force LF line endings on shell scripts + Dockerfiles.
+# Windows checkouts default to CRLF (Git autocrlf=true) which breaks
+# the shebang on Linux containers — the kernel reads `#!/bin/bash\r` and
+# fails with "exec ... no such file or directory" because there is no
+# binary literally named `/bin/bash\r`. Forcing LF here makes every
+# checkout (regardless of OS) write LF, which keeps Docker images
+# bootable when built from a Windows clone.
+*.sh             text eol=lf
+*.bash           text eol=lf
+Dockerfile       text eol=lf
+Dockerfile.*     text eol=lf
+docker/*         text eol=lf
+docker/**/*      text eol=lf
+
+# .ps1 stays CRLF because PowerShell on Windows prefers it.
+*.ps1            text eol=crlf
