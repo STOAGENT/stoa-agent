@@ -5,8 +5,8 @@ class StoaAgent < Formula
   homepage "https://stoax.xyz"
   # Stable source: PyPI sdist (more reliable + cacheable than GitHub Release
   # asset; trusted-publisher OIDC chain guarantees authenticity).
-  url "https://files.pythonhosted.org/packages/a6/e2/7f0c14a3793e3016ce696e1d0d792803ed8ea8b0d14de026057a494d3194/stoa_agent-0.14.3.tar.gz"
-  sha256 "a3924e0994e85608563d4320cb8cacfc59eba4e3ff984185bd6cdf843f324480"
+  url "https://files.pythonhosted.org/packages/eb/de/4440241820da5e6e2e253fce162f761c2c27884d71d808bbd8161859f909/stoa_agent-0.14.4.tar.gz"
+  sha256 "bd9dc6ffd3ba19b1b595586a445fbd66a4bcadf2b9ccb503e429ff7da7aa2014"
   license "MIT"
 
   depends_on "certifi" => :no_linkage
