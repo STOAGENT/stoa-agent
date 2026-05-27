@@ -84,3 +84,14 @@ wallet.key
 ~/.stoa/
 secrets/
 *.privkey
+
+# Internal audit artifacts — never commit to public repo. Audits are
+# coordinated-disclosure per SECURITY.md §1 and may name unfixed attack
+# surfaces or contain absolute Windows/Unix usernames in paths.
+AUDIT_*.md
+AUDIT_*.json
+AUDIT_*.txt
+audit-*/
+*-audit/
+*_audit/
+stoa-agent-audit-*/
