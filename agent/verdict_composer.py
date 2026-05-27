@@ -332,7 +332,7 @@ def _hash_response(
         # Domain-separation fields. Read from env when not passed
         # explicitly so the rest of the codebase needn't be plumbed
         # on day one. STOA_CHAIN_ID matches the wallet binding default.
-        "chain_id": chain_id if chain_id is not None else int(os.environ.get("STOA_CHAIN_ID", "10143")),
+        "chain_id": chain_id if chain_id is not None else int(os.environ.get("STOA_CHAIN_ID", "143")),
         "contract": (contract_address or os.environ.get("AUDIT_ATTESTATION_V2_ADDRESS", "")).lower(),
         "schema_version": 1,
     }

@@ -62,22 +62,24 @@ def _mk_account():
 # ── chainId binding ──────────────────────────────────────────────────────
 
 
-def test_chain_id_default_is_10143(fresh_wallet_module):
-    """Without STOA_CHAIN_ID set, the module pins chainId = 10143 (Monad
-    testnet) per audit recommendation."""
-    assert fresh_wallet_module.MONAD_CHAIN_ID == 10143
+def test_chain_id_default_is_mainnet_143(fresh_wallet_module):
+    """Without STOA_CHAIN_ID set, the module pins chainId = 143 (Monad
+    mainnet). STOA is positioned as a Monad-mainnet product per the
+    chain-invariant memory + audit P-O — testnet (10143) is opt-in
+    via env."""
+    assert fresh_wallet_module.MONAD_CHAIN_ID == 143
 
 
-def test_chain_id_env_override_picks_up_mainnet(monkeypatch):
-    """Setting STOA_CHAIN_ID=143 (Monad mainnet) before module load is
+def test_chain_id_env_override_picks_up_testnet(monkeypatch):
+    """Setting STOA_CHAIN_ID=10143 (Monad testnet) before module load is
     honored — the canonical bind message embeds the env-driven value."""
-    monkeypatch.setenv("STOA_CHAIN_ID", "143")
+    monkeypatch.setenv("STOA_CHAIN_ID", "10143")
     import stoa_cli.wallet as wallet_mod
     reloaded = importlib.reload(wallet_mod)
     try:
-        assert reloaded.MONAD_CHAIN_ID == 143
+        assert reloaded.MONAD_CHAIN_ID == 10143
         msg = reloaded._canonical_bind_message("0x" + "a" * 40, 1)
-        assert "Chain ID: 143\n" in msg
+        assert "Chain ID: 10143\n" in msg
     finally:
         # Restore module-level state for the rest of the session.
         monkeypatch.delenv("STOA_CHAIN_ID", raising=False)

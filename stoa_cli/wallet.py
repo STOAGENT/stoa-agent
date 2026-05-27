@@ -40,13 +40,28 @@ logger = logging.getLogger(__name__)
 STOA_TOKEN_CONTRACT = os.getenv("STOA_TOKEN_CONTRACT", "")
 MONAD_RPC = os.getenv("STOA_MONAD_RPC", "https://rpc.monad.xyz")
 
-# Audit v8 CRIT-34-01 fix: chainId selection. Monad mainnet is 143,
-# testnet is 10143. SIWE messages MUST bind the chainId the wallet was
-# on when the user signed, otherwise a signature minted on testnet can
-# unlock the gate on mainnet (or vice versa). STOA_CHAIN_ID env lets
-# the user choose; default is 10143 (testnet) per audit recommendation
-# until the M5 token + mainnet operations actually land.
-MONAD_CHAIN_ID = int(os.getenv("STOA_CHAIN_ID", "10143"))
+# Audit v2 P-O fix: chainId selection. Monad mainnet is 143, testnet
+# is 10143. SIWE messages MUST bind the chainId the wallet was on when
+# the user signed, otherwise a signature minted on testnet can unlock
+# a contract on mainnet (or vice versa). STOA is positioned as a
+# Monad-mainnet product (see feedback_stoa_chain_invariant.md memory +
+# README), so the default is 143. Operators wiring against testnet
+# during development set STOA_CHAIN_ID=10143 explicitly.
+MONAD_CHAIN_ID = int(os.getenv("STOA_CHAIN_ID", "143"))
+
+# Boot-time crosscheck: drift between the chainId the runtime defaults
+# to and the chainId of any deployed contract reference is a class of
+# subtle exploit (signature replay across chains). When STOA_CHAIN_ID
+# is explicitly set to anything other than 143, log a one-shot warning
+# so the operator sees the deviation in their first-run logs.
+if MONAD_CHAIN_ID != 143 and os.getenv("STOA_CHAIN_ID") is not None:
+    import logging
+    logging.getLogger(__name__).warning(
+        "STOA_CHAIN_ID=%d active (not Monad mainnet 143). SIWE messages "
+        "and on-chain attestations will bind this chainId. Confirm you "
+        "intend to operate on a non-mainnet chain.",
+        MONAD_CHAIN_ID,
+    )
 
 # Audit v7 CRIT-25-1 fix: SIWE Issued At freshness. A signature is only
 # valid for SIWE_FRESHNESS_WINDOW_MS milliseconds from its bound_at. Any

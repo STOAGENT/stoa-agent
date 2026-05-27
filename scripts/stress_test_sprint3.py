@@ -142,7 +142,11 @@ def t14_markdown_guard():
 
 
 def t15_siwe_monad():
-    assert "10143" in _read("stoa_cli/wallet.py")
+    # P-O: default chainId is now 143 (Monad mainnet); 10143 (testnet)
+    # is opt-in via STOA_CHAIN_ID env. Wallet module must mention both.
+    src = _read("stoa_cli/wallet.py")
+    assert "143" in src
+    assert "10143" in src  # testnet still documented as override
 
 
 def t16_security_md():
@@ -216,7 +220,7 @@ CHECKS = [
     ("12. OAuth compare_digest", t12_oauth_compare_digest),
     ("13. /copy ANSI strip", t13_ansi_strip),
     ("14. Markdown bidi+depth+IDN guard", t14_markdown_guard),
-    ("15. Wallet SIWE Monad chainId 10143", t15_siwe_monad),
+    ("15. Wallet SIWE Monad mainnet 143 (testnet 10143 opt-in)", t15_siwe_monad),
     ("16. SECURITY.md asset matrix", t16_security_md),
     ("17. environment-variables.md complete", t17_env_vars_docs),
     ("18. WeCom constant-time compare", t18_wecom_compare_digest),

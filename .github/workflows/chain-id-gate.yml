@@ -1,0 +1,81 @@
+name: ChainId default gate
+
+# Audit P-O: STOA is positioned as a Monad-mainnet product (memory
+# feedback_stoa_chain_invariant.md). Any code path that defaults its
+# chainId to 10143 (Monad testnet) instead of 143 (Monad mainnet) is
+# a regression — signature replay across chains is the failure mode
+# this prevents.
+#
+# Allow-list (legitimate 10143 mentions):
+#   - tests/                — testnet env-override path is tested
+#   - scripts/stress_test_* — stress harness exercises testnet branch
+#   - stoa_cli/wallet.py    — comment + override doc may mention 10143
+#                              as the documented testnet value
+#   - agent/verdict_composer.py — same
+#   - website/docs/         — docs may explain both values
+#   - any *.md file         — prose may describe both values
+#
+# What we ban: a literal `os.getenv("STOA_CHAIN_ID", "10143")` or
+# `STOA_CHAIN_ID="10143"` pattern that makes 10143 a runtime default.
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  chain-id-default:
+    name: chain id default check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Grep for testnet default in runtime code
+        run: |
+          set -euo pipefail
+
+          BAD_PATTERNS=(
+            'getenv\("STOA_CHAIN_ID", "10143"\)'
+            "getenv\\('STOA_CHAIN_ID', '10143'\\)"
+            'STOA_CHAIN_ID="10143"'
+            "STOA_CHAIN_ID='10143'"
+            'CHAIN_ID = 10143'
+            'chain_id = 10143'
+            'chain_id: 10143'
+          )
+
+          # Scan only runtime Python + JS/TS + Solidity + YAML config —
+          # tests, scripts, docs, and markdown are exempt by path.
+          FOUND=0
+          for pattern in "${BAD_PATTERNS[@]}"; do
+            matches=$(grep -RnE "$pattern" \
+                --include='*.py' --include='*.ts' --include='*.tsx' \
+                --include='*.js' --include='*.jsx' --include='*.sol' \
+                --include='*.toml' \
+                --exclude-dir=tests --exclude-dir=scripts \
+                --exclude-dir=node_modules --exclude-dir=.venv \
+                --exclude-dir=stoa_agent.egg-info \
+                . 2>/dev/null || true)
+            if [ -n "$matches" ]; then
+              echo "::error::STOA_CHAIN_ID default '10143' (testnet) found in runtime code (audit P-O regression):"
+              echo "$matches"
+              FOUND=1
+            fi
+          done
+
+          if [ "$FOUND" -ne 0 ]; then
+            echo ""
+            echo "Audit P-O blocks merge: runtime chainId default must be 143"
+            echo "(Monad mainnet). Testnet (10143) is opt-in via env, not a"
+            echo "code default. Update the offending default or open this"
+            echo "workflow to whitelist the legitimate case."
+            exit 1
+          fi
+
+          echo "ChainId default gate: clean (143 is the runtime default)."
