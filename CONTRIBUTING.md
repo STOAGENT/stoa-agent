@@ -194,7 +194,7 @@ stoa-agent/
 ├── skills/                   # Bundled skills (copied to ~/.stoa/skills/ on install)
 ├── optional-skills/          # Official optional skills (discoverable via hub, not activated by default)
 ├── tests/                    # Test suite
-├── website/                  # Documentation site (stoa-agent.nousresearch.com)
+├── website/                  # Documentation site (stoax.xyz/docs)
 │
 ├── cli-config.yaml.example   # Example configuration (copied to ~/.stoa/config.yaml)
 └── AGENTS.md                 # Development guide for AI coding assistants

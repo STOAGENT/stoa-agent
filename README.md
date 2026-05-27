@@ -1,15 +1,22 @@
 <p align="center">
-  <img src="assets/banner.svg" alt="STOA Agent — six sovereign LLMs as your local agent" width="100%">
+  <img src="assets/banner.svg" alt="STOA Agent — six personas, one chamber, on your machine" width="100%">
 </p>
 
 # STOA Agent ⁂
 
-**Six sovereign LLMs as your local agent.**
-Council-mode by default · On-chain verifiable · ERC-8004 reputation.
+**Six personas in one chamber, running on your machine.**
+Council-mode debate · Bring-your-own-key · No subscription, no lock-in.
 
-> *Hermes Agent gave you one brain on your machine. STOA gives you a chamber.*
+> STOA is a Socratic chamber: six named personas — each with its own role,
+> system prompt, and reasoning style — debate every non-trivial task in
+> parallel, then a seventh dispatcher composes a verdict. STOA itself is
+> free and open-source forever; you bind your own LLM API key (we
+> recommend DeepSeek's free tier — 2-minute signup, no card) and STOA
+> never sees, brokers, or proxies your key. Want one provider per persona
+> (e.g. Sokrates → Anthropic, Veritas → Google, Drax → xAI)? Bind a
+> different key per seat in `~/.stoa/cli-config.yaml`.
 
-A fork of [NousResearch / hermes-agent](https://github.com/NousResearch/hermes-agent) v0.14.0 (MIT) — see [ATTRIBUTION.md](ATTRIBUTION.md) for the full provenance.
+This is a fork of [NousResearch / hermes-agent](https://github.com/NousResearch/hermes-agent) v0.14.0 (MIT). The runtime, gateway, sandboxes, memory store, skill format, and provider plugin layer are inherited from upstream — see [ATTRIBUTION.md](ATTRIBUTION.md) for the full lineage. What STOA adds on top is the chamber: persona orchestration, an optional on-chain attestation preview, and a 6-agent skill-publication audit gate.
 
 ---
 
@@ -25,6 +32,18 @@ curl -fsSL https://stoax.xyz/install.sh | sh
 iex (irm https://stoax.xyz/install.ps1)
 ```
 
+**PyPI**
+```sh
+pip install stoa-agent
+stoa setup
+```
+
+**Homebrew**
+```sh
+brew tap stoagent/stoa
+brew install stoa-agent
+```
+
 **Direct from source**
 ```sh
 git clone https://github.com/STOAGENT/stoa-agent
@@ -35,110 +54,93 @@ stoa setup
 
 ---
 
-## What's different from Hermes
+## What STOA adds
 
-The STOA fork preserves everything Hermes did right — the agent runtime, the 21-platform gateway, the 7-backend sandbox, the SQLite + FTS5 memory, the SKILL.md format, the uv-based one-line install — and adds the things a single-brain framework cannot:
+### 1. Council mode — six personas, one chamber
 
-### 1. Council mode (5-of-6 quorum)
-
-Hermes routes a task to one LLM. STOA routes it to six (one per sovereign provider) in parallel, then a seventh dispatcher (Hermes-the-character) composes a verdict. Five of six must agree on the core position. Dissent is captured, not erased.
+Each persona has its own system prompt, reasoning style, and tool affinity. They run in parallel against the same task, and a seventh dispatcher composes a verdict by surfacing agreement and dissent rather than collapsing the answer to a single voice.
 
 ```sh
 stoa /council "audit this contract: $(cat MyToken.sol)"
-# → 6 LLMs in parallel
+# → 6 personas in parallel
 # → Sokrates / Mira / Veritas / Drax / Lyra / Echo each respond
-# → Verdict + agreement signal + per-agent dissent + response hash
+# → Verdict + per-persona dissent + response hash (local)
 ```
 
-### 2. On-chain attestation
+| Persona | Role |
+|---|---|
+| **Sokrates** | the question-maker — surfaces hidden assumptions |
+| **Mira** | the builder — produces concrete artifacts |
+| **Veritas** | the auditor — looks for incorrectness |
+| **Drax** | the red team — looks for failure modes |
+| **Lyra** | the designer — looks for clarity and form |
+| **Echo** | the operator — looks for ops + lifecycle risk |
+| **Hermes** | the dispatcher (the seventh) — composes the verdict |
 
-Every tool call optionally writes its response hash to **AuditAttestationV2** on Monad mainnet. Months later, anyone can verify a STOA agent ran exactly the action it claims it ran — without trusting the operator.
+### 2. Provider model — bring-your-own-key
 
-```sh
-stoa --attest /council "verify this trade"
-# → tx hash returned, IPFS evidence bundle pinned
-```
+STOA never bundles, brokers, or proxies anyone else's API key. There is no STOA cloud and no "free credits from us." Instead the first-run wizard walks you through the cheapest viable setup:
 
-### 3. ERC-8004 agent reputation
+1. Go to https://platform.deepseek.com/api_keys (free signup, no card).
+2. Create a key. DeepSeek's free tier covers typical solo use; a heavy session is a few cents.
+3. Paste the key. STOA writes it to `~/.stoa/cli-config.yaml` on your machine and never sends it anywhere else.
 
-Each command emits a reputation event. The cross-agent reputation graph (queryable on-chain) lets other agents check a STOA agent's track record before delegating to it.
-
-### 4. Council-audited skill publication
-
-The hardest problem in agent skill ecosystems is supply-chain trust — OpenClaw shipped 9 CVEs in 4 days. STOA's answer: **no skill publishes without a 6-agent audit + 5-of-6 quorum + an on-chain audit hash**. Security, performance, prompt-injection, license, structure, attribution — six different lenses on every new skill.
-
-### 5. Persona-bound provider routing
-
-The six agents are not six instances of the same model. Each is tied to a different sovereign provider:
-
-| Agent | Role | Marketing name |
-|---|---|---|
-| Sokrates | the question-maker | Claude Opus 4.7 |
-| Mira | the builder | GPT-5 |
-| Veritas | the auditor | Gemini 2.5 Pro |
-| Drax | the red team | Grok 4 |
-| Lyra | the designer | Llama 3.3 405B |
-| Echo | the operator | Mistral Large 3 |
-| Hermes | the dispatcher (the seventh) | — |
-
-Set them per persona in `~/.stoa/cli-config.yaml`:
+Result: the chamber works end-to-end on your own DeepSeek free tier, with you in full control of the spend. Want one provider per persona (e.g. Sokrates → Anthropic, Veritas → Google, Drax → xAI)? Bind a different key per seat:
 
 ```yaml
+# ~/.stoa/cli-config.yaml — produced by `stoa setup`, fully editable
 personas:
-  sokrates: { provider: anthropic, model: claude-opus-4-7,  api_mode: anthropic }
-  mira:     { provider: openrouter, model: openai/gpt-5,     api_mode: chat_completions }
-  veritas:  { provider: openrouter, model: google/gemini-2.5-pro }
-  drax:     { provider: openrouter, model: xai/grok-4 }
-  lyra:     { provider: openrouter, model: meta-llama/llama-3.3-405b }
-  echo:     { provider: openrouter, model: mistralai/mistral-large-3 }
-  hermes:   { provider: deepseek,  model: deepseek-chat }
+  sokrates: { provider: deepseek, model: deepseek-reasoner }   # default
+  mira:     { provider: deepseek, model: deepseek-chat }       # default
+  # …or override per seat with a different key + provider:
+  veritas:  { provider: anthropic, model: claude-opus-4-7, api_mode: anthropic }
 ```
 
-### 6. Council mode + on-chain attestation
+> The persona names (Sokrates / Mira / Veritas / Drax / Lyra / Echo / Hermes) are role identifiers and are decoupled from any single model vendor — see `stoa /persona list` for the live binding on your machine.
 
-Solo mode, all 21 platforms, and the full skill ecosystem are free. Council mode + opt-in on-chain attestation are available to anyone in v0.x — the token gate is disabled by default (no STOA token deployed yet; the launch was cancelled).
+### 3. Council-audited skill publication
 
-When/if a STOA token launches, the gate activates by setting `STOA_TOKEN_CONTRACT` + `STOA_COUNCIL_MIN_HOLDING_WEI` in env. Until then, council mode is free.
+The hardest problem in agent skill ecosystems is supply-chain trust. STOA's answer: **no skill publishes without a 6-persona audit + 5-of-6 quorum + a local audit hash**. Security, performance, prompt-injection, license, structure, attribution — six different lenses on every new skill.
 
 ```sh
-# Bind your wallet (requires signing the canonical EIP-4361 bind message
-# — see `stoa wallet message` for the exact string).
-stoa wallet bind 0x... --signature 0x...
-
-# Use council mode.
-stoa /council "..."
+stoa skill publish ./my-skill
+# → 6 personas audit it independently
+# → 5-of-6 quorum required
+# → audit hash written locally; on-chain stamp behind --attest (preview)
 ```
 
-> ⚠️ **On-chain attestation status**: the `attest_response_hash` codepath
-> is a SCAFFOLD in v0.x — it computes the response hash + persists it
-> locally but does not yet submit a transaction to the
-> `AuditAttestationV2` contract on Monad mainnet. The M3 release wires
-> the actual `eth_sendRawTransaction` transport. Until then, expect
-> `attestation_enabled` to log "scaffold" + queue the request.
+### 4. On-chain attestation — preview
+
+`stoa --attest` is currently a **preview feature** behind a flag.
+
+When enabled, every council verdict optionally writes its response hash to **AuditAttestationV2** on Monad mainnet, so months later anyone can verify a STOA agent ran exactly the action it claims it ran. The hashing + persistence are wired; the `eth_sendRawTransaction` submission and verifier client are under hardening for the next release. Until then, expect `--attest` to compute the hash, queue the request, and log `attestation_preview: pending_submit`.
+
+If you have no need for on-chain verifiability, you can ignore `--attest` entirely — the chamber, the verdict, and the skill audit gate all work locally without it.
 
 ---
 
-## Commands (Hermes-compatible)
+## Commands
 
 | Command | What it does |
 |---|---|
-| `stoa` | Splash dashboard + interactive REPL (Hermes parity) |
+| `stoa` | Splash dashboard + interactive REPL |
 | `stoa chat` | Direct chat mode |
-| `stoa setup` | First-run wizard |
-| `stoa gateway` | Run the multi-platform daemon |
-| `stoa hermes migrate` | **Auto-port** your Hermes settings, skills, memories, and API keys |
-| `stoa /council "<task>"` | **NEW** — six LLMs in parallel + verdict |
-| `stoa /persona <name>` | **NEW** — switch single-mode agent |
-| `stoa /attest` | **NEW** — stamp the last response on-chain |
-| `stoa /verdict` | **NEW** — show the last council verdict |
-| `stoa skill publish` | **CHANGED** — runs the 6-agent audit gate before publishing |
+| `stoa setup` | First-run wizard (writes `~/.stoa/cli-config.yaml`) |
+| `stoa gateway` | Run the multi-platform daemon (Telegram, Discord, Slack, etc.) |
+| `stoa /council "<task>"` | Six personas in parallel + verdict |
+| `stoa /persona <name>` | Switch single-persona mode |
+| `stoa /persona list` | Show the live persona ↔ provider binding |
+| `stoa /verdict` | Show the last council verdict |
+| `stoa /attest` | **preview** — stamp the last verdict on-chain |
+| `stoa skill publish` | Runs the 6-persona audit gate before publishing |
+| `stoa hermes migrate` | Auto-port settings + skills + memories + keys from your upstream install |
 
 ---
 
 ## Skills shipped under `skills/stoa/`
 
-- `council-verdict` — orchestrate a 6-LLM call from inside a skill
-- `monad-attestation` — write a hash to AuditAttestationV2
+- `council-verdict` — orchestrate a 6-persona call from inside a skill
+- `monad-attestation` — write a hash to AuditAttestationV2 (preview)
 - `solidity-audit-pipeline` — Slither + Mythril + Echidna + manual review
 - `erc8004-reputation` — read or write agent reputation events
 - `stoa-skill-publish` — the publication audit gate itself
@@ -147,11 +149,20 @@ stoa /council "..."
 
 ---
 
+## Security posture
+
+STOA inherits the same primitive set as its upstream lineage: shell execution, browser automation, plugin marketplace, optional wallet binding. These are powerful tools and require operator literacy — STOA targets the same operator profile as Cursor, Claude Code, and Aider.
+
+- **Default-OFF gates** (DB encryption, PII/IP redaction, skill ed25519 signature, mandatory sandbox) are being flipped to default-ON via a `STOA_SECURITY_PRESET` selector in the next release.
+- **Bug bounty + coordinated disclosure**: see [SECURITY.md](SECURITY.md). Do **not** open public issues for security reports.
+- **Audit reports** are not published to the master tree — coordinated disclosure first. We ship fixes, then summary write-ups.
+
+---
+
 ## License
 
-MIT for the STOA Agent codebase. See [LICENSE](LICENSE). The original
-Hermes Agent license is preserved unchanged; this fork adds
-[ATTRIBUTION.md](ATTRIBUTION.md).
+MIT for the STOA Agent codebase. See [LICENSE](LICENSE).
+The upstream MIT license is preserved verbatim; this fork adds the attribution recorded in [ATTRIBUTION.md](ATTRIBUTION.md).
 
 **Bundled assets carry their own licenses:**
 
@@ -170,6 +181,6 @@ Hermes Agent license is preserved unchanged; this fork adds
 
 - Docs · https://stoax.xyz/cli
 - Chamber · https://stoax.xyz
-- Token · [STOA on nad.fun](https://nad.fun/tokens/0xd645C10050551E93e40c4C06aF4b24F790067777)
+- PyPI · https://pypi.org/project/stoa-agent/
 - Source · https://github.com/STOAGENT/stoa-agent
-- Upstream · https://github.com/NousResearch/hermes-agent
+- Upstream lineage · [ATTRIBUTION.md](ATTRIBUTION.md)

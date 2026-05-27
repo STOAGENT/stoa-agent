@@ -1,0 +1,108 @@
+name: Brand grep gate
+
+# Audit P-G: blocks PRs that re-introduce "Nous Research", "NousResearch", or
+# "hermes-agent" tokens into user-facing prose surfaces.
+#
+# Allow-list (legitimate mentions, NOT scanned):
+#   - ATTRIBUTION.md             — fork lineage must name upstream
+#   - LICENSE                    — preserves upstream copyright notice
+#   - RELEASE_*.md               — historical release notes are immutable
+#                                  artifacts that may name the project's
+#                                  upstream identity at the time
+#   - tests/                     — provider-adapter tests legitimately
+#                                  exercise the Nous Portal endpoint
+#   - stoa_cli/proxy/adapters/nous_portal.py  — the actual adapter
+#   - plugins/model-providers/nous/           — the provider plugin
+#   - stoa_cli/default_soul.py + docker/SOUL.md — runtime banlist where
+#                                  the tokens are enumerated as forbidden
+#                                  outputs for the live persona
+#   - stoa_cli/setup.py          — sign-up link to portal.nousresearch.com
+#                                  for users binding their own Nous key
+#
+# Audited budgets (per file):
+#   - README.md          ≤ 2 mentions of each token
+#   - README.zh-CN.md    ≤ 2 mentions of each token
+#   - CHANGELOG.md       ≤ 4 mentions  (meta-references to the very
+#                                       transition that produced the
+#                                       banlist are allowed)
+#   - CONTRIBUTING.md    0 tolerance
+#   - website/docs/**    0 tolerance (excluding the bundled hermes-agent
+#                                     skill page name, which is upstream
+#                                     content)
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  brand-grep:
+    name: brand drift check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Grep for unwanted brand references
+        run: |
+          set -euo pipefail
+
+          BAD_TOKENS=("Nous Research" "NousResearch" "hermes-agent")
+          FOUND=0
+
+          check_budget() {
+            local file="$1" budget="$2"
+            [ -e "$file" ] || return 0
+            for token in "${BAD_TOKENS[@]}"; do
+              count=$(grep -cF "$token" "$file" 2>/dev/null || true)
+              count=${count:-0}
+              if [ "$count" -gt "$budget" ]; then
+                echo "::error file=$file::$file has $count '$token' mentions; budget is $budget (audit P-G)."
+                grep -nF "$token" "$file"
+                FOUND=1
+              fi
+            done
+          }
+
+          check_zero() {
+            local file="$1"
+            [ -e "$file" ] || return 0
+            for token in "${BAD_TOKENS[@]}"; do
+              matches=$(grep -nF "$token" "$file" 2>/dev/null || true)
+              if [ -n "$matches" ]; then
+                echo "::error file=$file::Forbidden brand token '$token' in '$file' (audit P-G regression)."
+                echo "$matches"
+                FOUND=1
+              fi
+            done
+          }
+
+          check_budget "README.md"        2
+          check_budget "README.zh-CN.md"  2
+          check_budget "CHANGELOG.md"     4
+          check_zero   "CONTRIBUTING.md"
+
+          if [ -d website/docs ]; then
+            while IFS= read -r f; do
+              # Skip the bundled hermes-agent skill page — upstream content.
+              case "$f" in
+                *autonomous-ai-agents-hermes-agent.md) continue ;;
+              esac
+              check_zero "$f"
+            done < <(find website/docs -type f -name '*.md')
+          fi
+
+          if [ "$FOUND" -ne 0 ]; then
+            echo ""
+            echo "Audit P-G blocks merge: upstream brand tokens drifted into"
+            echo "user-facing prose. Move legitimate mentions to ATTRIBUTION.md"
+            echo "(allow-listed) or document the exception in this workflow."
+            exit 1
+          fi
+
+          echo "Brand grep gate: clean."
