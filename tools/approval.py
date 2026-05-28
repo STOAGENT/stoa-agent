@@ -980,18 +980,32 @@ def check_dangerous_command(command: str, env_type: str,
     Returns:
         {"approved": True/False, "message": str or None, ...}
     """
-    if env_type in {"docker", "singularity", "modal", "daytona", "vercel_sandbox"}:
-        return {"approved": True, "message": None}
+    # Audit Phase-1A (P-E): container backends used to short-circuit to
+    # approved=True FIRST, skipping the hardline floor + sudo stdin guard
+    # entirely. That meant a Docker / Modal / Daytona / Singularity /
+    # Vercel-sandbox agent could run `rm -rf /`, `mkfs`, `dd to /dev/sda`
+    # without any block — even though those commands still damage the
+    # container, can escape via shared volume mounts, and can poison
+    # downstream orchestration. We now run the floor + sudo guard for
+    # ALL env_types and only short-circuit AFTER. Container backends
+    # remain pattern-match free below the floor (the original intent —
+    # ephemeral containers don't need the granular dangerous-command
+    # gate).
+    container_backends = {"docker", "singularity", "modal", "daytona", "vercel_sandbox"}
 
     # Hardline floor: commands with no recovery path (rm -rf /, mkfs, dd
     # to raw device, shutdown/reboot, fork bomb, kill -1) are blocked
-    # unconditionally, BEFORE the yolo bypass.  Opting into yolo is
+    # unconditionally, BEFORE the yolo bypass and BEFORE the container
+    # short-circuit. Opting into yolo or running in a sandbox is
     # trusting the agent with your files and services, not trusting it
     # to wipe the disk or power the box off.
     is_hardline, hardline_desc = detect_hardline_command(command)
     if is_hardline:
         logger.warning("Hardline block: %s (command: %s)", hardline_desc, command[:200])
         return _hardline_block_result(hardline_desc)
+
+    if env_type in container_backends:
+        return {"approved": True, "message": None}
 
     # --yolo: bypass all approval prompts. Gateway /yolo is session-scoped;
     # CLI --yolo remains process-scoped via the env var for local use.
@@ -1104,14 +1118,20 @@ def check_all_command_guards(command: str, env_type: str,
     a gateway force=True replay from bypassing one check when only the
     other was shown to the user.
     """
-    # Skip containers for both checks
-    if env_type in {"docker", "singularity", "modal", "daytona", "vercel_sandbox"}:
-        return {"approved": True, "message": None}
+    # Audit Phase-1A (P-E): same reorder as `check_dangerous_command` —
+    # container short-circuit was running BEFORE the hardline floor +
+    # sudo stdin guard, so a Docker-backed agent could execute
+    # `rm -rf /` / `mkfs` / `dd to /dev/sda` against the container's
+    # rootfs (or escape via shared mounts) with zero block. Floor + sudo
+    # guard now run for ALL env_types; container-pattern skip happens
+    # below the floor.
+    container_backends = {"docker", "singularity", "modal", "daytona", "vercel_sandbox"}
 
     # Hardline floor: unconditional block for catastrophic commands
     # (rm -rf /, mkfs, dd to raw device, shutdown/reboot, fork bomb,
-    # kill -1). Applies BEFORE yolo / mode=off / cron approve-mode so
-    # no session-level setting can bypass it.
+    # kill -1). Applies BEFORE yolo / mode=off / cron approve-mode AND
+    # BEFORE the container short-circuit, so no session-level setting
+    # and no backend choice can bypass it.
     is_hardline, hardline_desc = detect_hardline_command(command)
     if is_hardline:
         logger.warning("Hardline block: %s (command: %s)", hardline_desc, command[:200])
@@ -1120,13 +1140,16 @@ def check_all_command_guards(command: str, env_type: str,
     # == Sudo stdin guard ==
     # Like the hardline floor above, this is unconditional: there is never a
     # legitimate reason for the agent to pipe passwords to sudo -S when no
-    # SUDO_PASSWORD has been configured.  This must fire BEFORE the yolo
-    # check so even yolo/smart approval/mode=off cannot bypass it.
+    # SUDO_PASSWORD has been configured. Runs for ALL env_types.
     is_sudo_guess, sudo_guess_desc = _check_sudo_stdin_guard(command)
     if is_sudo_guess:
         logger.warning("Sudo stdin guard block: %s (command: %s)",
                        sudo_guess_desc, command[:200])
         return _sudo_stdin_block_result(sudo_guess_desc)
+
+    # Container short-circuit happens AFTER the floor + sudo guard.
+    if env_type in container_backends:
+        return {"approved": True, "message": None}
 
     # --yolo or approvals.mode=off: bypass all approval prompts.
     # Gateway /yolo is session-scoped; CLI --yolo remains process-scoped.
