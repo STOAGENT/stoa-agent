@@ -14,18 +14,49 @@ import yaml
 logger = logging.getLogger(__name__)
 
 
-TRUTHY_STRINGS = frozenset({"1", "true", "yes", "on"})
+TRUTHY_STRINGS = frozenset({"1", "true", "yes", "on", "y", "t", "enable", "enabled"})
+FALSY_STRINGS = frozenset({"0", "false", "no", "off", "n", "f", "disable", "disabled"})
 
 
 def is_truthy_value(value: Any, default: bool = False) -> bool:
-    """Coerce bool-ish values using the project's shared truthy string set."""
+    """Coerce bool-ish values using the project's shared truthy string set.
+
+    Audit Phase-1A (P-D): this is the ONE canonical truthy parser every
+    gate site should call so the project speaks with one voice about
+    what "yes" looks like. Falsy strings ("0", "false", "no", "off",
+    "disable", "disabled") return False even when the default is True
+    — explicit-false beats default-true.
+    """
     if value is None:
         return default
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
-        return value.strip().lower() in TRUTHY_STRINGS
+        token = value.strip().lower()
+        if not token:
+            return default
+        if token in TRUTHY_STRINGS:
+            return True
+        if token in FALSY_STRINGS:
+            return False
+        # Garbled value falls through to default (don't guess).
+        return default
     return bool(value)
+
+
+def is_falsy_value(value: Any, default: bool = False) -> bool:
+    """Return True when *value* is explicitly falsy under the canonical
+    parser. Useful for "explicit-false overrides default-true" gates."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return not value
+    if isinstance(value, str):
+        token = value.strip().lower()
+        if not token:
+            return default
+        return token in FALSY_STRINGS
+    return not bool(value)
 
 
 def env_var_enabled(name: str, default: str = "") -> bool:

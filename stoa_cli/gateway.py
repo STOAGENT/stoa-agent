@@ -3102,7 +3102,9 @@ def launchd_status(deep: bool = False):
 # =============================================================================
 
 def _truthy_env(value: str | None) -> bool:
-    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+    # Audit P-D: delegate to the project's canonical truthy parser.
+    from utils import is_truthy_value
+    return is_truthy_value(value)
 
 
 def _is_official_docker_checkout() -> bool:

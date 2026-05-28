@@ -611,10 +611,11 @@ def _csv_set(value: str) -> Set[str]:
 
 
 def _truthy_env(name: str, default: bool = False) -> bool:
-    v = os.getenv(name)
-    if v is None:
-        return default
-    return v.strip().lower() in {"1", "true", "yes", "on"}
+    # Audit P-D: delegate to the project's canonical truthy parser so
+    # the LINE adapter's idea of "yes" never drifts from the rest of
+    # the codebase. The wrapper preserves the existing call signature.
+    from utils import is_truthy_value
+    return is_truthy_value(os.getenv(name), default=default)
 
 
 # ---------------------------------------------------------------------------
