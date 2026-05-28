@@ -375,7 +375,16 @@ def _safe_value(value: Any, *, max_chars: Optional[int] = None, depth: int = 0,
             parsed = _maybe_parse_json_string(value)
             if parsed is not value:
                 return _safe_value(parsed, max_chars=max_chars, depth=depth, parse_json_strings=True)
-        return _truncate_text(value, max_chars)
+        # Audit Phase-1A (F-L09-001): redact_sensitive_text masks API keys,
+        # bearer tokens, .env-pattern secrets, and (under the SECURITY_PRESET
+        # `normal` default) PII / IPs before any text leaves the process
+        # boundary toward cloud.langfuse.com.
+        try:
+            from agent.redact import redact_sensitive_text
+            scrubbed = redact_sensitive_text(value)
+        except Exception:
+            scrubbed = value
+        return _truncate_text(scrubbed, max_chars)
     if isinstance(value, dict):
         normalized = _normalize_payload(value)
         if normalized is not value:

@@ -316,24 +316,38 @@ def _hash_response(
     bytes everywhere — perfect cross-chain replay primitive once the
     attestation contract goes live.
     """
+    # Audit Phase-1A (P-J seed work): NFC-normalise every string field
+    # before serialisation. Different platforms emit different normalisation
+    # forms for the same visible glyph ("café" as NFC vs NFD differs by
+    # the combining acute accent). Without explicit NFC the hash drifts
+    # across macOS / Linux / Windows for byte-identical user input. Full
+    # RFC 8785 JCS roll-out is L10/P-J; this is the upstream guard so
+    # later JCS migration doesn't have to revisit every callsite.
+    import unicodedata
+
+    def _nfc(value):
+        if isinstance(value, str):
+            return unicodedata.normalize("NFC", value)
+        return value
+
     payload = {
-        "task": task,
+        "task": _nfc(task),
         "agents": [
             {
-                "persona": m.persona,
-                "marketing_name": m.marketing_name,
-                "provider": m.provider,
-                "model": m.model,
-                "text": m.text,
+                "persona": _nfc(m.persona),
+                "marketing_name": _nfc(m.marketing_name),
+                "provider": _nfc(m.provider),
+                "model": _nfc(m.model),
+                "text": _nfc(m.text),
             }
             for m in agents
         ],
-        "verdict": verdict_text,
+        "verdict": _nfc(verdict_text),
         # Domain-separation fields. Read from env when not passed
         # explicitly so the rest of the codebase needn't be plumbed
         # on day one. STOA_CHAIN_ID matches the wallet binding default.
         "chain_id": chain_id if chain_id is not None else int(os.environ.get("STOA_CHAIN_ID", "143")),
-        "contract": (contract_address or os.environ.get("AUDIT_ATTESTATION_V2_ADDRESS", "")).lower(),
+        "contract": _nfc((contract_address or os.environ.get("AUDIT_ATTESTATION_V2_ADDRESS", "")).lower()),
         "schema_version": 1,
     }
     canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")

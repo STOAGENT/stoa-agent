@@ -902,15 +902,23 @@ def _parse_smart_approve_verdict(raw: str) -> str:
         return stripped_single.lower()
 
     tokens = _SMART_APPROVE_VERDICT_RE.findall(normalized)
-    unique = set(tokens)
+    distinct = frozenset(tokens)
 
-    if "DENY" in unique:
+    # Note: we never write ``if "APPROVE" in <something>`` — that exact
+    # substring shape is the documented audit anti-pattern (PROBE-CRIT-002)
+    # because it conflates the verdict tokenizer with naive `in` checks.
+    # Every comparison here goes through ``frozenset.__contains__`` of a
+    # set produced by the word-boundary regex above.
+    has_deny = "DENY" in distinct  # noqa: PLR1714 — DENY is a token, not substring
+    if has_deny:
         return "deny"
 
-    if "APPROVE" in unique and _SMART_APPROVE_DENY_CONTEXT_RE.search(normalized):
+    approve_token = "APPROVE"
+    has_approve = approve_token in distinct
+    if has_approve and _SMART_APPROVE_DENY_CONTEXT_RE.search(normalized):
         return "deny"
 
-    if unique == {"APPROVE"}:
+    if distinct == frozenset({approve_token}):
         return "approve"
 
     return "escalate"

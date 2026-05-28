@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "stoa-agent"
 version = "0.14.4"
-description = "STOA Agent — a chamber of six personas + one dispatcher. Local-first, DeepSeek-backed by default, bring-your-own-key supported. Forked from NousResearch/hermes-agent (see ATTRIBUTION.md)."
+description = "STOA Agent — a chamber of six personas + one dispatcher. Local-first, bring-your-own-key, no subscription, no lock-in. See ATTRIBUTION.md for upstream lineage."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "STOA", email = "hi@stoax.xyz" }]
