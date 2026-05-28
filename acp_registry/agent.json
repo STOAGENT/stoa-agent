@@ -1,7 +1,7 @@
 {
   "id": "stoa-agent",
   "name": "STOA Agent",
-  "version": "0.14.5",
+  "version": "0.14.6",
   "description": "Self-improving open-source AI agent by STOA with ACP editor integration, persistent memory, skills, and rich tool support.",
   "repository": "https://github.com/STOAGENT/stoa-agent",
   "website": "https://stoax.xyz/docs/user-guide/features/acp",

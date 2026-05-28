@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stoa-agent"
-version = "0.14.5"
+version = "0.14.6"
 description = "STOA Agent — a chamber of six personas + one dispatcher. Local-first, bring-your-own-key, no subscription, no lock-in. See ATTRIBUTION.md for upstream lineage."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -99,6 +99,12 @@ dependencies = [
   # eth-account from stoa_cli/wallet.py covers bind verification + persisted
   # binding revalidation. Small dep (pure-Python + coincurve), no native build.
   "eth-account==0.13.7",
+  # Audit Phase-1A (WeCom XXE / PROBE-WeCom): defusedxml is the
+  # XXE-safe stdlib drop-in we use in gateway/platforms/wecom_callback.
+  # It must be declared here, not relied on as a transitive — without
+  # it the WeCom callback adapter crashes at first import with
+  # ModuleNotFoundError. Small (~25 KB pure-Python).
+  "defusedxml==0.7.1",
 ]
 
 [project.urls]
