@@ -176,14 +176,33 @@ def _pkcs7_pad(data: bytes, block_size: int = 16) -> bytes:
     return data + bytes([pad_len] * pad_len)
 
 
+# Audit Phase-1A (PROBE-CRIT-008C): the WeiXin (Tencent personal-account)
+# media CDN protocol specifies AES-128-ECB. ECB is structurally weak —
+# identical 16-byte plaintext blocks produce identical ciphertext blocks,
+# so an attacker who can submit a chosen-plaintext file learns the per-
+# block mapping. We CANNOT deviate from ECB without breaking interop with
+# WeiXin's CDN; the protocol is one-shot, payloads are bytes-uniformly-
+# random media blobs (no per-block leakage in practice), and the channel
+# is already wrapped in HTTPS. The mode-selector is hoisted into a helper
+# so the protocol-required choice is documented in one place.
+def _weixin_protocol_cipher_mode():
+    """Return the WeiXin-media protocol-mandated cipher mode.
+
+    This is ECB by protocol. Do not change this without breaking
+    interoperability with WeiXin's media CDN — see Tencent's open-
+    platform encryption documentation.
+    """
+    return modes.ECB()  # WeiXin media protocol: AES-128-ECB
+
+
 def _aes128_ecb_encrypt(plaintext: bytes, key: bytes) -> bytes:
-    cipher = Cipher(algorithms.AES(key), modes.ECB(), backend=default_backend())
+    cipher = Cipher(algorithms.AES(key), _weixin_protocol_cipher_mode(), backend=default_backend())
     encryptor = cipher.encryptor()
     return encryptor.update(_pkcs7_pad(plaintext)) + encryptor.finalize()
 
 
 def _aes128_ecb_decrypt(ciphertext: bytes, key: bytes) -> bytes:
-    cipher = Cipher(algorithms.AES(key), modes.ECB(), backend=default_backend())
+    cipher = Cipher(algorithms.AES(key), _weixin_protocol_cipher_mode(), backend=default_backend())
     decryptor = cipher.decryptor()
     padded = decryptor.update(ciphertext) + decryptor.finalize()
     if not padded:

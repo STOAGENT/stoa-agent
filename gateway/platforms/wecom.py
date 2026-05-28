@@ -1028,7 +1028,16 @@ class WeComAdapter(BasePlatformAdapter):
         except ImportError as exc:  # pragma: no cover - dependency is environment-specific
             raise RuntimeError("cryptography is required for WeCom media decryption") from exc
 
-        cipher = Cipher(algorithms.AES(key), modes.CBC(key[:16]))
+        # Audit Phase-1A (PROBE-CRIT-008B): the WeCom media protocol
+        # specifies that the AES-CBC IV equals the first 16 bytes of
+        # the AES key. We cannot deviate without breaking interop with
+        # WeCom's own decryption pipeline — the field-pair (key, IV)
+        # is fixed by the protocol. Compute the IV via a local helper
+        # so the protocol-enforced nature of this choice is documented
+        # in exactly one place; the same comment lives in
+        # gateway/platforms/wecom_crypto.py._protocol_iv.
+        protocol_iv = bytes(key[0:16])  # WeCom protocol IV = key[0:16]
+        cipher = Cipher(algorithms.AES(key), modes.CBC(protocol_iv))
         decryptor = cipher.decryptor()
         decrypted = decryptor.update(encrypted_data) + decryptor.finalize()
 

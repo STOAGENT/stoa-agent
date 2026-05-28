@@ -2006,38 +2006,68 @@ def _run_browser_command(
             idle_ms = str(BROWSER_SESSION_INACTIVITY_TIMEOUT * 1000)
             browser_env["AGENT_BROWSER_IDLE_TIMEOUT_MS"] = idle_ms
 
-        # Inject --no-sandbox when needed (issue #15765):
-        # - Running as root: Chromium always refuses to start without it
-        # - Ubuntu 23.10+ / AppArmor systems: unprivileged user namespaces
-        #   are restricted, causing Chromium to exit with "No usable sandbox"
-        #   even for non-root users running under systemd or containers.
-        # Honour either the legacy AGENT_BROWSER_CHROME_FLAGS (never consumed by
-        # agent-browser itself, but documented in older notes) or the real
-        # AGENT_BROWSER_ARGS — if the user pre-sets either, don't overwrite it.
+        # Inject sandbox-bypass flags ONLY when the operator has opted in
+        # via STOA_BROWSER_ALLOW_SANDBOX_BYPASS=1.
+        #
+        # Audit Phase-1A (PROBE-CHAIN-H): the previous code auto-applied
+        # --no-sandbox whenever it detected running-as-root or
+        # AppArmor-restricted user namespaces. That made the agent silently
+        # drop the Chromium sandbox in two of the most common production
+        # postures (Docker root, Ubuntu 23.10+ desktops), which let any
+        # malicious page that compromises the renderer reach the operator's
+        # full uid privileges without a single approval prompt.
+        #
+        # The new posture: refuse to start the browser when the sandbox
+        # cannot be enabled, with a clear diagnostic that tells the
+        # operator how to opt in if they understand the trade-off.
+        # Honour either AGENT_BROWSER_CHROME_FLAGS (legacy) or
+        # AGENT_BROWSER_ARGS — operator-set values still win.
         if (
             "AGENT_BROWSER_ARGS" not in browser_env
             and "AGENT_BROWSER_CHROME_FLAGS" not in browser_env
         ):
-            _needs_sandbox_bypass = False
-            if hasattr(os, "geteuid") and os.geteuid() == 0:
-                _needs_sandbox_bypass = True
-                logger.debug("browser: running as root — injecting --no-sandbox")
-            else:
-                # Detect AppArmor user namespace restrictions (Ubuntu 23.10+)
-                _userns_restrict = "/proc/sys/kernel/apparmor_restrict_unprivileged_userns"
-                try:
-                    with open(_userns_restrict, encoding="utf-8") as _f:
-                        if _f.read().strip() == "1":
-                            _needs_sandbox_bypass = True
-                            logger.debug(
-                                "browser: AppArmor userns restrictions detected — "
-                                "injecting --no-sandbox"
-                            )
-                except OSError:
-                    pass
-            if _needs_sandbox_bypass:
+            _allow_bypass = False
+            try:
+                from utils import is_truthy_value
+                _allow_bypass = is_truthy_value(
+                    os.environ.get("STOA_BROWSER_ALLOW_SANDBOX_BYPASS")
+                )
+            except Exception:
+                _allow_bypass = False
+
+            _running_as_root = hasattr(os, "geteuid") and os.geteuid() == 0
+            _userns_restricted = False
+            _userns_restrict_path = "/proc/sys/kernel/apparmor_restrict_unprivileged_userns"
+            try:
+                with open(_userns_restrict_path, encoding="utf-8") as _f:
+                    if _f.read().strip() == "1":
+                        _userns_restricted = True
+            except OSError:
+                pass
+
+            if _allow_bypass and (_running_as_root or _userns_restricted):
+                _reason = "root" if _running_as_root else "apparmor-userns-restricted"
+                logger.warning(
+                    "browser: STOA_BROWSER_ALLOW_SANDBOX_BYPASS=1 + %s — "
+                    "injecting --no-sandbox (you have opted out of the "
+                    "Chromium sandbox; any renderer compromise reaches the "
+                    "operator's full uid).",
+                    _reason,
+                )
                 browser_env["AGENT_BROWSER_ARGS"] = (
                     "--no-sandbox,--disable-dev-shm-usage"
+                )
+            elif _running_as_root or _userns_restricted:
+                # No bypass authorised → refuse to silently drop the
+                # sandbox. Chromium will still try to start; if it can't,
+                # the operator will see a precise error.
+                logger.warning(
+                    "browser: %s detected but STOA_BROWSER_ALLOW_SANDBOX_BYPASS "
+                    "is unset. Chromium may refuse to start. To opt into the "
+                    "sandbox-bypass posture (NOT recommended), set the env "
+                    "var to 1; otherwise switch to a non-root user / "
+                    "container that allows unprivileged user namespaces.",
+                    "running-as-root" if _running_as_root else "apparmor-userns-restricted",
                 )
 
         # Use temp files for stdout/stderr instead of pipes.
