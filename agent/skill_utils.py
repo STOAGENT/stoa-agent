@@ -330,18 +330,22 @@ def get_all_skills_dirs() -> List[Path]:
     The local dir is always first (and always included even if it doesn't exist
     yet — callers handle that).  External dirs follow in config order.
 
-    V-AGENT-014 — opt-in: skills under ``optional-skills/`` (e.g. the
-    red-teaming bundle that bypasses LLM safety filters) are NOT
-    auto-loaded. The user must explicitly set ``STOA_ENABLE_REDTEAM=1``
-    (or, more generally, ``STOA_ENABLE_OPTIONAL_SKILLS=1``) before STOA
-    will discover them. This keeps the default install free of
-    aggressive tools that could land the operator in ToS-violation
-    territory against API-served LLM providers.
+    V-AGENT-014 — skills under ``optional-skills/`` (PowerPoint, AGPL
+    skills, etc.) are NOT auto-loaded. Set
+    ``STOA_ENABLE_OPTIONAL_SKILLS=1`` to opt in. This keeps the
+    default install free of skills that drag in extra license
+    obligations or non-trivial deps.
+
+    The red-teaming bundle ships under the same ``optional-skills/``
+    directory but is governed by its OWN gate
+    (``is_redteam_enabled()`` reads ``STOA_ENABLE_REDTEAM``) so the
+    umbrella optional-skills opt-in doesn't auto-unlock jailbreak
+    skills — audit P-G / PROBE-HIGH-007.
     """
     import os
     dirs = [get_skills_dir()]
     dirs.extend(get_external_skills_dirs())
-    if os.getenv("STOA_ENABLE_REDTEAM", "0") == "1" or os.getenv("STOA_ENABLE_OPTIONAL_SKILLS", "0") == "1":
+    if _optional_skills_enabled():
         # Repo-bundled optional skills live at <repo_root>/optional-skills/.
         # Walk parents until we find one — works whether STOA is installed
         # editable, packaged, or run from a clone.
@@ -354,24 +358,34 @@ def get_all_skills_dirs() -> List[Path]:
     return dirs
 
 
-# Audit v5 CRIT B-01 (obliteratus default-enabled) + CRIT K-01
-# (skills_hub install bypasses STOA_ENABLE_REDTEAM): even though the
-# top-level optional-skills/ dir is opt-in, two attack paths leaked
-# red-teaming skills into the runtime by default:
+def _optional_skills_enabled() -> bool:
+    """Audit P-G / PROBE-HIGH-007: this gate ONLY checks the umbrella
+    optional-skills env var. Red-team enablement is a SEPARATE gate
+    in is_redteam_enabled() so the two opt-ins don't collide."""
+    import os
+    return os.getenv("STOA_ENABLE_OPTIONAL_SKILLS", "0") == "1"
+
+
+# ──────────────────────────────────────────────────────────────────
+# RED-TEAM SKILL FILTER (separate gate from the optional-skills
+# umbrella above — see the structural rationale in
+# is_redteam_enabled below).
+# ──────────────────────────────────────────────────────────────────
 #
-#   1. The `skills/` tree itself contained `mlops/inference/obliteratus/`
-#      — a documented safety-guard-removal skill. Audit flagged it as
-#      "ships default-enabled" because get_skills_dir() returns the
-#      whole tree unconditionally.
+# Path-marker filter: skills with documented safety-bypass behaviour
+# (obliteratus, godmode, jailbreak, anything under */red-teaming/*)
+# are hidden from the skill enumerator unless the operator has opted
+# in via the dedicated red-team env var. This closes two historical
+# leak paths:
+#
+#   1. The `skills/` tree contained `mlops/inference/obliteratus/`
+#      and was returned unconditionally by get_skills_dir().
 #   2. `tools/skills_hub.OptionalSkillSource.fetch()` exposed every
 #      `optional-skills/*` entry through `stoa skills install`,
-#      regardless of STOA_ENABLE_REDTEAM, so a user could land
-#      red-teaming/godmode under ~/.stoa/skills/ and the next agent
-#      start would auto-discover it.
+#      letting a user land red-teaming/godmode under ~/.stoa/skills/.
 #
-# Fix: name-based gate applied at skill-enumeration time. Any skill
-# whose path contains a red-team marker is hidden unless the env opt-in
-# is set. This closes both leak paths in one place.
+# Path-marker matching is name-based and runs at enumeration time;
+# the actual env-var check lives in is_redteam_enabled() below.
 _REDTEAM_PATH_MARKERS = (
     "red-teaming",
     "redteaming",
@@ -384,13 +398,9 @@ _REDTEAM_PATH_MARKERS = (
 
 
 def is_redteam_enabled() -> bool:
-    """Audit Phase-1A (PROBE-HIGH-007 / F-L19-016): the previous gate
-    OR'd STOA_ENABLE_OPTIONAL_SKILLS with STOA_ENABLE_REDTEAM, so a
-    user who enabled the optional-skills umbrella (typically to get
-    OpenAI's PowerPoint generator) ALSO unlocked the red-team
-    jailbreak skills as a side-effect. Now red-team requires its
-    own explicit env var; STOA_ENABLE_OPTIONAL_SKILLS only governs
-    the non-red-team optional-skill set."""
+    """Audit P-G / PROBE-HIGH-007: red-team enablement is gated by
+    its OWN env var (STOA_ENABLE_REDTEAM=1). The umbrella optional-
+    skills opt-in does NOT auto-unlock jailbreak skills."""
     import os
     return os.getenv("STOA_ENABLE_REDTEAM", "0") == "1"
 
@@ -707,7 +717,8 @@ def iter_skill_index_files(skills_dir: Path, filename: str):
     Audit v5 CRIT B-01 / K-01 fix: filter out any SKILL.md whose path
     looks like a red-teaming / safety-bypass skill (obliteratus, godmode,
     auto_jailbreak, anything under */red-teaming/*) unless the user has
-    opted in via STOA_ENABLE_REDTEAM or STOA_ENABLE_OPTIONAL_SKILLS.
+    opted in via the dedicated red-team enable env var (see
+    is_redteam_enabled()).
 
     Audit v7 CRIT-30-01 fix: integrity gate. When a skill_integrity.json
     manifest exists, compute the on-disk content_hash for each candidate

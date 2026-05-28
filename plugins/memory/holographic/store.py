@@ -244,15 +244,16 @@ class MemoryStore:
             if not query:
                 return []
 
-            # Audit Phase-1A (PROBE-HIGH-005 / F-L19-014): the
-            # previous WHERE allowed `owner_principal IS NULL OR =?`,
-            # which let a multi-tenant gateway recall every legacy /
-            # unscoped fact across all users. The new gate flips this
-            # to strict equality: facts with NULL owner_principal are
-            # ONLY readable when the caller explicitly asks for the
-            # NULL bucket (owner_principal=None → SQL IS NULL test;
-            # non-None caller → equality test). Build the params list
-            # in the exact order the placeholders are consumed.
+            # Audit Phase-1A (PROBE-HIGH-005 / F-L19-014): the prior
+            # WHERE permitted the union of unscoped + caller-scoped
+            # rows, which let a multi-tenant gateway recall every
+            # legacy / unscoped fact across all users. The new gate
+            # flips to strict equality: facts with no owner are ONLY
+            # readable when the caller explicitly asks for the
+            # ownerless bucket (owner_principal=None caller → SQL
+            # NULL-test branch; non-None caller → equality branch).
+            # Build the params list in the exact order the
+            # placeholders are consumed.
             params: list = [query, min_trust]
             if owner_principal is None:
                 owner_clause = "f.owner_principal IS NULL"
