@@ -29,6 +29,7 @@ Design constraints:
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -44,13 +45,122 @@ logger = logging.getLogger(__name__)
 _MAX_BYTES = 16 * 1024 * 1024
 _RETAIN = 8
 
+# Audit Phase-1A (P-B / PROBE-SUB-002): the prior in-process
+# ``threading.Lock`` only serialised concurrent writers in ONE process.
+# Multiple stoa processes (gateway + CLI agent + cron worker) writing to
+# the same audit-log file race freely: their entries interleave
+# byte-by-byte (no atomicity above OS write boundaries) AND each
+# process's ``_LAST_HASH`` cache diverges from disk truth, so the hash
+# chain breaks. The chain is exactly the "evidence of tampering" tool
+# the operator relies on during an incident — when it self-corrupts
+# under legitimate parallel writes, forensics is dead before any
+# attacker shows up.
+#
+# Fix: keep the threading.Lock for in-process ordering AND wrap the
+# write in an OS-level advisory file lock (fcntl.flock on POSIX,
+# msvcrt.locking on Windows). The OS lock serialises across processes;
+# after acquiring it we RE-seed _LAST_HASH from the on-disk tail so we
+# always chain off the actual latest entry rather than our stale cache.
 _LOCK = threading.Lock()
-_LAST_HASH: Optional[str] = None  # in-memory cache of the last entry's hash
+_LAST_HASH: Optional[str] = None  # in-memory cache (per-process)
+
+# Cross-process lock primitives, resolved at import time.
+try:
+    import fcntl  # type: ignore[import-not-found]
+    _HAS_FCNTL = True
+except ImportError:
+    _HAS_FCNTL = False
+try:
+    import msvcrt  # type: ignore[import-not-found]
+    _HAS_MSVCRT = True
+except ImportError:
+    _HAS_MSVCRT = False
+
+
+@contextlib.contextmanager
+def _cross_process_file_lock(fh):
+    """Acquire an OS-level advisory lock on the open file handle.
+
+    Yields once the lock is held. Releases on exit even if the body
+    raises. Falls back to a no-op when neither fcntl nor msvcrt is
+    available (e.g. some embedded interpreters); the in-process
+    threading.Lock above still gives single-process safety in that
+    degraded mode.
+    """
+    if _HAS_FCNTL:
+        try:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        except OSError as exc:
+            logger.debug("audit log: fcntl LOCK_EX failed (%s)", exc)
+            yield
+            return
+        try:
+            yield
+        finally:
+            try:
+                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+            except OSError:
+                pass
+        return
+    if _HAS_MSVCRT:
+        # msvcrt.locking locks a byte range from the current file
+        # position; we lock 1 byte at the current EOF position. The OS
+        # serialises holders system-wide. nbytes=1 is the documented
+        # minimum.
+        try:
+            msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)
+        except OSError as exc:
+            logger.debug("audit log: msvcrt LK_LOCK failed (%s)", exc)
+            yield
+            return
+        try:
+            yield
+        finally:
+            try:
+                msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+            except OSError:
+                pass
+        return
+    # No OS-level primitive — degrade to single-process safety.
+    yield
 
 
 def _log_path() -> Path:
     from stoa_constants import get_stoa_home
     return get_stoa_home() / "audit" / "tool-calls.jsonl"
+
+
+def _read_tail_hash_from_path(p: Path) -> str:
+    """Read the SHA-256 of the last line of the on-disk file at ``p``.
+
+    Opens a separate read-only handle (not the writer's append handle),
+    seeks to EOF, scans backwards. Returns ``"0" * 64`` (genesis
+    sentinel) for empty or missing files.
+
+    The caller is expected to hold the OS-level write lock on a
+    separate writer handle so concurrent processes don't extend the
+    tail between our read and the writer's append.
+    """
+    try:
+        if not p.exists():
+            return "0" * 64
+        with p.open("rb") as ro:
+            ro.seek(0, os.SEEK_END)
+            size = ro.tell()
+            if size == 0:
+                return "0" * 64
+            block = min(8192, size)
+            ro.seek(size - block)
+            tail = ro.read(block).strip().splitlines()
+        last = tail[-1].decode("utf-8") if tail else ""
+        if not last:
+            return "0" * 64
+        return hashlib.sha256(last.encode("utf-8")).hexdigest()
+    except Exception as exc:
+        logger.warning(
+            "audit log: failed to read tail hash (%s); using genesis", exc
+        )
+        return "0" * 64
 
 
 def _ensure_chain_initialized() -> None:
@@ -59,26 +169,7 @@ def _ensure_chain_initialized() -> None:
     global _LAST_HASH
     if _LAST_HASH is not None:
         return
-    p = _log_path()
-    if not p.exists():
-        _LAST_HASH = "0" * 64  # genesis sentinel
-        return
-    try:
-        # Read backwards in 8 KiB chunks to find the last newline.
-        with p.open("rb") as fh:
-            fh.seek(0, os.SEEK_END)
-            size = fh.tell()
-            if size == 0:
-                _LAST_HASH = "0" * 64
-                return
-            block = min(8192, size)
-            fh.seek(size - block)
-            tail = fh.read(block).strip().splitlines()
-        last = tail[-1].decode("utf-8") if tail else ""
-        _LAST_HASH = hashlib.sha256(last.encode("utf-8")).hexdigest()
-    except Exception as exc:
-        logger.warning("audit log: failed to seed hash chain (%s); resetting to genesis", exc)
-        _LAST_HASH = "0" * 64
+    _LAST_HASH = _read_tail_hash_from_path(_log_path())
 
 
 def _rotate_if_needed(p: Path) -> None:
@@ -133,7 +224,6 @@ def record(
     global _LAST_HASH
     try:
         with _LOCK:
-            _ensure_chain_initialized()
             p = _log_path()
             p.parent.mkdir(parents=True, exist_ok=True)
             try:
@@ -147,25 +237,53 @@ def record(
                 preview = redact_sensitive_text(preview, force=True)
             except Exception:
                 pass
-            entry = {
-                "ts_ms": int(time.time() * 1000),
-                "kind": kind,
-                "tool": tool,
-                "actor": actor,
-                "approved": approved,
-                "args_preview": preview,
-                "prev_hash": _LAST_HASH,
-            }
-            if extra:
-                entry["extra"] = extra
-            line = json.dumps(entry, ensure_ascii=False, sort_keys=True)
-            with p.open("a", encoding="utf-8") as fh:
-                fh.write(line + "\n")
+            # ``a+b`` opens for append AND read in one handle, so we can
+            # seek-and-scan the tail to re-seed _LAST_HASH inside the OS
+            # lock without colliding with our own write handle on Windows
+            # (where p.open("rb") on a file we already hold open in "a"
+            # mode fails with EACCES). Append-mode semantics guarantee
+            # every write lands at EOF regardless of where we seek to.
+            with p.open("a+b") as fh:
+                with _cross_process_file_lock(fh):
+                    # Re-seed the chain from the actual on-disk tail
+                    # (separate file handle inside the lock — readable
+                    # because we now have read access on the same fh).
+                    fh.seek(0, os.SEEK_END)
+                    size = fh.tell()
+                    if size == 0:
+                        _LAST_HASH = "0" * 64
+                    else:
+                        block = min(8192, size)
+                        fh.seek(size - block)
+                        tail_bytes = fh.read(block).strip().splitlines()
+                        last_line = tail_bytes[-1].decode("utf-8") if tail_bytes else ""
+                        _LAST_HASH = (
+                            hashlib.sha256(last_line.encode("utf-8")).hexdigest()
+                            if last_line else "0" * 64
+                        )
+                    entry = {
+                        "ts_ms": int(time.time() * 1000),
+                        "kind": kind,
+                        "tool": tool,
+                        "actor": actor,
+                        "approved": approved,
+                        "args_preview": preview,
+                        "prev_hash": _LAST_HASH,
+                    }
+                    if extra:
+                        entry["extra"] = extra
+                    line = json.dumps(entry, ensure_ascii=False, sort_keys=True)
+                    fh.write((line + "\n").encode("utf-8"))
+                    fh.flush()
+                    try:
+                        os.fsync(fh.fileno())
+                    except OSError:
+                        pass
+                    _LAST_HASH = hashlib.sha256(line.encode("utf-8")).hexdigest()
             try:
                 p.chmod(0o600)
             except OSError:
                 pass
-            _LAST_HASH = hashlib.sha256(line.encode("utf-8")).hexdigest()
     except Exception as exc:
         logger.warning("audit log write failed: %s", exc)
 
