@@ -453,18 +453,22 @@ def _approval_key_aliases(pattern_key: str) -> set[str]:
 def _normalize_command_for_detection(command: str) -> str:
     """Normalize a command string before dangerous-pattern matching.
 
-    Strips ANSI escape sequences (full ECMA-48 via tools.ansi_strip),
-    null bytes, and normalizes Unicode fullwidth characters so that
-    obfuscation techniques cannot bypass the pattern-based detection.
+    Routes through the canonical ``sanitize_untrusted_text`` primitive
+    (P-A) which strips ANSI / C1, NFKC-normalises, removes bidi
+    overrides, zero-width characters, AND tag-plane codepoints
+    (U+E0000–U+E007F). The last category powers the
+    ``rm<TAG-SPACE>-rf /`` bypass class — a tag-plane space is
+    invisible but accepted as a word break by some token parsers.
+    Stripped here so a payload like ``rm\\U000e0020-rf /`` becomes
+    ``rm-rf /`` (which the dangerous-pattern matcher catches).
     """
-    from tools.ansi_strip import strip_ansi
+    from tools.ansi_strip import sanitize_untrusted_text
 
-    # Strip all ANSI escape sequences (CSI, OSC, DCS, 8-bit C1, etc.)
-    command = strip_ansi(command)
-    # Strip null bytes
+    command = sanitize_untrusted_text(command)
+    # Null bytes are not in sanitize_untrusted_text's policy (they
+    # appear in legitimate binary inputs); but for command-detection
+    # they're always suspect because shells treat them as terminators.
     command = command.replace('\x00', '')
-    # Normalize Unicode (fullwidth Latin, halfwidth Katakana, etc.)
-    command = unicodedata.normalize('NFKC', command)
     return command
 
 

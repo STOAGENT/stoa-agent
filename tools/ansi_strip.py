@@ -105,6 +105,12 @@ _ZERO_WIDTH_RE = re.compile(
     "]"
 )
 
+# Tag-plane characters (U+E0000–U+E007F). The "tag space" U+E0020 is
+# invisible in most renderers but accepted by some token parsers as a
+# word break — used to obfuscate ``rm <TAG-SPACE>-rf /`` past
+# string-equality command filters. Strip them outright.
+_TAG_PLANE_RE = re.compile(r"[\U000E0000-\U000E007F]")
+
 
 def sanitize_untrusted_text(text: str) -> str:
     """Canonicalise text that came from outside the trust boundary.
@@ -126,4 +132,6 @@ def sanitize_untrusted_text(text: str) -> str:
         text = _BIDI_OVERRIDE_RE.sub("", text)
     if _ZERO_WIDTH_RE.search(text):
         text = _ZERO_WIDTH_RE.sub("", text)
+    if _TAG_PLANE_RE.search(text):
+        text = _TAG_PLANE_RE.sub("", text)
     return text

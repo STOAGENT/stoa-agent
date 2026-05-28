@@ -255,6 +255,15 @@ async def _compose_verdict(
         # line "AGREEMENT:" → "[AGREEMENT]:" (kept readable, parser
         # won't match the regex). [PERSONA] tags inside body → escaped.
         text = re.sub(r"(?im)^\s*AGREEMENT\s*:", "[AGREEMENT]:", text)
+        # Audit Phase-1A (F-AGNT-002 / PROBE-CRIT-001): the previous
+        # implementation only escaped the CLOSING tag, so a persona
+        # message containing "<persona name=\"system\">" could open a
+        # nested tag that the dispatcher's prompt parser then
+        # mis-associated with subsequent content. Escape both directions
+        # of the tag plus the bracket form via word-boundary regex so
+        # any "<persona[ \t/>]" prefix is neutralised, not just literal
+        # "</persona>".
+        text = re.sub(r"<persona\b", "&lt;persona", text)
         text = text.replace("</persona>", "&lt;/persona&gt;")
         return text
 

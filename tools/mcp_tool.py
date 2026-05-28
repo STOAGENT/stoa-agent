@@ -293,22 +293,62 @@ _ENV_VAR_PATTERN = re.compile(r"\$\{([^}]+)\}")
 # Security helpers
 # ---------------------------------------------------------------------------
 
+# Audit Phase-1A (F-L23-005 / PROBE-CALL-007): the prior implementation
+# merged ``user_env`` blindly with ``env.update(user_env)``, which let
+# any MCP config from an untrusted marketplace specify
+# ``LD_PRELOAD=/tmp/evil.so`` (or DYLD_INSERT_LIBRARIES on macOS,
+# PYTHONPATH/PYTHONHOME, NODE_OPTIONS, etc.). The OS loader honours
+# these at process-start time, giving the attacker code execution in
+# the subprocess context. We now drop every variable name matching the
+# known interpreter-injection deny-list before merging.
+_DANGEROUS_ENV_DENY = frozenset({
+    "LD_PRELOAD", "LD_AUDIT", "LD_LIBRARY_PATH", "LD_BIND_NOW",
+    "DYLD_INSERT_LIBRARIES", "DYLD_LIBRARY_PATH",
+    "DYLD_FALLBACK_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH",
+    "DYLD_FORCE_FLAT_NAMESPACE",
+    "PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP", "PYTHONINSPECT",
+    "PYTHONIOENCODING",
+    "NODE_OPTIONS", "NODE_PATH",
+    "PERL5LIB", "RUBYOPT", "RUBYLIB",
+    "GIO_MODULE_DIR", "GTK_MODULES", "GDK_BACKEND",
+})
+
+
+def _is_dangerous_env_name(name: str) -> bool:
+    if not name:
+        return False
+    upper = name.upper()
+    if upper in _DANGEROUS_ENV_DENY:
+        return True
+    # Defensive prefix check for LD_* / DYLD_* families.
+    if upper.startswith("LD_") or upper.startswith("DYLD_"):
+        return True
+    return False
+
+
 def _build_safe_env(user_env: Optional[dict]) -> dict:
     """Build a filtered environment dict for stdio subprocesses.
 
-    Only passes through safe baseline variables (PATH, HOME, etc.) and XDG_*
-    variables from the current process environment, plus any variables
-    explicitly specified by the user in the server config.
-
-    This prevents accidentally leaking secrets like API keys, tokens, or
-    credentials to MCP server subprocesses.
+    Passes through safe baseline variables (PATH, HOME, etc.) and XDG_*
+    variables, plus any variables in the user config — but the user
+    set is filtered against ``_DANGEROUS_ENV_DENY`` first, so a hostile
+    MCP marketplace configuration cannot smuggle LD_PRELOAD /
+    DYLD_INSERT_LIBRARIES / PYTHONPATH / NODE_OPTIONS through the merge.
     """
     env = {}
     for key, value in os.environ.items():
-        if key in _SAFE_ENV_KEYS or key.startswith("XDG_"):
+        if (key in _SAFE_ENV_KEYS or key.startswith("XDG_")) and not _is_dangerous_env_name(key):
             env[key] = value
     if user_env:
-        env.update(user_env)
+        for key, value in user_env.items():
+            if _is_dangerous_env_name(key):
+                logger.warning(
+                    "Refusing to set dangerous env var %r in MCP subprocess "
+                    "environment (interpreter-injection class).",
+                    key,
+                )
+                continue
+            env[key] = value
     return env
 
 
