@@ -18,8 +18,9 @@
   "dependencies": {
     "agent-browser": "^0.26.0"
   },
+  "_overridesNote": "Pinning lodash to the last patched 4.17.x release (CVE-2021-23337 fixed in 4.17.21). The previous '4.18.1' override resolved to a non-existent version and was an attractive typosquat target on any secondary npm registry — audit P-K / Chain-A.",
   "overrides": {
-    "lodash": "4.18.1"
+    "lodash": "4.17.21"
   },
   "engines": {
     "node": ">=20.0.0"

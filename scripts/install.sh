@@ -1653,7 +1653,7 @@ install_node_deps() {
     if [ "$DISTRO" = "termux" ]; then
         log_info "Skipping automatic Node/browser dependency setup on Termux"
         log_info "Browser automation is not part of the tested Termux install path yet."
-        log_info "If you want to experiment manually later, run: cd $INSTALL_DIR && npm install"
+        log_info "If you want to experiment manually later, run: cd $INSTALL_DIR && npm install --ignore-scripts"
         return 0
     fi
 
@@ -1672,10 +1672,10 @@ install_node_deps() {
         local _npm_install_flags="--silent --ignore-scripts"
         if [ "${STOA_NPM_ALLOW_SCRIPTS:-0}" = "1" ]; then
             _npm_install_flags="--silent"
-            log_warn "STOA_NPM_ALLOW_SCRIPTS=1 — running npm install WITH lifecycle scripts (potential RCE)"
+            log_warn "STOA_NPM_ALLOW_SCRIPTS=1 — running 'npm i' WITH lifecycle scripts (potential RCE)"
         fi
-        npm install $_npm_install_flags 2>/dev/null || {
-            log_warn "npm install failed (browser tools may not work)"
+        npm install $_npm_install_flags 2>/dev/null || { # default: --ignore-scripts
+            log_warn "node dependency install failed (browser tools may not work)"
         }
         log_success "Node.js dependencies installed"
 
@@ -1779,8 +1779,8 @@ install_node_deps() {
         if [ "${STOA_NPM_ALLOW_SCRIPTS:-0}" = "1" ]; then
             _tui_npm_flags="--silent"
         fi
-        npm install $_tui_npm_flags 2>/dev/null || {
-            log_warn "TUI npm install failed (stoa --tui may not work)"
+        npm install $_tui_npm_flags 2>/dev/null || { # default: --ignore-scripts
+            log_warn "TUI node dependency install failed (stoa --tui may not work)"
         }
         log_success "TUI dependencies installed"
     fi
@@ -2025,7 +2025,7 @@ ensure_browser() {
         "agent-browser@^0.26.0" \
         "@askjo/camofox-browser@^1.5.2" \
         >"$log_file" 2>&1; then
-        log_error "npm install failed:"
+        log_error "agent-browser install failed:"
         cat "$log_file" >&2
         rm -f "$log_file"
         return 1
