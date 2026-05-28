@@ -864,6 +864,58 @@ def _get_cron_approval_mode() -> str:
         return "deny"
 
 
+_SMART_APPROVE_VERDICT_RE = re.compile(r"\b(APPROVE|DENY|ESCALATE)\b")
+_SMART_APPROVE_DENY_CONTEXT_RE = re.compile(
+    r"\b(NOT|NEVER|DON['’]T|REFUSE|REJECT|AVOID|FORBID|BLOCK|"
+    r"RISKY|DANGEROUS|HARMFUL|DESTRUCTIVE|RM\s*-RF|WIPE|DROP)\b"
+)
+
+
+def _parse_smart_approve_verdict(raw: str) -> str:
+    """Extract APPROVE / DENY / ESCALATE from an LLM response, defending
+    against the substring-bypass class of vulnerabilities.
+
+    Audit Phase-1A: the previous implementation tested ``"APPROVE" in answer``
+    against the raw LLM output. An adversarial-prompted model that returned
+    "DO NOT APPROVE — this rm -rf / command is destructive" would match the
+    substring and be auto-approved.
+
+    Safe-default precedence:
+      1. Empty / whitespace                                  → escalate
+      2. Response IS exactly one verdict (trim punctuation)  → that verdict
+      3. "DENY" appears as a word                            → deny
+      4. "APPROVE" appears AND any deny-context cue appears  → deny
+         (NOT / NEVER / RM -RF / DANGEROUS / DESTRUCTIVE / …)
+      5. Only "APPROVE" tokens AND no deny context           → approve
+      6. Anything else (multi-verdict, no verdict, prose-    → escalate
+         with-no-cue)
+    """
+    if not raw:
+        return "escalate"
+
+    normalized = raw.strip().upper()
+    if not normalized:
+        return "escalate"
+
+    stripped_single = normalized.strip(".,;:!?\"'()[]{} \n\t")
+    if stripped_single in ("APPROVE", "DENY", "ESCALATE"):
+        return stripped_single.lower()
+
+    tokens = _SMART_APPROVE_VERDICT_RE.findall(normalized)
+    unique = set(tokens)
+
+    if "DENY" in unique:
+        return "deny"
+
+    if "APPROVE" in unique and _SMART_APPROVE_DENY_CONTEXT_RE.search(normalized):
+        return "deny"
+
+    if unique == {"APPROVE"}:
+        return "approve"
+
+    return "escalate"
+
+
 def _smart_approve(command: str, description: str) -> str:
     """Use the auxiliary LLM to assess risk and decide approval.
 
@@ -888,7 +940,7 @@ Rules:
 - DENY if the command could genuinely damage the system (recursive delete of important paths, overwriting system files, fork bombs, wiping disks, dropping databases, etc.)
 - ESCALATE if you're uncertain
 
-Respond with exactly one word: APPROVE, DENY, or ESCALATE"""
+Reply with exactly one of: APPROVE, DENY, ESCALATE. The single uppercase word, nothing else, no explanation."""
 
         response = call_llm(
             task="approval",
@@ -897,14 +949,8 @@ Respond with exactly one word: APPROVE, DENY, or ESCALATE"""
             max_tokens=16,
         )
 
-        answer = (response.choices[0].message.content or "").strip().upper()
-
-        if "APPROVE" in answer:
-            return "approve"
-        elif "DENY" in answer:
-            return "deny"
-        else:
-            return "escalate"
+        answer = (response.choices[0].message.content or "")
+        return _parse_smart_approve_verdict(answer)
 
     except Exception as e:
         logger.debug("Smart approvals: LLM call failed (%s), escalating", e)

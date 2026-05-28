@@ -11,6 +11,7 @@ from unittest.mock import patch as mock_patch
 import tools.approval as approval_module
 from tools.approval import (
     _get_approval_mode,
+    _parse_smart_approve_verdict,
     _smart_approve,
     approve_session,
     detect_dangerous_command,
@@ -44,6 +45,78 @@ class TestSmartApproval:
         assert mock_call.call_args.kwargs["task"] == "approval"
         assert mock_call.call_args.kwargs["temperature"] == 0
         assert mock_call.call_args.kwargs["max_tokens"] == 16
+
+
+class TestSmartApproveVerdictParsing:
+    """Audit Phase-1A: defenses against the substring-bypass class.
+
+    The previous parser tested ``"APPROVE" in answer``, so an LLM that
+    returned "DO NOT APPROVE — this is destructive" was auto-approved.
+    These tests pin the safe-default semantics in place."""
+
+    def test_exact_approve_single_word(self):
+        assert _parse_smart_approve_verdict("APPROVE") == "approve"
+
+    def test_exact_approve_lowercase(self):
+        assert _parse_smart_approve_verdict("approve") == "approve"
+
+    def test_exact_approve_with_trailing_whitespace(self):
+        assert _parse_smart_approve_verdict("  APPROVE  \n") == "approve"
+
+    def test_exact_deny(self):
+        assert _parse_smart_approve_verdict("DENY") == "deny"
+
+    def test_exact_escalate(self):
+        assert _parse_smart_approve_verdict("ESCALATE") == "escalate"
+
+    def test_empty_input_escalates(self):
+        assert _parse_smart_approve_verdict("") == "escalate"
+
+    def test_whitespace_only_escalates(self):
+        assert _parse_smart_approve_verdict("   \n  ") == "escalate"
+
+    # ─── substring-bypass class ─────────────────────────────────────
+
+    def test_do_not_approve_is_not_approve(self):
+        """The pre-fix bug: 'DO NOT APPROVE' contained 'APPROVE' substring."""
+        assert _parse_smart_approve_verdict("DO NOT APPROVE — this is rm -rf /") == "deny"
+
+    def test_disapprove_is_not_approve(self):
+        """'DISAPPROVE' contains 'APPROVE' as a substring; word-boundary
+        regex must reject it as an unrecognized token → escalate."""
+        result = _parse_smart_approve_verdict("DISAPPROVE")
+        assert result in ("escalate", "deny")
+        assert result != "approve"
+
+    def test_never_approve_is_not_approve(self):
+        assert _parse_smart_approve_verdict("Never approve commands like this.") == "deny"
+
+    def test_refuse_to_approve_is_not_approve(self):
+        assert _parse_smart_approve_verdict("I REFUSE to approve this") == "deny"
+
+    def test_reject_with_approve_in_explanation_escalates(self):
+        # "I would normally APPROVE but this case is risky" — model wandered
+        # off the one-word constraint; we treat it as escalate (safe).
+        assert _parse_smart_approve_verdict("I would normally APPROVE but this is rm -rf") == "deny"
+
+    def test_explanation_with_both_words_prefers_deny(self):
+        """When DENY and APPROVE both appear, DENY wins (safe default)."""
+        assert _parse_smart_approve_verdict("APPROVE? no — DENY") == "deny"
+
+    def test_leading_explanation_then_approve(self):
+        """LLM gives explanation then 'APPROVE' as final token. With negation
+        in the prose, this still resolves to deny (safe default)."""
+        assert _parse_smart_approve_verdict("This is dangerous. Do not approve.") == "deny"
+
+    def test_clean_approve_in_quoted_string(self):
+        """No negation, clear APPROVE token → approve."""
+        assert _parse_smart_approve_verdict('"APPROVE"') == "approve"
+
+    def test_unknown_response_escalates(self):
+        assert _parse_smart_approve_verdict("I am not sure, please ask the user.") == "escalate"
+
+    def test_garbled_response_escalates(self):
+        assert _parse_smart_approve_verdict("####$%^&*()") == "escalate"
 
 
 class TestDetectDangerousRm:
