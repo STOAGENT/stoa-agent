@@ -310,6 +310,10 @@ def _hash_response(
     verdict_text: str,
     chain_id: int | None = None,
     contract_address: str | None = None,
+    timestamp_ms: int | None = None,
+    dispatch_id: str | None = None,
+    session_id: str | None = None,
+    operator: str | None = None,
 ) -> str:
     """sha256 over canonical JSON with a domain separator. Stable across runs.
 
@@ -339,6 +343,19 @@ def _hash_response(
             return unicodedata.normalize("NFC", value)
         return value
 
+    # Audit Phase-1A (PROBE-CHAIN-G / on-chain authorship spoof): the
+    # hash payload now carries four additional binding fields so two
+    # verdicts produced at different times, in different sessions, or
+    # by different operators can never collide:
+    #   timestamp_ms — when this verdict was composed (replay
+    #                   protection against snapshot attacks).
+    #   dispatch_id  — opaque per-call identifier (set by the
+    #                   dispatcher so re-runs don't collapse).
+    #   session_id   — gateway / CLI session that originated the call.
+    #   operator     — wallet address of the operator that ran the
+    #                   council (None when wallet-binding is off).
+    # All four default to safe-empty rather than reading env at hash
+    # time so the caller controls binding precisely.
     payload = {
         "task": _nfc(task),
         "agents": [
@@ -357,7 +374,15 @@ def _hash_response(
         # on day one. STOA_CHAIN_ID matches the wallet binding default.
         "chain_id": chain_id if chain_id is not None else int(os.environ.get("STOA_CHAIN_ID", "143")),
         "contract": _nfc((contract_address or os.environ.get("AUDIT_ATTESTATION_V2_ADDRESS", "")).lower()),
-        "schema_version": 1,
+        # New authorship-binding fields. Optional (None → empty) so old
+        # callers continue to hash correctly; new callers fill in to
+        # bind authorship + freshness into the same domain-separated
+        # commitment.
+        "timestamp_ms": int(timestamp_ms) if timestamp_ms is not None else 0,
+        "dispatch_id": _nfc(dispatch_id or ""),
+        "session_id": _nfc(session_id or ""),
+        "operator": _nfc((operator or "").lower()),
+        "schema_version": 2,
     }
     canonical = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     h = hashlib.sha256()
