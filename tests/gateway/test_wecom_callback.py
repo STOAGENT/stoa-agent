@@ -89,6 +89,44 @@ class TestWecomCallbackEventConstruction:
         event = adapter._build_event(_app(), xml_text)
         assert event is None
 
+    def test_external_entity_payload_is_rejected_or_inert(self):
+        """Audit Phase-1A (WeCom XXE): the callback parses XML from network
+        input. A payload that declares an external entity must be either
+        rejected outright (defusedxml's DTDForbidden / EntitiesForbidden)
+        or — at minimum — never expand the entity body. The pre-fix
+        stdlib parser silently let DOCTYPE declarations through, opening
+        a billion-laughs / SSRF surface."""
+        from defusedxml.common import EntitiesForbidden, DTDForbidden
+
+        adapter = WecomCallbackAdapter(_config())
+        xxe_payload = (
+            "<?xml version=\"1.0\"?>"
+            "<!DOCTYPE xml [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]>"
+            "<xml>"
+            "<ToUserName>ww1234567890</ToUserName>"
+            "<FromUserName>zhangsan</FromUserName>"
+            "<CreateTime>1710000000</CreateTime>"
+            "<MsgType>text</MsgType>"
+            "<Content>&xxe;</Content>"
+            "<MsgId>1</MsgId>"
+            "</xml>"
+        )
+        try:
+            event = adapter._build_event(_app(), xxe_payload)
+        except (EntitiesForbidden, DTDForbidden):
+            # Strictest defusedxml behavior — payload was rejected
+            # before any element walking. This is the desired outcome.
+            return
+        # If parsing didn't raise, the entity body MUST NOT have been
+        # expanded. We tolerate either an empty Content (the entity
+        # reference was treated as inert text) or a None event.
+        if event is None:
+            return
+        assert event.text in ("", "&xxe;", None)
+        if isinstance(event.text, str):
+            assert "/etc/passwd" not in event.text
+            assert "root:" not in event.text
+
 
 class TestWecomCallbackRouting:
     def test_user_app_key_scopes_across_corps(self):

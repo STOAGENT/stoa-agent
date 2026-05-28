@@ -17,7 +17,19 @@ import logging
 import socket as _socket
 import time
 from typing import Any, Dict, List, Optional
-from xml.etree import ElementTree as ET
+
+# Audit Phase-1A (WeCom XXE): the WeCom callback parses XML from
+# untrusted HTTP POST bodies (WeCom servers, but also any attacker
+# who reaches the callback URL since the path is publicly routable).
+# The stdlib `xml.etree.ElementTree` is XXE-vulnerable on certain CPython
+# builds and historically allowed external-entity expansion / billion-
+# laughs DoS. `defusedxml` is the maintained drop-in that disables every
+# unsafe XML feature. We keep `ET` available only for *building* XML
+# (ET.Element / ET.SubElement create local trees and cannot be
+# exploited), but every PARSE call goes through defusedxml.
+from xml.etree import ElementTree as ET  # build-only
+
+from defusedxml.ElementTree import fromstring as _safe_fromstring  # parse
 
 try:
     from aiohttp import web
@@ -327,13 +339,13 @@ class WecomCallbackAdapter(BasePlatformAdapter):
         self, app: Dict[str, Any], body: str,
         msg_signature: str, timestamp: str, nonce: str,
     ) -> str:
-        root = ET.fromstring(body)
+        root = _safe_fromstring(body)
         encrypt = root.findtext("Encrypt", default="")
         crypt = self._crypt_for_app(app)
         return crypt.decrypt(msg_signature, timestamp, nonce, encrypt).decode("utf-8")
 
     def _build_event(self, app: Dict[str, Any], xml_text: str) -> Optional[MessageEvent]:
-        root = ET.fromstring(xml_text)
+        root = _safe_fromstring(xml_text)
         msg_type = (root.findtext("MsgType") or "").lower()
         # Silently acknowledge lifecycle events.
         if msg_type == "event":
