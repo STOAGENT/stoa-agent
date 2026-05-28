@@ -1789,10 +1789,16 @@ def _submit_anthropic_pkce(session_id: str, code_input: str) -> Dict[str, Any]:
         return {"ok": False, "status": "error", "message": "No code provided"}
     state_from_callback = parts[1] if len(parts) > 1 else ""
 
-    # Audit v4 CRIT P-06 fix: constant-time state compare. Without this,
-    # a tampered ``code#state`` callback could be smuggled past the gate.
+    # Audit Phase-1A (F-L01-001 PKCE empty-truthy): the previous guard
+    # was ``if state_from_callback and not hmac.compare_digest(...)``,
+    # which short-circuits to False when state_from_callback is empty
+    # — empty-state callbacks then BYPASSED the CSRF check. The new
+    # guard always runs hmac.compare_digest, treating an empty string
+    # as "wrong state" (since expected_state is a non-empty server-
+    # generated nonce when the session is in a legitimate authorize
+    # phase). Constant-time semantics preserved.
     expected_state = sess.get("state", "")
-    if state_from_callback and not hmac.compare_digest(state_from_callback, expected_state):
+    if not hmac.compare_digest(state_from_callback or "", expected_state or ""):
         with _oauth_sessions_lock:
             sess["status"] = "error"
             sess["error_message"] = "OAuth state mismatch (possible CSRF)"

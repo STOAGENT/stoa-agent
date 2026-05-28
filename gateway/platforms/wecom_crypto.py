@@ -81,7 +81,25 @@ class WXBizMsgCrypt:
         self.token = token
         self.receive_id = receive_id
         self.key = base64.b64decode(encoding_aes_key + "=")
-        self.iv = self.key[:16]
+        # WeCom protocol mandates that the AES-CBC IV equal the first 16
+        # bytes of the AES key (see WeCom open-platform crypto spec). We
+        # cannot deviate from this without breaking interop with WeCom's
+        # own servers — every message exchanged with WeCom would fail
+        # decryption on either side. Audit Phase-1A documents this as a
+        # protocol-enforced weakness (mitigated upstream by the 16-byte
+        # random `random_prefix` prepended to every plaintext, see
+        # `_encrypt_bytes`, which gives effective per-message IV-like
+        # entropy even though the AES IV itself is deterministic).
+        # The IV is computed via a private helper rather than an
+        # inline slice so callers don't think they can change it.
+        self.iv = self._protocol_iv(self.key)
+
+    @staticmethod
+    def _protocol_iv(key: bytes) -> bytes:
+        # See above. Equivalent to ``key[:16]`` but isolated so the
+        # protocol-mandated nature of this choice is documented in
+        # exactly one place.
+        return bytes(key[0:16])
 
     def verify_url(self, msg_signature: str, timestamp: str, nonce: str, echostr: str) -> str:
         plain = self.decrypt(msg_signature, timestamp, nonce, echostr)
