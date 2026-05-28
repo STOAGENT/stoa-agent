@@ -1485,7 +1485,7 @@ DEFAULT_CONFIG = {
         "tirith_enabled": True,
         "tirith_path": "tirith",
         "tirith_timeout": 5,
-        "tirith_fail_open": True,
+        "tirith_fail_open": False,  # audit P-C / PROBE-HIGH-032 — fail-closed by default; set true to revert to legacy
         "website_blocklist": {
             "enabled": False,
             "domains": [],

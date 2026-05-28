@@ -284,6 +284,15 @@ def bind_wallet(
     p = _wallet_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(binding.__dict__, indent=2), encoding="utf-8")
+    # Audit Phase-1A (PROBE-HIGH-031 / F-L28-005): owner-only mode.
+    # Wallet bindings are the canonical "this is who I am" record;
+    # any user on the same host with broad read access can lift them.
+    # Best-effort chmod 0o600 — Windows ACLs ignore POSIX modes, but
+    # the call is a no-op there rather than an error.
+    try:
+        p.chmod(0o600)
+    except OSError as _chmod_exc:
+        logger.debug("wallet: chmod 0o600 failed (%s)", _chmod_exc)
     logger.info("wallet bound: %s", address)
     return binding
 

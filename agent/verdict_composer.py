@@ -313,6 +313,13 @@ async def _compose_verdict(
 
 _VERDICT_DOMAIN_TAG = b"stoa-verdict-v1\x00"
 
+# Audit Phase-1A (PROBE-HIGH-023 / F-L30-018): snapshot at module
+# import so _hash_response can't be poisoned by mid-process env
+# mutation. Operators that need to switch the binding restart the
+# process — fresh import → fresh snapshot.
+_BOOT_CHAIN_ID: int = int(os.environ.get("STOA_CHAIN_ID", "143"))
+_BOOT_CONTRACT_ADDRESS: str = os.environ.get("AUDIT_ATTESTATION_V2_ADDRESS", "")
+
 
 def _hash_response(
     *,
@@ -380,11 +387,16 @@ def _hash_response(
             for m in agents
         ],
         "verdict": _nfc(verdict_text),
-        # Domain-separation fields. Read from env when not passed
-        # explicitly so the rest of the codebase needn't be plumbed
-        # on day one. STOA_CHAIN_ID matches the wallet binding default.
-        "chain_id": chain_id if chain_id is not None else int(os.environ.get("STOA_CHAIN_ID", "143")),
-        "contract": _nfc((contract_address or os.environ.get("AUDIT_ATTESTATION_V2_ADDRESS", "")).lower()),
+        # Audit Phase-1A (PROBE-HIGH-023 / F-L30-018): the chain_id +
+        # contract address fall back to module-level snapshots taken
+        # at import time, not env reads at hash time. If the env is
+        # mutated mid-process (a hostile prompt that toggles an env
+        # var, a config-reload hook), the hashes already produced
+        # cannot be re-derived because the binding moved underneath
+        # the runtime. Pinning at import-time gives stable, audit-
+        # provable values for the lifetime of the process.
+        "chain_id": chain_id if chain_id is not None else _BOOT_CHAIN_ID,
+        "contract": _nfc((contract_address or _BOOT_CONTRACT_ADDRESS).lower()),
         # New authorship-binding fields. Optional (None → empty) so old
         # callers continue to hash correctly; new callers fill in to
         # bind authorship + freshness into the same domain-separated

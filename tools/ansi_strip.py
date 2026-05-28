@@ -55,17 +55,34 @@ _ANSI_ESCAPE_RE = re.compile(
 # Fast-path check — skip full regex when no escape-like bytes are present.
 _HAS_ESCAPE = re.compile(r"[\x1b\x80-\x9f]")
 
+# Audit Phase-1A (PROBE-HIGH-028 / F-L32-001): the prior strip_ansi
+# left C0 control bytes (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F, 0x7F)
+# intact. These can hijack terminals (BS=0x08 erases preceding char),
+# disrupt audit logs, or smuggle prompt-injection content that
+# renders as harmless prose. We strip them after the main ANSI pass.
+# Preserves \t (0x09), \n (0x0A), \r (0x0D) — the legitimate
+# whitespace controls.
+_C0_CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
+
 
 def strip_ansi(text: str) -> str:
-    """Remove ANSI escape sequences from text.
+    """Remove ANSI escape sequences AND C0 control bytes from text.
 
-    Returns the input unchanged (fast path) when no ESC or C1 bytes are
-    present.  Safe to call on any string — clean text passes through
-    with negligible overhead.
+    Audit Phase-1A (PROBE-HIGH-028): the C0 control bytes (0x00-0x08,
+    0x0B, 0x0C, 0x0E-0x1F, 0x7F) are stripped after the main ANSI
+    pass. \\t (0x09), \\n (0x0A), and \\r (0x0D) are preserved.
+
+    Returns the input unchanged (fast path) when no ESC, C1, or C0
+    bytes are present.  Safe to call on any string — clean text
+    passes through with negligible overhead.
     """
-    if not text or not _HAS_ESCAPE.search(text):
+    if not text:
         return text
-    return _ANSI_ESCAPE_RE.sub("", text)
+    if _HAS_ESCAPE.search(text):
+        text = _ANSI_ESCAPE_RE.sub("", text)
+    if _C0_CONTROL_RE.search(text):
+        text = _C0_CONTROL_RE.sub("", text)
+    return text
 
 
 # ── canonical Unicode sanitisation (audit P-A) ──────────────────────────
