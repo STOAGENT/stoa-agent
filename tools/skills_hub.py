@@ -505,7 +505,7 @@ class GitHubSource(SkillSource):
 
         url = f"https://api.github.com/repos/{repo}/contents/{path.rstrip('/')}"
         try:
-            resp = httpx.get(url, headers=self.auth.get_headers(), timeout=15, follow_redirects=True)
+            resp = _safe_httpx_get(url, headers=self.auth.get_headers(), timeout=15, follow_redirects=True)
             if resp.status_code != 200:
                 return []
         except httpx.HTTPError:
@@ -554,7 +554,7 @@ class GitHubSource(SkillSource):
 
         # Resolve default branch
         try:
-            resp = httpx.get(
+            resp = _safe_httpx_get(
                 f"https://api.github.com/repos/{repo}",
                 headers=headers, timeout=15, follow_redirects=True,
             )
@@ -567,7 +567,7 @@ class GitHubSource(SkillSource):
 
         # Fetch recursive tree
         try:
-            resp = httpx.get(
+            resp = _safe_httpx_get(
                 f"https://api.github.com/repos/{repo}/git/trees/{default_branch}",
                 params={"recursive": "1"},
                 headers=headers, timeout=30, follow_redirects=True,
@@ -658,7 +658,7 @@ class GitHubSource(SkillSource):
         """Recursively download via Contents API (fallback)."""
         url = f"https://api.github.com/repos/{repo}/contents/{path.rstrip('/')}"
         try:
-            resp = httpx.get(url, headers=self.auth.get_headers(), timeout=15, follow_redirects=True)
+            resp = _safe_httpx_get(url, headers=self.auth.get_headers(), timeout=15, follow_redirects=True)
             if resp.status_code != 200:
                 logger.debug("Contents API returned %d for %s/%s", resp.status_code, repo, path)
                 return {}
@@ -718,7 +718,7 @@ class GitHubSource(SkillSource):
         """Fetch a single file's content from GitHub."""
         url = f"https://api.github.com/repos/{repo}/contents/{path}"
         try:
-            resp = httpx.get(
+            resp = _safe_httpx_get(
                 url,
                 headers={**self.auth.get_headers(), "Accept": "application/vnd.github.v3.raw"},
                 timeout=15, follow_redirects=True,
@@ -1442,7 +1442,7 @@ class SkillsShSource(SkillSource):
         # Fallback: scan repo root for directories that might contain skills
         try:
             root_url = f"https://api.github.com/repos/{repo}/contents/"
-            resp = httpx.get(root_url, headers=self.github.auth.get_headers(),
+            resp = _safe_httpx_get(root_url, headers=self.github.auth.get_headers(),
                              timeout=15, follow_redirects=True)
             if resp.status_code == 200:
                 entries = resp.json()
@@ -2069,7 +2069,7 @@ class ClawHubSource(SkillSource):
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                resp = httpx.get(
+                resp = _safe_httpx_get(
                     f"{self.BASE_URL}/download",
                     params={"slug": slug, "version": version},
                     timeout=30,
@@ -2505,7 +2505,7 @@ class BrowseShSource(SkillSource):
         if not md_url:
             return None
         try:
-            resp = httpx.get(md_url, timeout=20, follow_redirects=True)
+            resp = _safe_httpx_get(md_url, timeout=20, follow_redirects=True)
             if resp.status_code != 200:
                 return None
             content = resp.text
@@ -2536,7 +2536,7 @@ class BrowseShSource(SkillSource):
         ``sourceUrl`` (some entries may), use it directly.
         """
         try:
-            detail = httpx.get(
+            detail = _safe_httpx_get(
                 self.SKILL_DETAIL_URL.format(slug=slug),
                 timeout=20,
                 follow_redirects=True,
@@ -3305,7 +3305,7 @@ def _load_stoa_index() -> Optional[dict]:
 
     # Fetch from docs site
     try:
-        resp = httpx.get(STOA_INDEX_URL, timeout=15, follow_redirects=True)
+        resp = _safe_httpx_get(STOA_INDEX_URL, timeout=15, follow_redirects=True)
         if resp.status_code != 200:
             logger.debug("STOA index fetch returned %d", resp.status_code)
             return _load_stale_index_cache()
