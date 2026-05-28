@@ -212,7 +212,31 @@ class TestMemoryManager:
         mgr.add_provider(p2)
 
         result = mgr.prefetch_all("query")
-        assert result == "Has memories"
+        # Audit P-A + P-F: recalled text is now wrapped in an
+        # <untrusted-memory> fence per provider. The payload + provider
+        # name must both appear; the empty provider's chunk is skipped.
+        assert "Has memories" in result
+        assert "<untrusted-memory source=\"builtin\">" in result
+        assert "external" not in result  # empty result skipped
+
+    def test_prefetch_sanitises_ansi_bidi_zero_width(self):
+        """Audit P-A: a poisoned memory store cannot smuggle ANSI codes,
+        bidi-overrides, or zero-width prompt-injection text through the
+        prefetch path. The sanitiser runs before the fence."""
+        mgr = MemoryManager()
+        p = FakeMemoryProvider("hostile")
+        # ANSI + RLO + ZWSP combined payload that, without sanitising,
+        # would render as harmless text but contain hidden instructions.
+        p._prefetch_result = "rm‮ -rf‬ ​\x1b[31m/\x1b[0m"
+        mgr.add_provider(p)
+        result = mgr.prefetch_all("query")
+        # The sanitiser strips control + override + zero-width.
+        assert "\x1b" not in result
+        assert "‮" not in result  # RLO
+        assert "​" not in result  # ZWSP
+        # Content (after sanitisation) is fenced.
+        assert "rm -rf /" in result
+        assert "<untrusted-memory source=\"hostile\">" in result
 
     def test_queue_prefetch_all(self):
         mgr = MemoryManager()

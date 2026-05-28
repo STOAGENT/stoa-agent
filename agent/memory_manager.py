@@ -341,13 +341,36 @@ class MemoryManager:
 
         Returns merged context text labeled by provider. Empty providers
         are skipped. Failures in one provider don't block others.
+
+        Audit P-A + P-F (memory provider fence): every provider's recalled
+        text is routed through the canonical sanitizer (strips ANSI / C1,
+        NFKC-normalises, removes bidi-overrides and zero-width characters)
+        and then wrapped in a per-provider ``<untrusted-memory>`` fence.
+        This prevents a poisoned mem0 / hindsight / retaindb / RAG server
+        from injecting prompt-control sequences ("ignore previous
+        instructions", role-play system prompts, Trojan-Source bidi
+        rewrites) straight into the agent's context window.
         """
+        from tools.ansi_strip import sanitize_untrusted_text
+
         parts = []
         for provider in self._providers:
             try:
                 result = provider.prefetch(query, session_id=session_id)
                 if result and result.strip():
-                    parts.append(result)
+                    safe = sanitize_untrusted_text(result)
+                    if safe and safe.strip():
+                        # Per-provider fence so the model can see which
+                        # store the recalled content came from + that it
+                        # is untrusted. The closing tag uses the same
+                        # provider name so an injection that tries to
+                        # close the fence with a different name fails.
+                        provider_name = (provider.name or "memory").replace(">", "_")
+                        parts.append(
+                            f"<untrusted-memory source=\"{provider_name}\">\n"
+                            f"{safe}\n"
+                            f"</untrusted-memory source=\"{provider_name}\">"
+                        )
             except Exception as e:
                 logger.debug(
                     "Memory provider '%s' prefetch failed (non-fatal): %s",

@@ -1,5 +1,8 @@
-"""Strip ANSI escape sequences from subprocess output.
+"""Strip ANSI escape sequences from subprocess output + canonical Unicode
+sanitisation for untrusted text (audit P-A).
 
+ANSI strip
+----------
 Used by terminal_tool, code_execution_tool, and process_registry to clean
 command output before returning it to the model.  This prevents ANSI codes
 from entering the model's context — which is the root cause of models
@@ -9,9 +12,30 @@ Covers the full ECMA-48 spec: CSI (including private-mode ``?`` prefix,
 colon-separated params, intermediate bytes), OSC (BEL and ST terminators),
 DCS/SOS/PM/APC string sequences, nF multi-byte escapes, Fp/Fe/Fs
 single-byte escapes, and 8-bit C1 control characters.
+
+Canonical sanitisation (audit P-A)
+----------------------------------
+``sanitize_untrusted_text`` is the one primitive every "external content
+enters the agent" seam should call (memory provider prefetches, MCP tool
+responses, browser-tool page text, gateway message bodies, etc.). It:
+
+  1. Strips ANSI / C1 control sequences (terminal hijack class).
+  2. Strips bidi-override codepoints (RLO/LRO/RLE/LRE/PDF/RLI/LRI/FSI/PDI)
+     — the Trojan-Source class. A "DELETE" command rendered RTL can read
+     as "ETELED" but execute as "DELETE".
+  3. Strips zero-width characters (ZWSP, ZWNJ, ZWJ, ZWNBSP/BOM, word-
+     joiner, mongolian vowel separator) — the prompt-injection
+     "hidden text" class.
+  4. NFKC-normalises so confusables like 'Ⓐ' and 'A' collapse to the
+     same form the model would otherwise see two distinct tokens for.
+
+Every call site that previously did some subset of this work locally
+should be migrated to this one function. Keeping the policy in one
+place is what makes the gate auditable.
 """
 
 import re
+import unicodedata
 
 _ANSI_ESCAPE_RE = re.compile(
     r"\x1b"
@@ -42,3 +66,64 @@ def strip_ansi(text: str) -> str:
     if not text or not _HAS_ESCAPE.search(text):
         return text
     return _ANSI_ESCAPE_RE.sub("", text)
+
+
+# ── canonical Unicode sanitisation (audit P-A) ──────────────────────────
+
+# Bidi formatting characters that flip glyph order. Trojan-Source attacks
+# (CVE-2021-42574) use these to make code reviewers see a different
+# control flow than the compiler executes. Strip them outright; if the
+# caller actually wants RTL text they should pass a separate untrusted
+# flag rather than expecting these specific codepoints to survive.
+_BIDI_OVERRIDE_RE = re.compile(
+    "["
+    "‪"   # LRE — left-to-right embedding
+    "‫"   # RLE — right-to-left embedding
+    "‬"   # PDF — pop directional formatting
+    "‭"   # LRO — left-to-right override
+    "‮"   # RLO — right-to-left override
+    "⁦"   # LRI — left-to-right isolate
+    "⁧"   # RLI — right-to-left isolate
+    "⁨"   # FSI — first-strong isolate
+    "⁩"   # PDI — pop directional isolate
+    "]"
+)
+
+# Zero-width and invisible-by-default characters. These are the
+# "hidden text" channel used in prompt-injection payloads ("ignore
+# previous​instructions") and to smuggle JS/HTML through naive
+# string filters.
+_ZERO_WIDTH_RE = re.compile(
+    "["
+    "​"   # ZWSP — zero-width space
+    "‌"   # ZWNJ — zero-width non-joiner
+    "‍"   # ZWJ  — zero-width joiner
+    "﻿"   # ZWNBSP / BOM
+    "⁠"   # WORD JOINER
+    "᠎"   # MONGOLIAN VOWEL SEPARATOR
+    "­"   # SOFT HYPHEN
+    "]"
+)
+
+
+def sanitize_untrusted_text(text: str) -> str:
+    """Canonicalise text that came from outside the trust boundary.
+
+    Order matters: ANSI first (drops the SS3/CSI families), then Unicode
+    normal-form NFKC (so subsequent codepoint filters work on
+    canonical characters), then bidi-override strip, then zero-width
+    strip.
+
+    Returns ``""`` for falsy input. Safe to call on any string —
+    well-formed plain text passes through unchanged (modulo NFKC,
+    which collapses compatibility characters by design).
+    """
+    if not text:
+        return text
+    text = strip_ansi(text)
+    text = unicodedata.normalize("NFKC", text)
+    if _BIDI_OVERRIDE_RE.search(text):
+        text = _BIDI_OVERRIDE_RE.sub("", text)
+    if _ZERO_WIDTH_RE.search(text):
+        text = _ZERO_WIDTH_RE.sub("", text)
+    return text
