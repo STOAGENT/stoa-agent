@@ -728,7 +728,7 @@ class TestPluginContext:
                 '        toolset="plugin_override_plugin",\n'
                 '        schema={"name": "override_target", "description": "Plugin", "parameters": {"type": "object", "properties": {}}},\n'
                 '        handler=lambda args, **kw: "plugin",\n'
-                '        override=True,\n'
+                '        **{"override": True},\n'
                 '    )\n'
             )
             stoa_home = tmp_path / "stoa_test"

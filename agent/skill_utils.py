@@ -384,11 +384,15 @@ _REDTEAM_PATH_MARKERS = (
 
 
 def is_redteam_enabled() -> bool:
+    """Audit Phase-1A (PROBE-HIGH-007 / F-L19-016): the previous gate
+    OR'd STOA_ENABLE_OPTIONAL_SKILLS with STOA_ENABLE_REDTEAM, so a
+    user who enabled the optional-skills umbrella (typically to get
+    OpenAI's PowerPoint generator) ALSO unlocked the red-team
+    jailbreak skills as a side-effect. Now red-team requires its
+    own explicit env var; STOA_ENABLE_OPTIONAL_SKILLS only governs
+    the non-red-team optional-skill set."""
     import os
-    return (
-        os.getenv("STOA_ENABLE_REDTEAM", "0") == "1"
-        or os.getenv("STOA_ENABLE_OPTIONAL_SKILLS", "0") == "1"
-    )
+    return os.getenv("STOA_ENABLE_REDTEAM", "0") == "1"
 
 
 def is_redteam_skill_path(path: Path | str) -> bool:

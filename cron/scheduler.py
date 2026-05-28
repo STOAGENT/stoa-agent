@@ -1021,8 +1021,22 @@ def _build_job_prompt(job: dict, prerun_script: Optional[tuple] = None) -> str:
         if isinstance(context_from, str):
             context_from = [context_from]
         for source_job_id in context_from:
-            # Guard against path traversal — valid job IDs are 12-char hex strings
-            if not source_job_id or not all(c in "0123456789abcdef" for c in source_job_id):
+            # Audit Phase-1A (PROBE-HIGH-002 / F-L19-010): guard against
+            # path traversal AND length-spoof. The previous validator
+            # was character-set only (hex), so a hostile caller could
+            # supply '00000000000000000000aaaa' or 'aabb..' truncated
+            # to 1 char — both pass char-set but the first reaches a
+            # surprising on-disk directory; the second matches every
+            # 1-char job_id ever created. Real job IDs are produced by
+            # ``secrets.token_hex(11)`` → exactly 22 hex chars. Enforce
+            # both the character set and the length here.
+            _EXPECTED_JOB_ID_LEN = 22
+            _HEX_ALPHABET = "0123456789abcdef"
+            if (
+                not source_job_id
+                or len(source_job_id) != _EXPECTED_JOB_ID_LEN
+                or not all(c in _HEX_ALPHABET for c in source_job_id)
+            ):
                 logger.warning("context_from: skipping invalid job_id %r", source_job_id)
                 continue
             try:

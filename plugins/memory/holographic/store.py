@@ -244,13 +244,27 @@ class MemoryStore:
             if not query:
                 return []
 
-            params: list = [query, min_trust, owner_principal]
+            # Audit Phase-1A (PROBE-HIGH-005 / F-L19-014): the
+            # previous WHERE allowed `owner_principal IS NULL OR =?`,
+            # which let a multi-tenant gateway recall every legacy /
+            # unscoped fact across all users. The new gate flips this
+            # to strict equality: facts with NULL owner_principal are
+            # ONLY readable when the caller explicitly asks for the
+            # NULL bucket (owner_principal=None → SQL IS NULL test;
+            # non-None caller → equality test). Build the params list
+            # in the exact order the placeholders are consumed.
+            params: list = [query, min_trust]
+            if owner_principal is None:
+                owner_clause = "f.owner_principal IS NULL"
+                # No placeholder bound for the owner clause.
+            else:
+                owner_clause = "f.owner_principal = ?"
+                params.append(owner_principal)
             category_clause = ""
             if category is not None:
                 category_clause = "AND f.category = ?"
                 params.append(category)
             params.append(limit)
-
             sql = f"""
                 SELECT f.fact_id, f.content, f.category, f.tags,
                        f.trust_score, f.retrieval_count, f.helpful_count,
@@ -259,7 +273,7 @@ class MemoryStore:
                 JOIN facts_fts fts ON fts.rowid = f.fact_id
                 WHERE facts_fts MATCH ?
                   AND f.trust_score >= ?
-                  AND (f.owner_principal IS NULL OR f.owner_principal = ?)
+                  AND ({owner_clause})
                   {category_clause}
                 ORDER BY fts.rank, f.trust_score DESC
                 LIMIT ?

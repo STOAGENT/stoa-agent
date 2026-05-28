@@ -178,6 +178,38 @@ def _ensure_chain_initialized() -> None:
     _LAST_HASH = _read_tail_hash_from_path(_log_path())
 
 
+# Audit Phase-1A (PROBE-CHAIN-D): the previous record() body wrapped
+# the redact import in `try/except Exception: pass`, which the probe
+# (and any reasonable forensic reviewer) flagged as silent failure
+# — if the redact module ever raised on import (e.g. dep mis-pin,
+# circular import after a refactor), the audit log would silently
+# ship raw credentials. Lift the redact import out of the per-record
+# try/except. Now an import failure is exposed by ImportError at
+# module-load time + a fallback identity function so the audit log
+# never silently drops scrubbing.
+try:
+    from agent.redact import redact_sensitive_text as _audit_redact_impl
+except ImportError as _audit_redact_exc:
+    _audit_redact_impl = None  # noqa: F841 — diagnostic-only
+    logger.warning(
+        "audit_log: agent.redact unavailable (%s) — preview text will "
+        "NOT be scrubbed for secrets. Fix the import before relying on "
+        "the audit log in a security context.",
+        _audit_redact_exc,
+    )
+
+
+def _audit_preview_redact(preview: str) -> str:
+    """Apply redact_sensitive_text(force=True) when available.
+
+    Falls through to identity when the redact module isn't importable;
+    the loud import-time warning above is the operator's signal.
+    """
+    if _audit_redact_impl is None:
+        return preview
+    return _audit_redact_impl(preview, force=True)
+
+
 def _rotate_if_needed(p: Path) -> None:
     """Roll <log>.jsonl → <log>.jsonl.1 → … → <log>.jsonl.N if oversize."""
     try:
@@ -238,11 +270,7 @@ def record(
                 pass
             _rotate_if_needed(p)
             preview = (args_preview or "")[:200]
-            try:
-                from agent.redact import redact_sensitive_text
-                preview = redact_sensitive_text(preview, force=True)
-            except Exception:
-                pass
+            preview = _audit_preview_redact(preview)
             # ``a+b`` opens for append AND read in one handle, so we can
             # seek-and-scan the tail to re-seed _LAST_HASH inside the OS
             # lock without colliding with our own write handle on Windows

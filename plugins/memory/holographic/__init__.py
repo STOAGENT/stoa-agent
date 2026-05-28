@@ -263,10 +263,22 @@ class HolographicMemoryProvider(MemoryProvider):
             retriever = self._retriever
 
             if action == "add":
+                # Audit Phase-1A (PROBE-HIGH-004 / F-L19-013): pass the
+                # owner_principal kwarg through to add_fact() so each
+                # stored fact is scoped to the gateway-supplied
+                # principal (user, room, channel — whatever the
+                # holographic store's owner-resolution policy returns).
+                # Without this, a multi-tenant gateway lets one user's
+                # fact-search retrieve every other tenant's facts.
                 fact_id = store.add_fact(
                     args["content"],
                     category=args.get("category", "general"),
                     tags=args.get("tags", ""),
+                    # Resolve owner principal from the call args. The
+                    # store understands None as "global / unscoped" so
+                    # legacy callers continue to work; gateway adapters
+                    # that thread per-user identity supply the kwarg.
+                    owner_principal=args.get("owner_principal"),
                 )
                 return json.dumps({"fact_id": fact_id, "status": "added"})
 
