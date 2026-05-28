@@ -133,7 +133,7 @@ If you have no need for on-chain verifiability, you can ignore `--attest` entire
 | `stoa /verdict` | Show the last council verdict |
 | `stoa /attest` | **preview** — stamp the last verdict on-chain |
 | `stoa skill publish` | Runs the 6-persona audit gate before publishing |
-| `stoa hermes migrate` | Auto-port settings + skills + memories + keys from your upstream install |
+| `stoa migrate xai` | Rewrite config to replace retired xAI models with current ones |
 
 ---
 

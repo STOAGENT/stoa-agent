@@ -118,7 +118,7 @@ stoa skill publish ./my-skill
 | `stoa /verdict` | 显示上一次 Council 裁定 |
 | `stoa /attest` | **Preview** —— 把上一次裁定盖章上链 |
 | `stoa skill publish` | 发布前运行 6 角色审计闸门 |
-| `stoa hermes migrate` | 从上游 Hermes 安装中自动迁移设置 + Skill + 记忆 + Key |
+| `stoa migrate xai` | 配置改写 —— 把退役的 xAI 模型替换为当前可用版本 |
 
 ---
 
