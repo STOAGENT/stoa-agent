@@ -1,3 +1,4 @@
+manifest_version: 1
 name: retaindb
 version: 1.0.0
 description: "RetainDB — cloud memory API with hybrid search and 7 memory types."

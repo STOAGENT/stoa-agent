@@ -1,3 +1,4 @@
+manifest_version: 1
 name: web-xai
 version: 1.0.0
 description: "xAI Web Search — search the web via Grok's agentic web_search tool (Responses API). Requires xAI Grok OAuth (via `stoa auth`) or XAI_API_KEY (https://x.ai)."

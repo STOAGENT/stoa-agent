@@ -1,3 +1,4 @@
+manifest_version: 1
 name: hindsight
 version: 1.0.0
 description: "Hindsight — long-term memory with knowledge graph, entity resolution, and multi-strategy retrieval."

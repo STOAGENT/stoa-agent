@@ -1,3 +1,4 @@
+manifest_version: 1
 name: langfuse
 version: "1.0.0"
 description: "Optional Langfuse observability for STOA — traces conversations, LLM calls, and tool usage. Opt-in via `stoa plugins enable observability/langfuse` (or check the box in `stoa plugins`)."

@@ -1,3 +1,4 @@
+manifest_version: 1
 name: mem0
 version: 1.0.0
 description: "Mem0 — server-side LLM fact extraction with semantic search, reranking, and automatic deduplication."

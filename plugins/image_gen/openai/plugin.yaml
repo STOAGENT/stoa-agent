@@ -1,3 +1,4 @@
+manifest_version: 1
 name: openai
 version: 1.0.0
 description: "OpenAI image generation backend (gpt-image-2). Saves generated images to $STOA_HOME/cache/images/."

@@ -1,3 +1,4 @@
+manifest_version: 1
 name: spotify
 version: 1.0.0
 description: "Native Spotify integration — 7 tools (playback, devices, queue, search, playlists, albums, library) using Spotify Web API + PKCE OAuth. Auth via `stoa auth spotify`. Tools gate on `providers.spotify` in ~/.stoa/auth.json."

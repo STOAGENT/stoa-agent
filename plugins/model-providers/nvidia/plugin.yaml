@@ -1,3 +1,4 @@
+manifest_version: 1
 name: nvidia-provider
 kind: model-provider
 version: 1.0.0

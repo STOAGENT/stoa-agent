@@ -1,3 +1,4 @@
+manifest_version: 1
 name: byterover
 version: 1.0.0
 description: "ByteRover — persistent knowledge tree with tiered retrieval via the brv CLI."

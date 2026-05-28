@@ -1,3 +1,4 @@
+manifest_version: 1
 name: ntfy-platform
 label: ntfy
 kind: platform
