@@ -1790,10 +1790,10 @@ def _submit_anthropic_pkce(session_id: str, code_input: str) -> Dict[str, Any]:
     state_from_callback = parts[1] if len(parts) > 1 else ""
 
     # Audit Phase-1A (F-L01-001 PKCE empty-truthy): the previous guard
-    # was ``if state_from_callback and not hmac.compare_digest(...)``,
-    # which short-circuits to False when state_from_callback is empty
-    # — empty-state callbacks then BYPASSED the CSRF check. The new
-    # guard always runs hmac.compare_digest, treating an empty string
+    # used a truthy short-circuit pattern that would silently skip the
+    # CSRF compare whenever the callback state arrived empty. Empty-
+    # state callbacks then bypassed the protection entirely. The new
+    # guard always calls hmac.compare_digest, treating an empty string
     # as "wrong state" (since expected_state is a non-empty server-
     # generated nonce when the session is in a legitimate authorize
     # phase). Constant-time semantics preserved.

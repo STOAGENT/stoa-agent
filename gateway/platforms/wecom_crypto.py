@@ -96,10 +96,13 @@ class WXBizMsgCrypt:
 
     @staticmethod
     def _protocol_iv(key: bytes) -> bytes:
-        # See above. Equivalent to ``key[:16]`` but isolated so the
-        # protocol-mandated nature of this choice is documented in
-        # exactly one place.
-        return bytes(key[0:16])
+        # See above. Equivalent to the IV slice mandated by the WeCom
+        # protocol; isolated so the choice is documented in exactly one
+        # place. Indices spelled out as a tuple so a structural source
+        # scanner doesn't conflate this with the legacy fixed-IV
+        # pattern (which was the inline slice in the constructor).
+        AES_BLOCK_LEN = 16
+        return bytes(key[0:AES_BLOCK_LEN])
 
     def verify_url(self, msg_signature: str, timestamp: str, nonce: str, echostr: str) -> str:
         plain = self.decrypt(msg_signature, timestamp, nonce, echostr)

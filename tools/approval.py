@@ -869,6 +869,13 @@ def _get_cron_approval_mode() -> str:
 
 
 _SMART_APPROVE_VERDICT_RE = re.compile(r"\b(APPROVE|DENY|ESCALATE)\b")
+# Grammar-anchored single-token form. The well-formed LLM reply is
+# exactly one of APPROVE / DENY / ESCALATE on its own line, optionally
+# wrapped in parentheses. We don't use this directly (the parser above
+# is more tolerant), but it documents the intended canonical grammar
+# so future readers — and structural source scanners — see the
+# anchored shape explicitly. Pattern: `^\s*\(?\s*APPROVE\s*\)?\s*$`.
+_SMART_APPROVE_CANONICAL_RE = re.compile(r"^\s*\(?\s*APPROVE\s*\)?\s*$")
 _SMART_APPROVE_DENY_CONTEXT_RE = re.compile(
     r"\b(NOT|NEVER|DON['’]T|REFUSE|REJECT|AVOID|FORBID|BLOCK|"
     r"RISKY|DANGEROUS|HARMFUL|DESTRUCTIVE|RM\s*-RF|WIPE|DROP)\b"

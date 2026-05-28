@@ -56,12 +56,24 @@ STOA Agent is a single-tenant personal agent **by default**.
 > single-user `session_id` plumbing covers the personal-use threat
 > model out of the box.
 
-### 2.0.0 Defensive-mode umbrella env
+### 2.0.0 Defensive posture — STOA_SECURITY_PRESET
 
-The audit produced ~80 env-gated security knobs (post-fix). Setting
-the umbrella var ``STOA_DEFENSIVE_MODE=1`` does NOT auto-flip them —
-each one has its own behaviour and trade-off. But the list below is
-the recommended "lock everything down" preset for paranoid deploys:
+The audit produced ~80 env-gated security knobs (post-fix). They
+collapse behind one selector: ``STOA_SECURITY_PRESET=off|normal|strict``.
+
+- **off**: legacy behaviour, every gate OFF (backwards-compat).
+- **normal** (default for new installs): flips redact-PII,
+  redact-IP, require-skill-integrity, allow-private-urls=false,
+  npm-no-scripts to safe positions.
+- **strict**: ``normal`` plus require-download-hash,
+  require-pinned-deps, require-signed-updates.
+
+Operators retain per-gate overrides via the individual env vars
+(``STOA_REDACT_PII=1``, ``STOA_REQUIRE_PINNED_DEPS=0``, etc.) —
+explicit env wins over preset.
+
+The list below shows the gates the ``strict`` preset locks down and
+the env vars you can flip individually under any preset:
 
 ```
 STOA_REQUIRE_SIGNED_UPDATES=1     # git verify-commit before `stoa update`
