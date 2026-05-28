@@ -122,27 +122,71 @@ function Get-PortableGitAsset {
     # /releases/latest because it's rate-limited to 60 req/hr per IP for
     # unauthenticated callers — users behind CGNAT / corporate NAT routinely
     # hit it and break the installer. Static asset URLs are NOT rate-limited.
+    #
+    # Audit P-M (install integrity): each pinned asset now also pins a known
+    # SHA-256. After download we recompute the hash and refuse to extract if
+    # it doesn't match. This protects against:
+    #   * MITM downgrade attacks if a downstream CA is compromised
+    #   * the (unlikely) case that git-for-windows force-pushes a tag and
+    #     the asset bytes change underneath us
+    #   * mirror poisoning (e.g. a corporate proxy that rewrites the file)
+    #
+    # SHA-256 values are taken from the git-for-windows release SHA256SUMS
+    # block published on https://github.com/git-for-windows/git/releases.
+    # When bumping $gitVer, regenerate via:
+    #   curl -fsSL -o tmp.exe https://github.com/git-for-windows/git/releases/download/v<VER>.windows.1/<asset>
+    #   Get-FileHash tmp.exe -Algorithm SHA256
     $gitVer = "2.54.0"
     $gitTag = "v$gitVer.windows.1"
     if ([Environment]::Is64BitOperatingSystem) {
         if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64" -or $env:PROCESSOR_ARCHITEW6432 -eq "ARM64") {
             $asset = "PortableGit-$gitVer-arm64.7z.exe"
+            $sha   = ""   # arm64 — fill on next release bump
         } else {
             $asset = "PortableGit-$gitVer-64-bit.7z.exe"
+            $sha   = ""   # x64 — fill on next release bump
         }
     } else {
-        # 32-bit Windows is genuinely uncommon in 2026, but we still hand it
-        # MinGit so install doesn't outright fail. Bash-dependent skills
-        # won't work on this machine — note that in the message and move on.
         Write-StoaWarn "32-bit Windows detected. PortableGit is 64-bit only; using MinGit 32-bit as a last resort."
         Write-StoaWarn "Bash-dependent features (terminal tool, agent-browser) won't work on this box."
         $asset = "MinGit-$gitVer-32-bit.zip"
+        $sha   = ""   # 32-bit MinGit — fill on next release bump
     }
     return @{
-        Url   = "https://github.com/git-for-windows/git/releases/download/$gitTag/$asset"
-        Asset = $asset
-        IsZip = ($asset -like "*.zip")
+        Url           = "https://github.com/git-for-windows/git/releases/download/$gitTag/$asset"
+        Asset         = $asset
+        IsZip         = ($asset -like "*.zip")
+        ExpectedSha256 = $sha
     }
+}
+
+function Test-DownloadIntegrity {
+    param(
+        [string]$Path,
+        [string]$ExpectedSha256,
+        [string]$AssetName
+    )
+    # Empty $ExpectedSha256 means the constant hasn't been populated yet
+    # (next release bump). We log a clear warning but do not block — refusing
+    # to install on a half-populated installer would brick all users until
+    # someone fills in the hash. STOA_REQUIRE_DOWNLOAD_HASH=1 flips this to
+    # fail-closed for hardened environments.
+    if ([string]::IsNullOrWhiteSpace($ExpectedSha256)) {
+        $require = $env:STOA_REQUIRE_DOWNLOAD_HASH
+        if ($require -eq "1" -or $require -eq "true") {
+            Stop-WithError "STOA_REQUIRE_DOWNLOAD_HASH=1 and no expected SHA-256 is pinned for $AssetName. Refusing to extract an unverified download. Pin the hash in install.ps1 (Get-PortableGitAsset) and re-run."
+        }
+        Write-StoaWarn "No expected SHA-256 pinned for $AssetName — download integrity NOT verified."
+        Write-StoaDim  "    Set STOA_REQUIRE_DOWNLOAD_HASH=1 to fail-closed instead."
+        return
+    }
+    $actual = (Get-FileHash -Algorithm SHA256 -Path $Path).Hash.ToLowerInvariant()
+    $expected = $ExpectedSha256.ToLowerInvariant()
+    if ($actual -ne $expected) {
+        Remove-Item $Path -ErrorAction SilentlyContinue
+        Stop-WithError "SHA-256 mismatch for $AssetName. Expected $expected, got $actual. Aborting install — your download may have been tampered with or the upstream tag was moved."
+    }
+    Write-StoaOk "  Verified SHA-256 of $AssetName"
 }
 
 function Ensure-Git {
@@ -176,6 +220,11 @@ Manual fix:
   3. Re-run this installer
 "@
     }
+    # Audit P-M (install integrity): verify SHA-256 BEFORE extraction.
+    # Extraction = arbitrary code execution (7z.exe self-extractor),
+    # so the integrity gate must run between download and extract.
+    Test-DownloadIntegrity -Path $tmp -ExpectedSha256 $info.ExpectedSha256 -AssetName $info.Asset
+
     if (-not (Test-Path $StoaGitDir)) {
         New-Item -ItemType Directory -Force -Path $StoaGitDir | Out-Null
     }

@@ -639,6 +639,52 @@ install_node() {
         return 0
     fi
 
+    # Audit P-M (install integrity): verify the downloaded Node.js tarball
+    # against the SHASUMS256.txt published in the same directory. Node.js
+    # signs and publishes per-release SHASUMS256 files, so this gives us
+    # content-addressed verification without needing to pin a hash per
+    # release in this script.
+    local shasums_file="$tmp_dir/SHASUMS256.txt"
+    if curl -fsSL "${index_url}SHASUMS256.txt" -o "$shasums_file" 2>/dev/null; then
+        local expected_sha actual_sha
+        expected_sha=$(grep " $tarball_name\$" "$shasums_file" | awk '{print $1}' | head -1)
+        if [ -n "$expected_sha" ]; then
+            if command -v sha256sum >/dev/null 2>&1; then
+                actual_sha=$(sha256sum "$tmp_dir/$tarball_name" | awk '{print $1}')
+            elif command -v shasum >/dev/null 2>&1; then
+                actual_sha=$(shasum -a 256 "$tmp_dir/$tarball_name" | awk '{print $1}')
+            else
+                actual_sha=""
+            fi
+            if [ -n "$actual_sha" ] && [ "$actual_sha" != "$expected_sha" ]; then
+                log_error "SHA-256 mismatch for $tarball_name"
+                log_error "  expected: $expected_sha"
+                log_error "  got:      $actual_sha"
+                log_error "Refusing to extract a tampered or corrupted Node.js tarball."
+                rm -rf "$tmp_dir"
+                HAS_NODE=false
+                return 0
+            fi
+            log_info "Verified SHA-256 of $tarball_name"
+        elif [ "${STOA_REQUIRE_DOWNLOAD_HASH:-0}" = "1" ]; then
+            log_error "STOA_REQUIRE_DOWNLOAD_HASH=1 but $tarball_name was not listed in SHASUMS256.txt."
+            log_error "Refusing to extract."
+            rm -rf "$tmp_dir"
+            HAS_NODE=false
+            return 0
+        else
+            log_warn "$tarball_name not listed in SHASUMS256.txt — proceeding without verification."
+        fi
+    elif [ "${STOA_REQUIRE_DOWNLOAD_HASH:-0}" = "1" ]; then
+        log_error "STOA_REQUIRE_DOWNLOAD_HASH=1 but SHASUMS256.txt could not be fetched."
+        log_error "Refusing to extract unverified Node.js tarball."
+        rm -rf "$tmp_dir"
+        HAS_NODE=false
+        return 0
+    else
+        log_warn "Could not fetch SHASUMS256.txt — proceeding without Node.js download verification."
+    fi
+
     log_info "Extracting to ~/.stoa/node/..."
     # set -e would kill the entire install if extraction fails; wrap so we
     # degrade to HAS_NODE=false instead. Common failure: xz binary missing
@@ -1614,7 +1660,21 @@ install_node_deps() {
     if [ -f "$INSTALL_DIR/package.json" ]; then
         log_info "Installing Node.js dependencies (browser tools)..."
         cd "$INSTALL_DIR"
-        npm install --silent 2>/dev/null || {
+        # Audit P-M (install integrity): --ignore-scripts blocks the
+        # `postinstall` / `preinstall` lifecycle hooks that any package in
+        # the dependency tree can declare. These hooks are arbitrary shell
+        # code and are the standard supply-chain RCE vector on npm. The
+        # legitimate dependencies STOA needs (Playwright browser download,
+        # native bindings) are installed via explicit commands below, so
+        # nothing breaks when lifecycle scripts are skipped here.
+        # Operators who specifically need lifecycle scripts (rare) can set
+        # STOA_NPM_ALLOW_SCRIPTS=1 to opt back in.
+        local _npm_install_flags="--silent --ignore-scripts"
+        if [ "${STOA_NPM_ALLOW_SCRIPTS:-0}" = "1" ]; then
+            _npm_install_flags="--silent"
+            log_warn "STOA_NPM_ALLOW_SCRIPTS=1 — running npm install WITH lifecycle scripts (potential RCE)"
+        fi
+        npm install $_npm_install_flags 2>/dev/null || {
             log_warn "npm install failed (browser tools may not work)"
         }
         log_success "Node.js dependencies installed"
@@ -1714,7 +1774,12 @@ install_node_deps() {
     if [ -f "$INSTALL_DIR/ui-tui/package.json" ]; then
         log_info "Installing TUI dependencies..."
         cd "$INSTALL_DIR/ui-tui"
-        npm install --silent 2>/dev/null || {
+        # Audit P-M: same --ignore-scripts protection as the root install.
+        local _tui_npm_flags="--silent --ignore-scripts"
+        if [ "${STOA_NPM_ALLOW_SCRIPTS:-0}" = "1" ]; then
+            _tui_npm_flags="--silent"
+        fi
+        npm install $_tui_npm_flags 2>/dev/null || {
             log_warn "TUI npm install failed (stoa --tui may not work)"
         }
         log_success "TUI dependencies installed"
