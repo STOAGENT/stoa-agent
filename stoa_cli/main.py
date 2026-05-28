@@ -8127,11 +8127,19 @@ def _install_psutil_android_compat(
     # termux installs run pre-CRYPTO unpacked Python code from this
     # exact path. Verifying the SHA against the published digest closes
     # the window.
-    psutil_sha256 = (
-        "5d70de8ce8866b67b76574d8de36ce0a9b3a0b8b8e3b0b1f3e10de1f1f3e0e0e"  # PLACEHOLDER — replace with real published SHA
-        if False  # noqa: SIM222 — placeholder gate
-        else "5d70de8ce8866b67b76574d8de36ce0a9b3a0b8b8e3b0b1f3e10de1f1f3e0e0e"
-    )
+    # Audit Phase-1A (PROBE-CRIT-013): the psutil-pin block previously
+    # had two identical-placeholder branches, so the SHA check was dead
+    # code — any tampered tarball that hashed to "anything other than
+    # the placeholder" would silently fail the compare and the install
+    # continued. The fix is twofold:
+    #   1. There is no in-source pin at all (an empty string).
+    #   2. The compare-and-bail logic below now requires that the
+    #      operator-supplied STOA_PSUTIL_SHA256 matches the downloaded
+    #      tarball. With no operator pin, the install REFUSES rather
+    #      than installing an unverified archive. The CI release job
+    #      pre-populates the env var from PyPI's hashes table; bare
+    #      developer installs hit the explicit fail-closed path.
+    psutil_expected_pin = ""  # operator-supplied via STOA_PSUTIL_SHA256
 
     with tempfile.TemporaryDirectory() as tmp:
         import hashlib
@@ -8140,12 +8148,16 @@ def _install_psutil_android_compat(
         archive = tmp_path / "psutil.tar.gz"
         urllib.request.urlretrieve(psutil_url, archive)
         actual = hashlib.sha256(archive.read_bytes()).hexdigest()
-        # NOTE: psutil_sha256 above is a placeholder. Update during release
-        # build by inserting the real digest from PyPI's hashes table:
-        #   https://pypi.org/project/psutil/7.2.2/#copy-hash-modal-...
-        # STOA_PSUTIL_SHA256 env override lets ops pin a fork.
-        expected = os.environ.get("STOA_PSUTIL_SHA256", psutil_sha256)
-        if expected and expected != psutil_sha256 and not _hmac_pin.compare_digest(actual, expected):
+        expected = os.environ.get("STOA_PSUTIL_SHA256", psutil_expected_pin)
+        if not expected:
+            raise RuntimeError(
+                "psutil install refused — no SHA-256 pin available. Set "
+                "STOA_PSUTIL_SHA256 from the PyPI hashes table (e.g. "
+                "https://pypi.org/project/psutil/7.2.2/#files) and "
+                "re-run. The previous in-source placeholder pin was "
+                "structurally a no-op (both branches identical)."
+            )
+        if not _hmac_pin.compare_digest(actual, expected):
             raise RuntimeError(
                 f"psutil tarball SHA-256 mismatch:\n"
                 f"  expected: {expected}\n"

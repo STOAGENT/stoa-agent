@@ -67,6 +67,40 @@ _SENSITIVE_BODY_KEYS = frozenset({
 _REDACT_ENABLED = os.getenv("STOA_REDACT_SECRETS", "true").lower() in {"1", "true", "yes", "on"}
 
 
+def _reconcile_redact_from_env() -> None:
+    """Re-read STOA_REDACT_SECRETS into the module-level flag.
+
+    Called from os.register_at_fork(after_in_child=...) so a forked
+    subprocess that inherits a stale module reference still re-reads
+    the env var rather than running with the parent's import-time
+    snapshot — which would let an operator who edited the env after
+    fork think they had redaction on when the child still had it off.
+
+    Also called by force_enable_redaction()'s ON-only path to keep
+    the snapshot fresh after deliberate config flips.
+    """
+    global _REDACT_ENABLED
+    _REDACT_ENABLED = os.getenv("STOA_REDACT_SECRETS", "true").lower() in {"1", "true", "yes", "on"}
+
+
+# Audit Phase-1A (PROBE-CRIT-025 / HIGH-003 / SUB-001): the
+# _REDACT_ENABLED snapshot above survives across fork(), but the env
+# var the snapshot was derived from is per-process state. If the
+# parent had STOA_REDACT_SECRETS=true at import time and a child
+# later runs in a different posture, the child would still use the
+# parent's snapshot. Register a fork hook that re-reads the env in
+# the child so each subprocess speaks for its own env. On platforms
+# without os.register_at_fork (Windows), this is a no-op and the
+# in-process snapshot governs.
+if hasattr(os, "register_at_fork"):
+    try:
+        os.register_at_fork(after_in_child=_reconcile_redact_from_env)
+    except Exception:
+        # Some embedded interpreters disallow registration; the env
+        # snapshot path still gives single-process safety.
+        pass
+
+
 # Audit v10 HIGH-55 + v9 HIGH-46 fix: ``_REDACT_ENABLED`` was a module-
 # load-time snapshot. An operator who started a session with redact:false
 # (e.g. while debugging) and then flipped redact:true via config edit

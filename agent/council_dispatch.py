@@ -288,7 +288,7 @@ def render_verdict(verdict: CouncilVerdict) -> str:
             for body_line in m.text.splitlines():
                 lines.append(f"    {body_line}")
         lines.append("")
-    lines.append("[VERDICT — composed by Hermes the dispatcher]")
+    lines.append("[VERDICT — composed by the dispatcher persona]")
     for body_line in verdict.verdict_text.splitlines():
         lines.append(f"  {body_line}")
     if verdict.failed_personas:
