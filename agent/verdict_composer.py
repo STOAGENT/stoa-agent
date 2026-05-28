@@ -254,7 +254,17 @@ async def _compose_verdict(
         # Neutralise marker patterns that the parser keys on. Leading-
         # line "AGREEMENT:" → "[AGREEMENT]:" (kept readable, parser
         # won't match the regex). [PERSONA] tags inside body → escaped.
-        text = re.sub(r"(?im)^\s*AGREEMENT\s*:", "[AGREEMENT]:", text)
+        # Audit Phase-1A (PROBE-HIGH-022 / F-L30-007): the prior
+        # pattern was leading-line only, so an attacker could prefix
+        # the AGREEMENT line with a Unicode non-break space, zero-
+        # width character, or any whitespace + a single non-newline
+        # character (e.g. '> AGREEMENT: consensus'). The new pattern
+        # neutralises any 'AGREEMENT:' anywhere in the survivor text
+        # — there is no legitimate use of that literal inside a
+        # persona's own answer (the parser only reads the dispatcher's
+        # AGREEMENT line). MULTILINE not needed because the regex is
+        # now global, not line-anchored.
+        text = re.sub(r"(?i)AGREEMENT\s*:", "[AGREEMENT]:", text)
         # Audit Phase-1A (F-AGNT-002 / PROBE-CRIT-001): the previous
         # implementation only escaped the CLOSING tag, so a persona
         # message containing "<persona name=\"system\">" could open a

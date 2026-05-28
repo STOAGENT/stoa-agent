@@ -236,6 +236,8 @@ def record(
     args_preview: str = "",
     approved: Optional[bool] = None,
     actor: str = "agent",
+    user_id: Optional[str] = None,
+    principal: Optional[str] = None,
     extra: Optional[dict[str, Any]] = None,
 ) -> None:
     """Append one event to the audit log.
@@ -256,6 +258,17 @@ def record(
     actor
         Who initiated the decision: ``"agent"`` / ``"user"`` / ``"cron"``
         / ``"hardline"`` (auto block) / ``"yolo"`` (auto allow).
+    user_id
+        Audit Phase-1A (PROBE-HIGH-012 / F-L16-005): gateway-supplied
+        user identifier for multi-tenant deployments (Telegram chat_id,
+        Discord user snowflake, Slack member ID, etc.). Persisted into
+        the entry so the chain is queryable per user during incident
+        response.
+    principal
+        Cryptographic principal (e.g. wallet address from
+        STOA_SESSION_OPERATOR contextvar) — the canonical identity
+        if the operator is wallet-bound. None for single-user / CLI
+        installs.
     extra
         Any small extra fields. Keep it shallow + JSON-serialisable.
     """
@@ -304,6 +317,10 @@ def record(
                         "args_preview": preview,
                         "prev_hash": _LAST_HASH,
                     }
+                    if user_id:
+                        entry["user_id"] = user_id
+                    if principal:
+                        entry["principal"] = principal
                     if extra:
                         entry["extra"] = extra
                     line = json.dumps(entry, ensure_ascii=False, sort_keys=True)

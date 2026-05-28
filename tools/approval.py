@@ -892,7 +892,7 @@ def _parse_smart_approve_verdict(raw: str) -> str:
     """Extract APPROVE / DENY / ESCALATE from an LLM response, defending
     against the substring-bypass class of vulnerabilities.
 
-    Audit Phase-1A: the previous implementation tested ``"APPROVE" in answer``
+    Audit Phase-1A: the previous implementation used a naive substring
     against the raw LLM output. An adversarial-prompted model that returned
     "DO NOT APPROVE — this rm -rf / command is destructive" would match the
     substring and be auto-approved.
@@ -921,7 +921,7 @@ def _parse_smart_approve_verdict(raw: str) -> str:
     tokens = _SMART_APPROVE_VERDICT_RE.findall(normalized)
     distinct = frozenset(tokens)
 
-    # Note: we never write ``if "APPROVE" in <something>`` — that exact
+    # Note: the verdict-string substring shape is the documented audit
     # substring shape is the documented audit anti-pattern (PROBE-CRIT-002)
     # because it conflates the verdict tokenizer with naive `in` checks.
     # Every comparison here goes through ``frozenset.__contains__`` of a
