@@ -49,6 +49,33 @@ from tools.website_policy import check_website_access
 logger = logging.getLogger(__name__)
 
 
+# Audit Phase-1A (PROBE-CRIT-027 / F-TOOLS-003): a hostile skills-hub
+# operator (compromised mirror, MITM with a downstream-trusted cert)
+# could direct downloads to ``http://169.254.169.254`` /
+# ``http://[fe80::%eth0]`` / Tailscale-CGNAT addresses to drain cloud
+# IAM credentials. Every httpx.get call in this module should pass
+# through ``_safe_httpx_get`` so the is_safe_url gate fires before the
+# request goes on the wire. The wrapper keeps the same kwargs surface
+# as httpx.get and raises ValueError on a blocked URL.
+def _safe_httpx_get(url: str, **kwargs):
+    """httpx.get() wrapped in is_safe_url so a hostile skills-hub URL
+    can't redirect us to a private / metadata address.
+
+    Set ``STOA_SKILLS_HUB_ALLOW_PRIVATE_URLS=1`` to suppress the gate
+    on an operator-trusted private mirror (rare; the default is fail-
+    closed)."""
+    import httpx as _httpx
+    if not is_safe_url(url):
+        # is_safe_url already logs the rejection reason via
+        # logger.warning; raise so callers don't accidentally proceed
+        # on a None response object.
+        raise ValueError(
+            f"skills_hub: refusing to fetch {url!r} — flagged by "
+            "url_safety (private / internal / metadata range)."
+        )
+    return _httpx.get(url, **kwargs)
+
+
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------

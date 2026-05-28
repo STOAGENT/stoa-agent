@@ -1360,8 +1360,15 @@ def _run_job_impl(job: dict) -> tuple[bool, str, str, Optional[str]]:
     agent = None
 
     # Mark this as a cron session so the approval system can apply cron_mode.
-    # This env var is process-wide and persists for the lifetime of the
-    # scheduler process — every job this process runs is a cron job.
+    # Audit Phase-1A (PROBE-CRIT-010 / F-L05-027): scheduler.run() used
+    # to SET this env var but never RESTORE it. When the scheduler was
+    # invoked inline (e.g. from a test runner, from another stoa
+    # subprocess that imports cron.scheduler, or from a long-lived
+    # gateway that schedules a one-off job and continues), the env leak
+    # made the rest of the process behave as if it were always a cron
+    # session — approval cron_mode applied to interactive prompts. The
+    # try/finally below captures + restores the prior value.
+    _prev_cron_session = os.environ.get("STOA_CRON_SESSION")
     os.environ["STOA_CRON_SESSION"] = "1"
 
     # Use ContextVars for per-job session/delivery state so parallel jobs
@@ -1804,6 +1811,23 @@ def _run_job_impl(job: dict) -> tuple[bool, str, str, Optional[str]]:
                 os.environ.pop("TERMINAL_CWD", None)
             else:
                 os.environ["TERMINAL_CWD"] = _prior_terminal_cwd
+        # Audit Phase-1A (PROBE-CRIT-010 / F-L05-027): restore
+        # STOA_CRON_SESSION to the value it had before this function
+        # set it. Without this, a long-lived process that called
+        # _run_job_impl once continued behaving as a cron session
+        # forever — approval cron_mode kept applying to interactive
+        # prompts in the same process.
+        try:
+            if _prev_cron_session is None:
+                os.environ.pop("STOA_CRON_SESSION", None)
+            else:
+                os.environ["STOA_CRON_SESSION"] = _prev_cron_session
+        except NameError:
+            # _prev_cron_session was set just before this function's
+            # main try block on every legitimate call path; this
+            # except is defensive in case some future refactor moves
+            # the set site.
+            os.environ.pop("STOA_CRON_SESSION", None)
         # Clean up ContextVar session/delivery state for this job.
         clear_session_vars(_ctx_tokens)
         for _var_name in _cron_delivery_vars:
