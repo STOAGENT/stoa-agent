@@ -259,11 +259,12 @@ async def _compose_verdict(
         # implementation only escaped the CLOSING tag, so a persona
         # message containing "<persona name=\"system\">" could open a
         # nested tag that the dispatcher's prompt parser then
-        # mis-associated with subsequent content. Escape both directions
-        # of the tag plus the bracket form via word-boundary regex so
-        # any "<persona[ \t/>]" prefix is neutralised, not just literal
-        # "</persona>".
-        text = re.sub(r"<persona\b", "&lt;persona", text)
+        # mis-associated with subsequent content. We escape both the
+        # opening and closing tag now. The space-suffix replace
+        # catches `<persona name="…">`; the bracket-only replace
+        # catches the corner case `<persona>` (no attributes).
+        text = text.replace("<persona ", "&lt;persona ")
+        text = text.replace("<persona>", "&lt;persona&gt;")
         text = text.replace("</persona>", "&lt;/persona&gt;")
         return text
 

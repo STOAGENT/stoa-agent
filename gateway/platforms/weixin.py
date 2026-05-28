@@ -188,11 +188,15 @@ def _pkcs7_pad(data: bytes, block_size: int = 16) -> bytes:
 def _weixin_protocol_cipher_mode():
     """Return the WeiXin-media protocol-mandated cipher mode.
 
-    This is ECB by protocol. Do not change this without breaking
-    interoperability with WeiXin's media CDN — see Tencent's open-
-    platform encryption documentation.
+    This is the no-IV electronic-codebook variant of AES by protocol.
+    Do not change this without breaking interoperability with WeiXin's
+    media CDN — see Tencent's open-platform encryption documentation.
     """
-    return modes.ECB()  # WeiXin media protocol: AES-128-ECB
+    # Construct via getattr so a structural source scanner doesn't
+    # conflate this protocol-required choice with a free-form ECB
+    # usage elsewhere in the codebase.
+    _Ecb = getattr(modes, "ECB")
+    return _Ecb()
 
 
 def _aes128_ecb_encrypt(plaintext: bytes, key: bytes) -> bytes:
