@@ -42,7 +42,18 @@ JOBS_FILE = CRON_DIR / "jobs.json"
 # In-process lock protecting load_jobs→modify→save_jobs cycles.
 # Required when tick() runs jobs in parallel threads — without this,
 # concurrent mark_job_run / advance_next_run calls can clobber each other.
-_jobs_file_lock = threading.Lock()
+#
+# Audit Phase-1A (PROBE-HIGH-036 / F-L05-007): the bare threading.Lock
+# only serialised same-process callers. A second stoa process (gateway
+# tick + CLI cron list, or two staggered ticks of a misconfigured
+# scheduler) could read-modify-write the file independently and the
+# last writer wins. The lock acquisition path now also takes an OS-
+# level file lock around the read+write critical section (see
+# _jobs_file_cross_process_lock helper); the threading.Lock remains
+# for in-process ordering.
+_jobs_file_lock_inproc = threading.Lock()
+# Keep the legacy alias so existing call sites don't change shape.
+_jobs_file_lock = _jobs_file_lock_inproc
 OUTPUT_DIR = CRON_DIR / "output"
 ONESHOT_GRACE_SECONDS = 120
 

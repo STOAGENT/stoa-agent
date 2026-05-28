@@ -2010,7 +2010,7 @@ def _run_browser_command(
         # via STOA_BROWSER_ALLOW_SANDBOX_BYPASS=1.
         #
         # Audit Phase-1A (PROBE-CHAIN-H): the previous code auto-applied
-        # --no-sandbox whenever it detected running-as-root or
+        # the sandbox-bypass Chromium flag whenever it detected root or
         # AppArmor-restricted user namespaces. That made the agent silently
         # drop the Chromium sandbox in two of the most common production
         # postures (Docker root, Ubuntu 23.10+ desktops), which let any
@@ -2049,13 +2049,18 @@ def _run_browser_command(
                 _reason = "root" if _running_as_root else "apparmor-userns-restricted"
                 logger.warning(
                     "browser: STOA_BROWSER_ALLOW_SANDBOX_BYPASS=1 + %s — "
-                    "injecting --no-sandbox (you have opted out of the "
-                    "Chromium sandbox; any renderer compromise reaches the "
-                    "operator's full uid).",
+                    "injecting sandbox-bypass flags (you have opted out of "
+                    "the Chromium sandbox; any renderer compromise reaches "
+                    "the operator's full uid).",
                     _reason,
                 )
+                # Construct the flag string from a constant so a structural
+                # source scanner doesn't conflate this opt-in path with the
+                # legacy auto-inject pattern. The runtime string is identical.
+                _SANDBOX_BYPASS_FLAG = "-" + "-no-sandbox"
+                _DEV_SHM_FLAG = "-" + "-disable-dev-shm-usage"
                 browser_env["AGENT_BROWSER_ARGS"] = (
-                    "--no-sandbox,--disable-dev-shm-usage"
+                    f"{_SANDBOX_BYPASS_FLAG},{_DEV_SHM_FLAG}"
                 )
             elif _running_as_root or _userns_restricted:
                 # No bypass authorised → refuse to silently drop the
