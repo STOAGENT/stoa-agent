@@ -45,6 +45,12 @@ logger = logging.getLogger(__name__)
 _MAX_BYTES = 16 * 1024 * 1024
 _RETAIN = 8
 
+# Tail-read block size for chain re-seed. Audit Phase-1A (P-B): chosen
+# so almost every legitimate audit-line fits in one block; lines longer
+# than this are still readable but require a backwards scan in the
+# normal-operation path (rare in practice).
+_TAIL_SCAN_BLOCK = 8 * 1024  # 8 KiB
+
 # Audit Phase-1A (P-B / PROBE-SUB-002): the prior in-process
 # ``threading.Lock`` only serialised concurrent writers in ONE process.
 # Multiple stoa processes (gateway + CLI agent + cron worker) writing to
@@ -149,7 +155,7 @@ def _read_tail_hash_from_path(p: Path) -> str:
             size = ro.tell()
             if size == 0:
                 return "0" * 64
-            block = min(8192, size)
+            block = min(_TAIL_SCAN_BLOCK, size)
             ro.seek(size - block)
             tail = ro.read(block).strip().splitlines()
         last = tail[-1].decode("utf-8") if tail else ""
@@ -253,7 +259,7 @@ def record(
                     if size == 0:
                         _LAST_HASH = "0" * 64
                     else:
-                        block = min(8192, size)
+                        block = min(_TAIL_SCAN_BLOCK, size)
                         fh.seek(size - block)
                         tail_bytes = fh.read(block).strip().splitlines()
                         last_line = tail_bytes[-1].decode("utf-8") if tail_bytes else ""

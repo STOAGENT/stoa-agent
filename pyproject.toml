@@ -106,8 +106,12 @@ Homepage      = "https://stoax.xyz"
 Documentation = "https://stoax.xyz/docs"
 Repository    = "https://github.com/STOAGENT/stoa-agent"
 Issues        = "https://github.com/STOAGENT/stoa-agent/issues"
-Upstream      = "https://github.com/NousResearch/hermes-agent"
 Source        = "https://github.com/STOAGENT/stoa-agent"
+# Upstream lineage is recorded canonically in ATTRIBUTION.md (the URL
+# field used to live here, but PyPI displays project.urls inline on
+# every package page — duplicating the upstream link there made the
+# fork attribution visually dominant on every install. ATTRIBUTION.md
+# remains the authoritative source.)
 
 [project.optional-dependencies]
 # Native Anthropic provider — only needed when provider=anthropic (not via
