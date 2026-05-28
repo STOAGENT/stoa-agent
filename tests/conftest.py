@@ -350,6 +350,16 @@ def _hermetic_environment(tmp_path, monkeypatch):
     monkeypatch.setenv("LC_ALL", "C.UTF-8")
     monkeypatch.setenv("PYTHONHASHSEED", "0")
 
+    # 4a. Audit Phase-1A (PROBE-HIGH-007 + skill-integrity): the
+    # security preset shipped with `normal` as the new default for
+    # fresh installs, which flips skill-integrity strict mode ON.
+    # The existing test suite predates that flip and uses ad-hoc
+    # unpinned skill fixtures, so the autouse default is `off` here;
+    # tests that explicitly want to exercise the new posture set
+    # STOA_SECURITY_PRESET=normal/strict via monkeypatch in their own
+    # fixtures (see tests/agent/test_skill_integrity.py).
+    monkeypatch.setenv("STOA_SECURITY_PRESET", "off")
+
     # 4b. Disable AWS IMDS lookups. Without this, any test that ends up
     #     calling has_aws_credentials() / resolve_aws_auth_env_var()
     #     (e.g. provider auto-detect, status command, cron run_job) burns

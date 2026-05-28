@@ -1,11 +1,15 @@
 name: Publish to PyPI
 
-# Triggered by CalVer tag pushes from scripts/release.py (e.g. v2026.5.15)
-# Can also be triggered manually from the Actions tab as an escape hatch.
+# Triggered by tag pushes from scripts/release.py — both CalVer
+# (v2026.5.15) and SemVer (v0.14.5, v1.0.0) shapes accepted. Can also
+# be triggered manually from the Actions tab as an escape hatch.
 on:
   push:
     tags:
       - 'v20*'  # CalVer tags: v2026.5.15, v2026.5.15.2, etc.
+      - 'v0.*'  # SemVer 0.x: v0.14.5, v0.15.0, …
+      - 'v1.*'  # SemVer 1.x — future
+      - 'v2.*'
   workflow_dispatch:
     inputs:
       confirm_tag:
