@@ -530,23 +530,31 @@ def redact_sensitive_text(text: str, *, force: bool = False, code_file: bool = F
             return phone[:4] + "****" + phone[-4:]
         text = _SIGNAL_PHONE_RE.sub(_redact_phone, text)
 
-    # Audit v11 HIGH-57 fix: PII patterns. Gated behind STOA_REDACT_PII=1
-    # so opt-in users (EU operators, regulated industries) flip on
-    # without breaking the existing "credentials only" baseline that
-    # many users rely on for log readability. Default off.
-    if os.getenv("STOA_REDACT_PII", "0") == "1":
+    # Audit P-N (PII/IP default-ON): the original implementation gated
+    # these patterns behind STOA_REDACT_PII / STOA_REDACT_IP and
+    # defaulted them OFF, which let an EU operator running on the
+    # "default" install ship PII into provider logs by accident.
+    # Resolution now goes through the central security preset
+    # (stoa_cli.security_preset.is_gate_enabled) — `normal` (the new
+    # default) flips both ON; `off` preserves the legacy posture for
+    # operators who explicitly want maximum log readability.
+    try:
+        from stoa_cli.security_preset import is_gate_enabled as _gate
+    except Exception:
+        # security_preset is a CLI-package import; if redact is loaded
+        # by a non-CLI runtime (rare — embedded test, alt entry point)
+        # fall back to the explicit env-only behaviour for safety.
+        def _gate(name: str) -> bool:
+            return os.getenv(f"STOA_{name}", "0") == "1"
+
+    if _gate("REDACT_PII"):
         for pat, repl in _PII_PATTERNS:
             try:
                 text = re.sub(pat, repl, text)
             except Exception:
                 continue
 
-    # Audit M-9 (Lens 12) fix: source-IP redaction. Opt-in via
-    # STOA_REDACT_IP=1. Default OFF because many debug flows
-    # (gateway egress trace, web-tool URL probes) lose readability
-    # when IPs are masked. Separate from STOA_REDACT_PII because
-    # IPs are not GDPR special-category data in every jurisdiction.
-    if os.getenv("STOA_REDACT_IP", "0") == "1":
+    if _gate("REDACT_IP"):
         # IPv4 — pre-check with `.` is cheap and avoids the regex on
         # text that obviously has no dotted-quad shape.
         if "." in text:

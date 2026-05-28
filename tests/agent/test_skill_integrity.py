@@ -98,19 +98,35 @@ def test_unpinned_strict_mode_blocks(fake_skills_home, monkeypatch):
 # ── no pin + default mode → yielded with warning ─────────────────────────
 
 
-def test_unpinned_default_mode_yields_with_warning(fake_skills_home, caplog):
-    """Without strict mode, unpinned skills are still yielded but a
-    one-shot warning is logged."""
+def test_unpinned_off_preset_yields_with_warning(fake_skills_home, caplog, monkeypatch):
+    """Audit P-C (SECURITY_PRESET): under the ``off`` preset (legacy
+    behaviour), unpinned skills are still yielded but a one-shot
+    warning is logged. The ``normal`` preset — the new default for
+    fresh installs — refuses them strictly (see test below)."""
     su, home, skill_dir = fake_skills_home
+    # Pin the legacy posture for this case.
+    monkeypatch.setenv("STOA_SECURITY_PRESET", "off")
     # Ensure clean warning state.
     su._SKILL_INTEGRITY_WARNED.clear()
     with caplog.at_level("INFO", logger="agent.skill_utils"):
         results = _list_skills(su, home / "skills")
-    assert len(results) == 1, "default mode must yield unpinned skills"
+    assert len(results) == 1, "off preset must yield unpinned skills"
     # The warning channel records the skill name once.
     assert any(
         "no manifest entry" in rec.getMessage() for rec in caplog.records
     ), "unpinned skill should produce a 'no manifest entry' log line"
+
+
+def test_unpinned_normal_preset_refuses_strict(fake_skills_home, caplog, monkeypatch):
+    """Under the ``normal`` preset (new default), unpinned skills are
+    refused so a fresh install can't import arbitrary unverified
+    SKILL.md trees on first run."""
+    su, home, skill_dir = fake_skills_home
+    monkeypatch.setenv("STOA_SECURITY_PRESET", "normal")
+    su._SKILL_INTEGRITY_WARNED.clear()
+    with caplog.at_level("INFO", logger="agent.skill_utils"):
+        results = _list_skills(su, home / "skills")
+    assert results == [], "normal preset must refuse unpinned skills"
 
 
 # ── reset_cache reflects manifest change ─────────────────────────────────

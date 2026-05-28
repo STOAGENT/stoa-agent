@@ -771,7 +771,15 @@ def iter_skill_index_files(skills_dir: Path, filename: str):
                 matches.append(Path(root) / filename)
     redteam_on = is_redteam_enabled()
     integrity_index = _load_skill_integrity_manifest()
-    strict_mode = os.getenv("STOA_REQUIRE_SKILL_INTEGRITY", "0") == "1"
+    # Audit P-C (SECURITY_PRESET): the historical default left
+    # skill-integrity verification OFF, so fresh installs imported any
+    # bundled SKILL.md without checking the ed25519 manifest. The
+    # central preset now flips this ON for `normal` (the new default).
+    try:
+        from stoa_cli.security_preset import is_gate_enabled as _gate
+        strict_mode = _gate("REQUIRE_SKILL_INTEGRITY")
+    except Exception:
+        strict_mode = os.getenv("STOA_REQUIRE_SKILL_INTEGRITY", "0") == "1"
 
     def _sort_key(p: Path) -> str:
         # Depth-1 symlinks were resolved to their real paths above, which can
