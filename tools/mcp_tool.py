@@ -1353,11 +1353,17 @@ class MCPServerTask:
         # IPv4 and IPv6.
         try:
             from tools.url_safety import is_safe_url
-            ok, reason = is_safe_url(url)
-            if not ok:
+            # Audit Phase-1A (is_safe_url tuple): the previous call
+            # destructured is_safe_url's return as ``ok, reason = …``,
+            # but is_safe_url returns a plain ``bool`` — meaning this
+            # codepath raised TypeError on every invocation and the
+            # whole SSRF gate was dead code. Use the bool directly;
+            # the function logs the rejection reason via logger.warning
+            # so the operator still sees the diagnostic.
+            if not is_safe_url(url):
                 raise RuntimeError(
                     f"MCP server '{self.name}': refusing URL {url!r} — "
-                    f"flagged by url_safety: {reason}"
+                    f"flagged by url_safety (private/internal/metadata)"
                 )
         except ImportError:
             # url_safety unavailable: fall back to a minimal denylist

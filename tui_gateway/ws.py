@@ -24,8 +24,10 @@ Mounting
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
+import os
 from typing import Any
 
 from tui_gateway import server
@@ -113,8 +115,89 @@ class WSTransport:
         self._closed = True
 
 
+def _expected_ws_token() -> str | None:
+    """Return the WS bearer expected by the gateway, or None if unset.
+
+    Audit Phase-1A (tui_gateway WS auth): without this check the
+    /api/ws endpoint accepts any connection and exposes the full
+    JSON-RPC surface (slash commands, sudo flows, agent control) to
+    anyone who can reach the port. Loopback alone is not enough —
+    other local users, WSL ↔ host bridges, and any reverse-proxied
+    deployment all break that assumption.
+
+    The token is read from ``STOA_TUI_WS_TOKEN`` (env first) or from
+    ``~/.stoa/tui_ws_token`` (single-line text) when env is unset.
+    A non-empty value enables enforcement; an empty/missing value
+    keeps the legacy behaviour (no auth, suitable for single-user
+    local dev) but logs a one-shot warning so the operator knows.
+    """
+    raw = os.environ.get("STOA_TUI_WS_TOKEN", "")
+    if raw:
+        return raw.strip() or None
+    try:
+        from pathlib import Path
+        candidate = Path.home() / ".stoa" / "tui_ws_token"
+        if candidate.exists():
+            value = candidate.read_text(encoding="utf-8").strip()
+            return value or None
+    except OSError:
+        pass
+    return None
+
+
+_NO_TOKEN_WARNED = False
+
+
+def _extract_offered_token(ws: Any) -> str:
+    """Pull the client-offered bearer from the WS handshake.
+
+    Two transport channels are accepted:
+      1. Query string ``?token=<value>`` (most clients)
+      2. ``Sec-WebSocket-Protocol`` header with one of the offered
+         subprotocols equal to ``bearer.<value>`` (browsers can't set
+         arbitrary headers but can set this one)
+    Empty string when no token was offered.
+    """
+    try:
+        token = ws.query_params.get("token") if hasattr(ws, "query_params") else None
+    except Exception:
+        token = None
+    if token:
+        return token.strip()
+    try:
+        protocols = ws.scope.get("subprotocols") if hasattr(ws, "scope") else None
+    except Exception:
+        protocols = None
+    if protocols:
+        for proto in protocols:
+            if isinstance(proto, str) and proto.startswith("bearer."):
+                return proto[len("bearer."):].strip()
+    return ""
+
+
 async def handle_ws(ws: Any) -> None:
     """Run one WebSocket session. Wire-compatible with ``tui_gateway.entry``."""
+    global _NO_TOKEN_WARNED
+    expected = _expected_ws_token()
+    if expected:
+        offered = _extract_offered_token(ws)
+        if not offered or not hmac.compare_digest(offered, expected):
+            _log.warning(
+                "tui_gateway WS rejected: bearer token missing or mismatch"
+            )
+            try:
+                await ws.close(code=1008, reason="auth")
+            except Exception:
+                pass
+            return
+    elif not _NO_TOKEN_WARNED:
+        _NO_TOKEN_WARNED = True
+        _log.warning(
+            "tui_gateway WS accepted with NO bearer check — set "
+            "STOA_TUI_WS_TOKEN or write ~/.stoa/tui_ws_token to require "
+            "authentication on /api/ws."
+        )
+
     await ws.accept()
 
     transport = WSTransport(ws, asyncio.get_running_loop())

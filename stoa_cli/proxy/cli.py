@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import sys
 from typing import Any
 
@@ -54,6 +55,27 @@ def cmd_proxy_start(args: Any) -> int:
 
     host = getattr(args, "host", None) or DEFAULT_HOST
     port = getattr(args, "port", None) or DEFAULT_PORT
+
+    # Audit Phase-1A (stoa proxy bind): the proxy strips inbound
+    # Authorization and re-attaches the operator's real provider
+    # credential. If a non-loopback host is configured AND no opt-in
+    # env var is set, refuse to start — exposing the proxy on a LAN-
+    # reachable interface lets any local-network client trade arbitrary
+    # bearers for the operator's paid provider key.
+    _safe_loopback = {"127.0.0.1", "localhost", "::1"}
+    if host not in _safe_loopback and os.environ.get("STOA_PROXY_ALLOW_REMOTE_BIND", "").lower() not in ("1", "true", "yes"):
+        print(
+            f"proxy: refusing to bind {host}:{port} — non-loopback host\n"
+            "  The proxy re-attaches your provider credential to every\n"
+            "  forwarded request. Binding on a LAN-reachable interface\n"
+            "  lets any client on the local network impersonate you to\n"
+            "  the upstream provider.\n"
+            "  If you ARE intentionally exposing the proxy (e.g. on a\n"
+            "  trusted private subnet), set STOA_PROXY_ALLOW_REMOTE_BIND=1\n"
+            "  and re-run.",
+            file=sys.stderr,
+        )
+        return 2
 
     print(
         f"Starting STOA proxy for {adapter.display_name}\n"

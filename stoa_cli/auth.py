@@ -2625,6 +2625,28 @@ def _spotify_exchange_code_for_tokens(
     accounts_base_url: str,
     timeout_seconds: float = 20.0,
 ) -> Dict[str, Any]:
+    # Audit Phase-1A (PKCE empty-state): defense-in-depth. If the caller
+    # ever drops `code` or `code_verifier` (we already saw the xAI flow
+    # hit this exact bug in #26990), refuse locally with a precise
+    # diagnostic rather than send the empty value to Spotify and parse
+    # back their generic "invalid_grant" response. An empty `code_verifier`
+    # would also bypass the PKCE binding intent entirely.
+    if not code:
+        raise AuthError(
+            "Spotify token exchange refused locally: authorization code is "
+            "empty. The callback returned no `code` query parameter — the "
+            "browser flow was likely cancelled or interrupted.",
+            provider="spotify",
+            code="spotify_pkce_code_missing",
+        )
+    if not code_verifier:
+        raise AuthError(
+            "Spotify token exchange refused locally: PKCE code_verifier is "
+            "empty. This is a STOA bug — please report at "
+            "https://github.com/STOAGENT/stoa-agent/issues.",
+            provider="spotify",
+            code="spotify_pkce_verifier_missing",
+        )
     try:
         response = httpx.post(
             f"{accounts_base_url}/api/token",
