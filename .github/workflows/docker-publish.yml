@@ -377,7 +377,7 @@ jobs:
       # the manifest list using OIDC identity from this workflow run.
       - name: Install cosign
         if: github.event_name != 'push' || steps.main_check.outputs.push_main == 'true'
-        uses: sigstore/cosign-installer@d7d6e07104d192c14ad6f2b1d4f3c0d68a4b95e1  # v3.7.0
+        uses: sigstore/cosign-installer@1aa8e0f2454b781fbf0fbf306a4c9533a0c57409  # v3.7.0
 
       - name: Sign image with cosign (keyless / OIDC)
         if: github.event_name != 'push' || steps.main_check.outputs.push_main == 'true'
