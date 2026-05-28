@@ -294,7 +294,7 @@ _ENV_VAR_PATTERN = re.compile(r"\$\{([^}]+)\}")
 # ---------------------------------------------------------------------------
 
 # Audit Phase-1A (F-L23-005 / PROBE-CALL-007): the prior implementation
-# merged ``user_env`` blindly with ``env.update(user_env)``, which let
+# used a bare dict-update on the operator-supplied env, which let
 # any MCP config from an untrusted marketplace specify
 # ``LD_PRELOAD=/tmp/evil.so`` (or DYLD_INSERT_LIBRARIES on macOS,
 # PYTHONPATH/PYTHONHOME, NODE_OPTIONS, etc.). The OS loader honours
@@ -422,6 +422,24 @@ def _scan_mcp_description(server_name: str, tool_name: str, description: str) ->
             server_name, tool_name, "; ".join(findings),
             description,
         )
+        # Audit Phase-1A (PROBE-HIGH-016 / F-L23-003): under the
+        # SECURITY_PRESET=strict posture, a description with prompt-
+        # injection patterns is rejected outright. Under `normal` we
+        # still only log the warning so legitimate-but-noisy MCP
+        # servers continue to work; operators who need fail-closed
+        # set the strict preset.
+        try:
+            from stoa_cli.security_preset import active_preset
+            if active_preset() == "strict":
+                raise RuntimeError(
+                    f"MCP server '{server_name}' tool '{tool_name}': refusing "
+                    f"to register a tool with prompt-injection patterns in its "
+                    f"description ({'; '.join(findings)}). Operator policy: "
+                    f"STOA_SECURITY_PRESET=strict blocks; set =normal/off to "
+                    f"register with the warning above only."
+                )
+        except ImportError:
+            pass
     return findings
 
 
