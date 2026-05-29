@@ -801,6 +801,54 @@ def _get_script_timeout() -> int:
     return _DEFAULT_SCRIPT_TIMEOUT
 
 
+# Audit deep-2026-05-29 CF-13 (FH-cron-002 / FH-cron-003): a no_agent cron
+# script inherits the FULL parent environment, including every provider API
+# key and STOA secret. A planted or compromised script can then exfiltrate
+# them (echo $ANTHROPIC_API_KEY | curl …). Cron data-collection / watchdog
+# scripts have no legitimate need for provider credentials, so we strip every
+# secret-shaped variable from the child environment by name pattern (robust to
+# new providers) before exec. Operational variables are preserved.
+import re as _re_cron
+
+_SECRET_ENV_RE = _re_cron.compile(
+    r"(API[_-]?KEY|ACCESS[_-]?KEY|SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIAL|"
+    r"PRIVATE[_-]?KEY|AUTH[_-]?TOKEN|SESSION[_-]?TOKEN|CLIENT[_-]?SECRET|"
+    r"BEARER|WEBHOOK[_-]?SECRET|DKIM|SIGNING[_-]?KEY|PASSPHRASE)",
+    _re_cron.IGNORECASE,
+)
+# Variables that must survive the scrub even if their name superficially
+# matches (none here match the secret regex today, but keep the intent
+# explicit so a future rename doesn't silently break a cron script).
+_ENV_SCRUB_KEEP = frozenset({
+    "STOA_HOME", "HOME", "PATH", "PWD", "LANG", "LC_ALL", "LC_CTYPE",
+    "TZ", "TERM", "USER", "LOGNAME", "SHELL", "TMPDIR", "SYSTEMROOT",
+    "TEMP", "TMP", "WINDIR", "COMSPEC", "PATHEXT",
+})
+
+
+def _scrub_secret_env(env: dict) -> dict:
+    """Return a copy of *env* with secret-shaped variables removed.
+
+    Drops anything whose NAME matches the provider/credential pattern
+    (ANTHROPIC_API_KEY, OPENAI_API_KEY, *_TOKEN, *_SECRET, AWS_SECRET_ACCESS_KEY,
+    GOOGLE_APPLICATION_CREDENTIALS, …) unless explicitly kept. Pattern-based so
+    a newly added provider is scrubbed without a code change.
+    """
+    cleaned = {}
+    dropped = []
+    for k, v in env.items():
+        if k in _ENV_SCRUB_KEEP:
+            cleaned[k] = v
+        elif _SECRET_ENV_RE.search(k):
+            dropped.append(k)
+        else:
+            cleaned[k] = v
+    if dropped:
+        logger.debug("cron: scrubbed %d secret env var(s) from child: %s",
+                     len(dropped), ", ".join(sorted(dropped)))
+    return cleaned
+
+
 def _run_job_script(script_path: str) -> tuple[bool, str]:
     """Execute a cron job's data-collection script and capture its output.
 
@@ -891,7 +939,34 @@ def _run_job_script(script_path: str) -> tuple[bool, str]:
     else:
         argv = [sys.executable, str(path)]
 
-    run_env = os.environ.copy()
+    # Audit deep-2026-05-29 CF-13 (FH-cron-001): no_agent scripts run detached
+    # with no LLM and no per-command approval — the only prior guards were the
+    # scripts-dir containment + extension allowlist. Scan the script body
+    # against the unconditional hardline blocklist (the same one enforced on
+    # the agent's shell calls) so a planted or compromised cron script cannot
+    # run rm -rf /, curl|sh, base64 -d|sh, etc. with zero approval. The
+    # blocklist is unconditional: it is not bypassable by --yolo or cron
+    # approve mode. On scanner failure we fall back to the existing
+    # containment/allowlist guards (no regression) rather than blocking every
+    # legitimate job.
+    try:
+        from tools.approval import detect_hardline_command
+        _script_text = path.read_text(encoding="utf-8", errors="replace")
+        _is_hardline, _hl_desc = detect_hardline_command(_script_text)
+        if _is_hardline:
+            logger.warning("cron: blocked hardline script %r (%s)", path.name, _hl_desc)
+            return False, (
+                f"Blocked (hardline): cron script {path.name!r} contains a "
+                f"command on the unconditional blocklist ({_hl_desc}). Cron "
+                f"scripts cannot run hardline-blocked commands — not even in "
+                f"cron approve mode."
+            )
+    except Exception as _hl_err:  # noqa: BLE001 — fail open to existing guards
+        logger.debug("cron: hardline pre-scan skipped for %r: %s", path.name, _hl_err)
+
+    # CF-13 (FH-cron-002 / FH-cron-003): strip provider secrets from the child
+    # environment so a cron script cannot exfiltrate API keys it never needs.
+    run_env = _scrub_secret_env(os.environ.copy())
     run_env["STOA_HOME"] = str(_get_stoa_home())
     try:
         from stoa_constants import get_subprocess_home
