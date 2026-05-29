@@ -331,6 +331,18 @@ def get_container_exec_info() -> Optional[dict]:
     if is_container():
         return None
 
+    # Audit deep-2026-05-29 CF-3 (F-C04-002): .container-mode supplies
+    # backend/container_name/exec_user/stoa_bin straight into os.execvp().
+    # It is legitimately authored ONLY by the NixOS activation script in
+    # managed mode. Fail closed: if we are not in a managed install, a
+    # .container-mode file is spurious (or attacker-planted) and MUST NOT
+    # drive exec routing — even though it is now write-protected (F-C02-001),
+    # this gate is the defence-in-depth that severs the RCE chain at the
+    # consumer. Managed deployments set STOA_MANAGED / the .managed marker,
+    # which the agent cannot forge, so real container routing is unaffected.
+    if not is_managed():
+        return None
+
     container_mode_file = get_stoa_home() / ".container-mode"
 
     try:
