@@ -2363,7 +2363,15 @@ def browser_navigate(url: str, task_id: Optional[str] = None) -> str:
     # 169.254.169.254 / metadata.google.internal / ECS task metadata
     # via a browser, and routing those to a local Chromium sidecar
     # on an EC2/GCP/Azure host exfiltrates IAM credentials (#16234).
-    if not _is_local_backend() and _is_always_blocked_url(url):
+    #
+    # Audit deep-2026-05-29 CF-10 (F-C07b-003): this floor was previously
+    # gated on `not _is_local_backend()`, which the comment itself
+    # contradicts — a LOCAL Chromium backend running on an EC2/GCP host
+    # would bypass the IMDS floor and exfiltrate IAM credentials. The
+    # metadata floor is now UNCONDITIONAL (independent of backend), which
+    # is the only safe posture: the agent's browser never has a reason to
+    # reach a cloud-metadata endpoint.
+    if _is_always_blocked_url(url):
         return json.dumps({
             "success": False,
             "error": "Blocked: URL targets a cloud metadata endpoint",
@@ -2434,9 +2442,14 @@ def browser_navigate(url: str, task_id: Optional[str] = None) -> str:
         # Always-blocked floor (cloud metadata / IMDS) is enforced even
         # when auto_local_this_nav is true — see pre-nav check for
         # rationale (#16234).
+        #
+        # Audit deep-2026-05-29 CF-10 (F-C07b-003): the cloud-metadata floor
+        # is now UNCONDITIONAL on the post-redirect path too — a local backend
+        # on an EC2/GCP host must not be able to reach IMDS via a redirect.
+        # Only the broader private-URL SSRF gate keeps the local-backend
+        # exemption; the metadata floor never does.
         if (
-            not _is_local_backend()
-            and final_url
+            final_url
             and final_url != url
             and _is_always_blocked_url(final_url)
         ):

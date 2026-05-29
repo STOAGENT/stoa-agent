@@ -3081,6 +3081,33 @@ def probe_api_models(
             "used_fallback": False,
         }
 
+    # Audit deep-2026-05-29 CF-10 (F-C16-001): we are about to attach the
+    # provider API key (Authorization: Bearer / x-api-key) to a request to
+    # this base_url. Validate the scheme BEFORE sending so a misconfigured or
+    # attacker-supplied base_url can't leak the credential in cleartext over
+    # http:// or to a non-network target (file://, gopher://, …). https is
+    # required; http is permitted only for loopback (local LLM servers such as
+    # Ollama / llama.cpp on 127.0.0.1), which never leave the host.
+    from urllib.parse import urlsplit as _urlsplit
+    _parts = _urlsplit(normalized)
+    _scheme = (_parts.scheme or "").lower()
+    _host = (_parts.hostname or "").lower()
+    _is_loopback = (
+        _host in {"localhost", "127.0.0.1", "::1"} or _host.endswith(".localhost")
+    )
+    if not (_scheme == "https" or (_scheme == "http" and _is_loopback)):
+        return {
+            "models": None,
+            "probed_url": None,
+            "resolved_base_url": normalized,
+            "suggested_base_url": None,
+            "used_fallback": False,
+            "error": (
+                f"refusing to send API key: base_url scheme {_scheme!r} is not "
+                f"https (http is allowed only for loopback hosts)"
+            ),
+        }
+
     if _is_github_models_base_url(normalized):
         models = _fetch_github_models(api_key=api_key, timeout=timeout)
         return {
@@ -3113,6 +3140,18 @@ def probe_api_models(
     for candidate_base, is_fallback in candidates:
         url = candidate_base.rstrip("/") + "/models"
         tried.append(url)
+        # CF-10 (F-C16-001): re-validate each candidate URL scheme before
+        # attaching the bearer — the /v1 alternate is derived from base_url,
+        # so confirm it too is https (or http-loopback) before urlopen.
+        _cand_parts = _urlsplit(url)
+        _cand_scheme = (_cand_parts.scheme or "").lower()
+        _cand_host = (_cand_parts.hostname or "").lower()
+        _cand_loopback = (
+            _cand_host in {"localhost", "127.0.0.1", "::1"}
+            or _cand_host.endswith(".localhost")
+        )
+        if not (_cand_scheme == "https" or (_cand_scheme == "http" and _cand_loopback)):
+            continue
         req = urllib.request.Request(url, headers=headers)
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
