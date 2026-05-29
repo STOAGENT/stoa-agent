@@ -963,12 +963,31 @@ def skill_view(
         # the caller — silent shadowing of a local skill by a same-named
         # external skill is a real bug class (`/skills` shows one, agent
         # loaded the other) so we surface it loudly instead of guessing.
-        from agent.skill_utils import iter_skill_index_files
+        from agent.skill_utils import (
+            iter_skill_index_files,
+            is_redteam_enabled,
+            is_redteam_skill_path,
+        )
+
+        # Audit deep-2026-05-29 CF-16 (FH-skills-001): every lookup strategy
+        # below — including the Strategy-1 direct-path branch — funnels
+        # through `_record`. The enumeration walker (skill_utils.iter_skills,
+        # :808-813) drops red-team / abliteration skill bodies unless
+        # STOA_ENABLE_REDTEAM=1, but `skill_view`'s direct-path lookup
+        # bypassed that gate, letting a jailbreak skill body be loaded by
+        # exact name with REDTEAM=0. Apply the same gate here so no strategy
+        # can reach a red-team body without the explicit opt-in.
+        _redteam_on = is_redteam_enabled()
 
         candidates: List[Tuple[Optional[Path], Path]] = []  # (skill_dir, skill_md)
         seen_md: set = set()
 
         def _record(sd: Optional[Path], smd: Path) -> None:
+            # Red-team / safety-bypass gate, mirrored from
+            # skill_utils.iter_skills so the direct-path strategy can't
+            # bypass STOA_ENABLE_REDTEAM.
+            if not _redteam_on and is_redteam_skill_path(smd):
+                return
             try:
                 key = smd.resolve()
             except Exception:
