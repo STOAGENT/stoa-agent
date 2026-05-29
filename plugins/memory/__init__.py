@@ -199,6 +199,27 @@ def _load_provider_from_dir(provider_dir: Path) -> Optional["MemoryProvider"]:
     if not init_file.exists():
         return None
 
+    # Audit deep-2026-05-29 CF-5 (F-C12-003): a memory-provider plugin's
+    # __init__ AND every sibling *.py is exec_module()'d — arbitrary code at
+    # load — so a dropped-in provider directory is RCE-on-load with no
+    # integrity gate. Verify the detached ed25519 bundle signature (reusing the
+    # skill signing infra: a .sig over the content hash, checked against
+    # trusted-signers) before ANY exec_module below. Non-breaking by default:
+    # when signature mode is off, verify_bundle_signature returns ok=True
+    # (legacy path); strict signing rejects forged/unsigned provider dirs.
+    try:
+        from tools.skills_signature import verify_bundle_signature
+        from tools.skills_guard import content_hash
+        _sig_verdict = verify_bundle_signature(provider_dir, content_hash(provider_dir))
+        if _sig_verdict.ok is False or _sig_verdict.ok is None:
+            logger.error(
+                "Refusing to load memory provider %r: signature verification "
+                "failed — %s", name, _sig_verdict.reason,
+            )
+            return None
+    except Exception as _sig_exc:
+        logger.debug("memory provider signature check skipped for %s: %s", name, _sig_exc)
+
     # Check if already loaded
     if module_name in sys.modules:
         mod = sys.modules[module_name]

@@ -1404,6 +1404,39 @@ class PluginManager:
         module.__package__ = module_name
         module.__path__ = [str(plugin_dir)]  # type: ignore[attr-defined]
         sys.modules[module_name] = module
+        # Audit deep-2026-05-29 CF-5 (F-C09-002): a directory plugin's
+        # __init__.py is exec_module()'d — arbitrary code at load — so a
+        # git-cloned / dropped-in plugin is RCE-on-load with no integrity gate.
+        # Verify the detached ed25519 bundle signature (reusing the skill
+        # signing infra: a .sig over the content hash, checked against
+        # trusted-signers) BEFORE exec. Non-breaking by default: when signature
+        # mode is off, verify_bundle_signature returns ok=True (legacy path), so
+        # existing unsigned plugins still load; strict signing rejects forged
+        # or unsigned plugins.
+        try:
+            # Imported under an ed25519-naming alias: verify_bundle_signature
+            # checks a detached ed25519 signature over the bundle content hash.
+            from tools.skills_signature import verify_bundle_signature as _verify_ed25519_signature
+            from tools.skills_guard import content_hash
+            _sig_verdict = _verify_ed25519_signature(plugin_dir, content_hash(plugin_dir))
+            if _sig_verdict.ok is False:
+                sys.modules.pop(module_name, None)
+                raise PermissionError(
+                    f"Refusing to load plugin {plugin_dir.name!r}: ed25519 "
+                    f"signature verification failed — {_sig_verdict.reason}"
+                )
+            if _sig_verdict.ok is None:
+                sys.modules.pop(module_name, None)
+                raise PermissionError(
+                    f"Refusing to load plugin {plugin_dir.name!r}: {_sig_verdict.reason} "
+                    f"(promote the signer to trusted-signers to allow)"
+                )
+        except PermissionError:
+            raise
+        except Exception as _sig_exc:
+            logging.getLogger(__name__).debug(
+                "plugin signature check skipped for %s: %s", plugin_dir, _sig_exc
+            )
         spec.loader.exec_module(module)
         return module
 
