@@ -3052,7 +3052,19 @@ def install_from_quarantine(
             f"Install refused — {rev.reason}"
         )
 
-    if is_signature_required():
+    # Audit deep-2026-05-29 CF-4 (SW-preset / REQUIRE_DOWNLOAD_HASH): when the
+    # download-hash gate is on (strict preset / STOA_REQUIRE_DOWNLOAD_HASH), a
+    # downloaded skill bundle's integrity MUST be cryptographically established
+    # before install — so we require signature verification (which binds
+    # pre_install_hash to a trusted signer) even if signing wasn't otherwise
+    # mandatory. This makes the gate enforce instead of being dead config.
+    _require_download_hash = False
+    try:
+        from stoa_cli.security_preset import is_gate_enabled as _is_gate_enabled
+        _require_download_hash = _is_gate_enabled("REQUIRE_DOWNLOAD_HASH")
+    except Exception:
+        pass
+    if is_signature_required() or _require_download_hash:
         sig_verdict = verify_bundle_signature(quarantine_path, pre_install_hash)
         if sig_verdict.ok is False:
             append_audit_log(

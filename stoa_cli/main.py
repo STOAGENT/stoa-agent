@@ -1352,8 +1352,23 @@ def _make_tui_argv(tui_dir: Path, tui_dev: bool) -> tuple[list[str], Path]:
         npm = _node_bin("npm")
         if not os.environ.get("STOA_QUIET"):
             print("Installing TUI dependencies…")
+        # Audit deep-2026-05-29 CF-4 (SW-preset / NPM_ALLOW_SCRIPTS): npm
+        # dependency lifecycle scripts (postinstall, etc.) are arbitrary code
+        # execution from the dependency tree at install time — a single
+        # compromised transitive dep is RCE. Pass --ignore-scripts unless the
+        # NPM_ALLOW_SCRIPTS gate is on (off in normal/strict presets). If a
+        # native dep genuinely needs its install script, opt in with
+        # STOA_NPM_ALLOW_SCRIPTS=1.
+        _npm_install_cmd = [npm, "install", "--silent", "--no-fund", "--no-audit", "--progress=false"]
+        try:
+            from stoa_cli.security_preset import is_gate_enabled as _is_gate_enabled
+            _npm_scripts_allowed = _is_gate_enabled("NPM_ALLOW_SCRIPTS")
+        except Exception:
+            _npm_scripts_allowed = False
+        if not _npm_scripts_allowed:
+            _npm_install_cmd.append("--ignore-scripts")
         result = subprocess.run(
-            [npm, "install", "--silent", "--no-fund", "--no-audit", "--progress=false"],
+            _npm_install_cmd,
             cwd=str(tui_dir),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -8964,6 +8979,17 @@ def _cmd_update_impl(args, gateway_mode: bool):
         # opt OUT with STOA_ALLOW_UNSIGNED_UPDATE=1 (informed consent), but the
         # safe path is the default.
         _allow_unsigned = os.getenv("STOA_ALLOW_UNSIGNED_UPDATE", "0") == "1"
+        # CF-4 (SW-preset): when the REQUIRE_SIGNED_UPDATES gate is on (strict
+        # preset / STOA_REQUIRE_SIGNED_UPDATES env), signature verification is a
+        # HARD requirement — the STOA_ALLOW_UNSIGNED_UPDATE escape hatch is
+        # ignored. This makes the supply-chain gate actually enforce instead of
+        # being dead config.
+        try:
+            from stoa_cli.security_preset import is_gate_enabled as _is_gate_enabled
+            if _is_gate_enabled("REQUIRE_SIGNED_UPDATES"):
+                _allow_unsigned = False
+        except Exception:
+            pass
         verify_result = subprocess.run(
             git_cmd + ["verify-commit", f"origin/{branch}"],
             cwd=PROJECT_ROOT,

@@ -166,10 +166,20 @@ def run_oneshot(
         return 2
     use_config_toolsets = _normalize_toolsets(toolsets) is None
 
-    # Auto-approve any shell / tool approvals.  Non-interactive by
-    # definition — a prompt would hang forever.
-    os.environ["STOA_YOLO_MODE"] = "1"
-    os.environ["STOA_ACCEPT_HOOKS"] = "1"
+    # Audit deep-2026-05-29 CF-4 (F-C02-002): oneshot used to force
+    # STOA_YOLO_MODE=1 + STOA_ACCEPT_HOOKS=1 unconditionally, which silently
+    # auto-approved EVERY dangerous command and shell hook — a prompt-injected
+    # oneshot payload (e.g. from an untrusted document/email driving a oneshot
+    # call) executed with no gate whatsoever. We no longer force YOLO on.
+    #
+    # oneshot is non-interactive (STOA_INTERACTIVE is never set), and the
+    # approval layer already has the correct policy for that case: it
+    # auto-allows SAFE tool calls and DENIES dangerous ones (returning a
+    # decision, never blocking on a prompt), while the unconditional hardline
+    # blocklist still always blocks. An operator running fully-trusted
+    # automation who genuinely wants blanket auto-approval exports
+    # STOA_YOLO_MODE=1 in their own environment (honoured by tools/approval.py)
+    # — it is an explicit, auditable opt-in rather than a silent default.
 
     # Redirect stderr AND stdout to devnull for the entire call tree.
     # We'll print the final response to the real stdout at the end.
