@@ -443,6 +443,10 @@ def execute_tool_calls_concurrent(agent, assistant_message, messages: list, effe
         # image tool result never poisons canonical session history.
         # String results pass through unchanged.
         _tool_content = agent._tool_result_content_for_active_model(name, function_result)
+        # Audit deep-2026-05-29 CF-1 (F-C01a-001): route the success-path
+        # result through sanitize_untrusted_text + <untrusted-tool-result>
+        # fence before it reaches the model (concurrent path).
+        _tool_content = _fence_untrusted_tool_result(name, _tool_content)
         messages.append(make_tool_result_message(name, _tool_content, tc.id))
 
         # ── Per-tool /steer drain ───────────────────────────────────
@@ -724,6 +728,19 @@ def execute_tool_calls_sequential(agent, assistant_message, messages: list, effe
             _mem_result = None
             try:
                 function_result = agent._memory_manager.handle_tool_call(function_name, function_args)
+                # Audit deep-2026-05-29 CF-1 (F-C12-001): the interactive
+                # memory tool result is appended to the model turn just like
+                # any other tool result, but only the prefetch() recall path
+                # fenced it. Apply the same sanitize_untrusted_text +
+                # <untrusted-memory> containment here so a poisoned memory
+                # row can't inject through the tool path.
+                if isinstance(function_result, str) and function_result:
+                    from tools.ansi_strip import sanitize_untrusted_text
+                    function_result = (
+                        '<untrusted-memory source="memory-tool">\n'
+                        + sanitize_untrusted_text(function_result)
+                        + '\n</untrusted-memory source="memory-tool">'
+                    )
                 _mem_result = function_result
             except Exception as tool_error:
                 function_result = json.dumps({"error": f"Memory tool '{function_name}' failed: {tool_error}"})
@@ -858,6 +875,10 @@ def execute_tool_calls_sequential(agent, assistant_message, messages: list, effe
         # Unwrap _multimodal dicts to an OpenAI-style content list
         # (see parallel path for rationale). String results pass through.
         _tool_content = agent._tool_result_content_for_active_model(function_name, function_result)
+        # Audit deep-2026-05-29 CF-1 (F-C01a-001): sanitize_untrusted_text +
+        # <untrusted-tool-result> fence on the success-path result before it
+        # reaches the model (sequential path).
+        _tool_content = _fence_untrusted_tool_result(function_name, _tool_content)
         messages.append(make_tool_result_message(function_name, _tool_content, tool_call.id))
 
         # ── Per-tool /steer drain ───────────────────────────────────
@@ -908,3 +929,31 @@ __all__ = [
     "execute_tool_calls_concurrent",
     "execute_tool_calls_sequential",
 ]
+
+
+def _fence_untrusted_tool_result(tool_name, content):
+    """Audit deep-2026-05-29 CF-1: sanitize + fence untrusted tool output.
+
+    Tool RESULTS (web / file / terminal / MCP / ACP / memory output) are
+    appended to the next model turn. On the SUCCESS path they previously
+    flowed in raw — the universal indirect-prompt-injection amplifier
+    (TB-02): a fetched page, read file, or peer tool result can carry
+    ANSI / bidi / zero-width / tag-plane hidden instructions that steer the
+    model into an attacker-chosen tool call. Every STRING result is now
+    routed through the canonical ``sanitize_untrusted_text`` (strips
+    ANSI/C0/bidi/zero-width/tag-plane, NFKC-normalises) and wrapped in an
+    ``<untrusted-tool-result>`` fence so the model treats it as DATA, not
+    instructions. Multimodal / non-string content (image blocks, dicts) is
+    returned unchanged.
+    """
+    from tools.ansi_strip import sanitize_untrusted_text
+    import re as _re
+    if not isinstance(content, str) or not content:
+        return content
+    safe = sanitize_untrusted_text(content)
+    name = _re.sub(r"[^A-Za-z0-9._:-]+", "-", str(tool_name or "tool"))[:64].strip("-") or "tool"
+    return (
+        f'<untrusted-tool-result tool="{name}">\n'
+        f"{safe}\n"
+        f'</untrusted-tool-result tool="{name}">'
+    )

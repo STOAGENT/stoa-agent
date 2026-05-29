@@ -376,6 +376,13 @@ class MSGraphWebhookAdapter(BasePlatformAdapter):
         )
 
     def _render_prompt(self, notification: Dict[str, Any]) -> str:
+        # Audit deep-2026-05-29 CF-1 (F-C05b-013): a Microsoft Graph change
+        # notification body is attacker-influenceable (resource paths, display
+        # names, etc.). Sanitize the rendered prompt so ANSI/bidi/zero-width/
+        # tag-plane chars in notification fields can't smuggle instructions
+        # into the agent turn. NFKC-folds homoglyphs.
+        from tools.ansi_strip import sanitize_untrusted_text
+
         template = self.config.extra.get("prompt", "")
         if template:
             payload = {
@@ -384,9 +391,11 @@ class MSGraphWebhookAdapter(BasePlatformAdapter):
                 "change_type": notification.get("changeType", ""),
                 "subscription_id": notification.get("subscriptionId", ""),
             }
-            return self._render_template(template, payload)
+            return sanitize_untrusted_text(self._render_template(template, payload))
         rendered = json.dumps(notification, indent=2, sort_keys=True)[:4000]
-        return f"Microsoft Graph change notification:\n\n```json\n{rendered}\n```"
+        return sanitize_untrusted_text(
+            f"Microsoft Graph change notification:\n\n```json\n{rendered}\n```"
+        )
 
     def _render_template(self, template: str, payload: Dict[str, Any]) -> str:
         import re

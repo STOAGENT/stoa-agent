@@ -706,9 +706,19 @@ class WebhookAdapter(BasePlatformAdapter):
         JSON (truncated to 4000 chars).  Useful for monitoring alerts or
         any webhook where the agent needs to see the full payload.
         """
+        # Audit deep-2026-05-29 CF-1 (F-C05a-004): the webhook payload is
+        # fully attacker-controlled (anyone who can POST to the route). Run
+        # every rendered byte through sanitize_untrusted_text so ANSI escape
+        # sequences, bidi overrides, zero-width and tag-plane characters in
+        # payload values cannot smuggle hidden instructions into the agent
+        # prompt. NFKC-folds homoglyphs too. Applied at the single egress
+        # point (return) so both the {__raw__} dump and dot-path values are
+        # covered.
+        from tools.ansi_strip import sanitize_untrusted_text
+
         if not template:
             truncated = json.dumps(payload, indent=2)[:4000]
-            return (
+            return sanitize_untrusted_text(
                 f"Webhook event '{event_type}' on route "
                 f"'{route_name}':\n\n```json\n{truncated}\n```"
             )
@@ -728,7 +738,7 @@ class WebhookAdapter(BasePlatformAdapter):
                 return json.dumps(value, indent=2)[:2000]
             return str(value)
 
-        return re.sub(r"\{([a-zA-Z0-9_.]+)\}", _resolve, template)
+        return sanitize_untrusted_text(re.sub(r"\{([a-zA-Z0-9_.]+)\}", _resolve, template))
 
     def _render_delivery_extra(
         self, extra: dict, payload: dict

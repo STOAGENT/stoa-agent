@@ -397,11 +397,25 @@ class ToolRegistry:
         entry = self.get_entry(name)
         if not entry:
             return json.dumps({"error": f"Unknown tool: {name}"})
+        # Audit deep-2026-05-29 CF-1 (F-C07a-003): the dispatch() success path
+        # returned the handler output verbatim while only the except path
+        # routed through a sanitizer — an asymmetry that let raw tool output
+        # (ANSI/bidi/zero-width/tag-plane bytes) reach any consumer that does
+        # not re-fence (MCP/ACP exposure, direct callers). Route every success
+        # result through the shared sanitizer too. It is a no-op on non-str
+        # results (multimodal dicts pass through untouched) and idempotent, so
+        # double-application with the tool_executor fence is harmless.
+        def _scrub(_r):
+            try:
+                from tools.ansi_strip import sanitize_untrusted_text
+                return sanitize_untrusted_text(_r) if isinstance(_r, str) else _r
+            except Exception:
+                return _r  # never let the sanitizer block a successful result
         try:
             if entry.is_async:
                 from model_tools import _run_async
-                return _run_async(entry.handler(args, **kwargs))
-            return entry.handler(args, **kwargs)
+                return _scrub(_run_async(entry.handler(args, **kwargs)))
+            return _scrub(entry.handler(args, **kwargs))
         except Exception as e:
             logger.exception("Tool %s dispatch error: %s", name, e)
             # Route through the sanitizer so framing tokens / CDATA / fences

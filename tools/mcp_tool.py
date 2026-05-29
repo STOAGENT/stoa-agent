@@ -2444,6 +2444,14 @@ def _make_tool_handler(server_name: str, tool_name: str, tool_timeout: float):
             # both too stale to cherry-pick. #10848's approach (integrate with
             # STOA' MEDIA tag + cache_image_from_bytes) was the cleaner of
             # the two — plugs into existing infrastructure.
+            # Audit deep-2026-05-29 CF-1 (F-L74-C08-003 / F-C08b-003): an MCP
+            # server is outside the trust boundary — its text blocks are
+            # untrusted input. Run each block through sanitize_untrusted_text
+            # so ANSI/bidi/zero-width/tag-plane bytes in a malicious or
+            # compromised MCP server's reply cannot inject hidden instructions
+            # into the agent turn. (The success path previously json.dumps()'d
+            # raw block.text; only the error path was sanitized.)
+            from tools.ansi_strip import sanitize_untrusted_text
             parts: List[str] = []
             for block in (result.content or []):
                 if hasattr(block, "text") and block.text:
@@ -2452,7 +2460,7 @@ def _make_tool_handler(server_name: str, tool_name: str, tool_timeout: float):
                 image_tag = _cache_mcp_image_block(block)
                 if image_tag:
                     parts.append(image_tag)
-            text_result = "\n".join(parts) if parts else ""
+            text_result = sanitize_untrusted_text("\n".join(parts)) if parts else ""
 
             # Combine content + structuredContent when both are present.
             # MCP spec: content is model-oriented (text), structuredContent
@@ -2599,11 +2607,13 @@ def _make_read_resource_handler(server_name: str, tool_timeout: float):
             async with server._rpc_lock:
                 result = await server.session.read_resource(uri)
             # read_resource returns ReadResourceResult with .contents list
+            # CF-1: resource contents from an untrusted MCP server — sanitize.
+            from tools.ansi_strip import sanitize_untrusted_text
             parts: List[str] = []
             contents = result.contents if hasattr(result, "contents") else []
             for block in contents:
                 if hasattr(block, "text"):
-                    parts.append(block.text)
+                    parts.append(sanitize_untrusted_text(block.text))
                 elif hasattr(block, "blob"):
                     parts.append(f"[binary data, {len(block.blob)} bytes]")
             return json.dumps({"result": "\n".join(parts) if parts else ""}, ensure_ascii=False)
