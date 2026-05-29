@@ -396,6 +396,46 @@ def run_import(args) -> None:
         members = [n for n in zf.namelist() if not n.endswith("/")]
         file_count = len(members)
 
+        # Audit deep-2026-05-29 (F-C19-001): load the sidecar manifest written
+        # at backup time and verify every extracted member's sha256 against it
+        # (the manifest itself is integrity-bound by top_hash). Without this,
+        # run_import extracted whatever the zip contained — _validate_backup_zip
+        # only checked for config.yaml/.env/state.db marker NAMES, so a forged
+        # or tampered archive (e.g. a 0-byte state.db, or a poisoned config)
+        # restored unverified. A manifest-less backup is refused unless --force.
+        import hashlib as _hashlib_imp
+        _manifest_hashes: dict[str, str] = {}
+        _manifest_present = False
+        _manifest_path = zip_path.with_suffix(zip_path.suffix + ".manifest.json")
+        if _manifest_path.is_file():
+            try:
+                _mf = json.loads(_manifest_path.read_text(encoding="utf-8"))
+                _rolling = _hashlib_imp.sha256()
+                for _ent in _mf.get("files", []):
+                    _p = str(_ent.get("path", ""))
+                    _hx = str(_ent.get("sha256", ""))
+                    _manifest_hashes[_p] = _hx
+                    _rolling.update(_p.encode("utf-8") + b"\x00" + _hx.encode("ascii"))
+                if _rolling.hexdigest() != _mf.get("top_hash"):
+                    print("Error: backup manifest top_hash mismatch — the manifest has been "
+                          "tampered with. Refusing import.")
+                    sys.exit(1)
+                _manifest_present = True
+                print(f"  Manifest: {_manifest_path.name} "
+                      f"({len(_manifest_hashes)} files, top_hash verified)")
+            except SystemExit:
+                raise
+            except Exception as exc:
+                print(f"Error: failed to read backup manifest ({exc}). Refusing import.")
+                sys.exit(1)
+        elif not getattr(args, "force", False):
+            print("Error: no .manifest.json sidecar next to the backup — member integrity")
+            print("       cannot be verified. Re-run with --force to import an unverified")
+            print("       (manifest-less, e.g. pre-v11) backup at your own risk.")
+            sys.exit(1)
+        else:
+            print("  Warning: no manifest sidecar — importing UNVERIFIED (--force).")
+
         print(f"Backup contains {file_count} files")
         print(f"Target: {display_stoa_home()}")
 
@@ -467,9 +507,23 @@ def run_import(args) -> None:
                 continue
 
             try:
+                with zf.open(member) as src:
+                    data = src.read()
+                # F-C19-001: verify this member against the manifest sha256
+                # before writing it to disk. A member missing from the manifest
+                # or with a mismatched hash is a tampered/forged archive — skip.
+                if _manifest_present:
+                    _expected = _manifest_hashes.get(member)
+                    if _expected is None:
+                        errors.append(f"  {rel}: not listed in manifest — refusing (extra/tampered member)")
+                        continue
+                    _actual = _hashlib_imp.sha256(data).hexdigest()
+                    if _actual != _expected:
+                        errors.append(f"  {rel}: sha256 mismatch — refusing (tampered member)")
+                        continue
                 target.parent.mkdir(parents=True, exist_ok=True)
-                with zf.open(member) as src, open(target, "wb") as dst:
-                    dst.write(src.read())
+                with open(target, "wb") as dst:
+                    dst.write(data)
                 if target.name in _SECRET_FILE_NAMES:
                     os.chmod(target, 0o600)
                 restored += 1
