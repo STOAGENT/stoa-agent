@@ -26,6 +26,7 @@ underlying provider.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -33,6 +34,16 @@ from typing import Literal
 import yaml
 
 from stoa_constants import get_stoa_home
+
+logger = logging.getLogger(__name__)
+
+# Audit deep-2026-05-29 CF-14 (F-C11-001): only these keys may be merged from
+# a user-supplied personas: block. Everything else in the YAML body is ignored
+# so a hostile cli-config.yaml can't inject arbitrary keys / non-string values
+# into the persona routing tuple.
+_ALLOWED_PERSONA_FIELDS: frozenset = frozenset(
+    {"model", "api_mode", "role", "marketing_name"}
+)
 
 PersonaName = Literal["sokrates", "mira", "veritas", "drax", "lyra", "echo", "stoa"]
 
@@ -136,12 +147,24 @@ def _load_personas_config() -> dict[str, dict[str, str]]:
             if isinstance(personas, dict):
                 for name, body in personas.items():
                     if isinstance(body, dict) and name in DEFAULT_PERSONAS:
-                        merged[name] = {**DEFAULT_PERSONAS[name], **body}
-    except Exception:
-        # Config errors fall back silently to defaults rather than blocking
-        # the agent — the operator can run ``stoa doctor`` to see the parse
-        # error explicitly.
-        pass
+                        # CF-14 (F-C11-001): merge only the allowlisted persona
+                        # fields, and only string values — never let a hostile
+                        # cli-config.yaml inject arbitrary keys or non-string
+                        # payloads into the routing tuple.
+                        filtered = {
+                            k: v
+                            for k, v in body.items()
+                            if k in _ALLOWED_PERSONA_FIELDS and isinstance(v, str)
+                        }
+                        merged[name] = {**DEFAULT_PERSONAS[name], **filtered}
+    except Exception as exc:
+        # Config errors fall back to defaults rather than blocking the agent,
+        # but the parse failure is surfaced (not swallowed silently) so it is
+        # visible in logs — `stoa doctor` still shows it explicitly too.
+        logger.warning(
+            "persona config parse failed (%s); falling back to default personas",
+            exc,
+        )
     _CONFIG_CACHE = merged
     return merged
 

@@ -44,21 +44,57 @@ _REGISTRY: dict[str, ProviderProfile] = {}
 _ALIASES: dict[str, str] = {}
 _discovered = False
 
+# Audit deep-2026-05-29 CF-14 (F-C09-003 / F-C16-003): names registered by
+# BUNDLED (first-party, shipped) provider plugins. A later registration from a
+# USER plugin under $STOA_HOME/plugins/model-providers/ must not silently
+# override a trusted bundled provider — that would let a dropped-in plugin
+# hijack a first-party provider's routing + the credentials sent to it.
+_TRUSTED_PROVIDERS: set[str] = set()
+# Source context of the registration currently in flight ("bundled" | "user").
+# Set by _import_plugin_dir around exec_module; direct/programmatic calls
+# default to "bundled" (trusted) since they originate from first-party code.
+_registering_source: str = "bundled"
+
 # Repo-root ``plugins/model-providers/`` — populated at discovery time.
 _BUNDLED_PLUGINS_DIR = (
     Path(__file__).resolve().parent.parent / "plugins" / "model-providers"
 )
 
 
-def register_provider(profile: ProviderProfile) -> None:
+def register_provider(profile: ProviderProfile, *, allow_override: bool = False) -> None:
     """Register a provider profile by name and aliases.
 
-    Later registrations with the same name replace earlier ones — so user
-    plugins under ``$STOA_HOME/plugins/model-providers/`` can override
-    bundled profiles without editing repo code.
+    Bundled (first-party) registrations are recorded as trusted. A USER plugin
+    registration that collides with a trusted bundled name is refused unless
+    ``allow_override=True`` is passed explicitly — closing the hijack where a
+    dropped-in user plugin silently takes over a bundled provider's routing and
+    the credentials sent to it (CF-14 / F-C09-003). New (non-colliding)
+    providers from user plugins register normally.
     """
+    is_bundled = _registering_source == "bundled"
+    if (
+        profile.name in _TRUSTED_PROVIDERS
+        and not is_bundled
+        and not allow_override
+    ):
+        logger.warning(
+            "register_provider: refusing to let an untrusted (user-plugin) "
+            "registration override trusted bundled provider %r. Pass "
+            "allow_override=True only if this override is intended.",
+            profile.name,
+        )
+        return
     _REGISTRY[profile.name] = profile
+    if is_bundled:
+        _TRUSTED_PROVIDERS.add(profile.name)
     for alias in profile.aliases:
+        # Don't let a user plugin silently re-point a trusted provider's alias.
+        if alias in _ALIASES and _ALIASES[alias] in _TRUSTED_PROVIDERS and not is_bundled and not allow_override:
+            logger.warning(
+                "register_provider: refusing to repoint trusted alias %r "
+                "(currently -> %r) from a user plugin.", alias, _ALIASES[alias]
+            )
+            continue
         _ALIASES[alias] = profile.name
 
 
@@ -121,6 +157,8 @@ def _import_plugin_dir(plugin_dir: Path, source: str) -> None:
     if module_name in sys.modules:
         return  # already imported
 
+    global _registering_source
+    _prev_source = _registering_source
     try:
         spec = importlib.util.spec_from_file_location(
             module_name, init_file, submodule_search_locations=[str(plugin_dir)]
@@ -129,12 +167,18 @@ def _import_plugin_dir(plugin_dir: Path, source: str) -> None:
             return
         module = importlib.util.module_from_spec(spec)
         sys.modules[module_name] = module
+        # CF-14: tag every register_provider() call made during this plugin's
+        # import with its trust source so a "user" plugin can't override a
+        # trusted "bundled" provider.
+        _registering_source = source
         spec.loader.exec_module(module)
     except Exception as exc:
         logger.warning(
             "Failed to load %s provider plugin %s: %s", source, plugin_dir.name, exc
         )
         sys.modules.pop(module_name, None)
+    finally:
+        _registering_source = _prev_source
 
 
 def _discover_providers() -> None:
