@@ -439,16 +439,15 @@ export function createGatewayEventHandler(ctx: GatewayEventHandlerContext): (ev:
           return
         }
 
-        // CLI parity: _pending_input.put(transcript) unconditionally feeds
-        // the transcript to the agent as its next turn — draft handling
-        // doesn't apply because voice-mode users are speaking, not typing.
-        //
-        // We can't branch on composer input from inside a setInput updater
-        // (React strict mode double-invokes it, duplicating the submit).
-        // Just clear + defer submit so the cleared input is committed before
-        // submit reads it.
-        setInput('')
-        setTimeout(() => submitRef.current(text), 0)
+        // Audit deep-2026-05-29 CF-9 (FH-jsts-001): do NOT auto-submit the STT
+        // transcript as the agent's next turn. A transcript is UNTRUSTED input
+        // — a mis-hearing, ambient TV/podcast audio, or a nearby person can
+        // inject an arbitrary command that would otherwise execute with the
+        // operator's full tool access. Route the text into the composer as a
+        // draft for the user to review and submit explicitly (Enter). This
+        // intentionally drops the prior CLI-parity unconditional auto-submit.
+        setInput(text)
+        sys('voice: transcript drafted in the composer — review and press Enter to send')
 
         return
       }
