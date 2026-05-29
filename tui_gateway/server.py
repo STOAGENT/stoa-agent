@@ -6744,8 +6744,16 @@ def _(rid, params: dict) -> dict:
     if not cmd:
         return _err(rid, 4004, "empty command")
     try:
-        from tools.approval import detect_dangerous_command
+        from tools.approval import detect_dangerous_command, detect_hardline_command
 
+        # Audit deep-2026-05-29 CF-2 (F-C06-002): the unconditional
+        # hardline floor must run here too — the dangerous-command check
+        # alone is an approval prompt, not a block.
+        is_hardline, hl_desc = detect_hardline_command(cmd)
+        if is_hardline:
+            return _err(
+                rid, 4005, f"blocked (hardline): {hl_desc}. This cannot run via shell.exec."
+            )
         is_dangerous, _, desc = detect_dangerous_command(cmd)
         if is_dangerous:
             return _err(
@@ -6754,8 +6762,21 @@ def _(rid, params: dict) -> dict:
     except ImportError:
         pass
     try:
+        # Audit deep-2026-05-29 CF-2 (F-C06-002): never hand the raw string
+        # to a shell interpreter (shell=True). A shell-aware tokenizer
+        # (shlex) parses the command and we exec argv directly with
+        # shell=False, so shell metacharacters (|, ;, $(), `, &&, >) are
+        # NOT interpreted — closing the RCE vector even if a dangerous
+        # command slipped past the deny-list above.
+        import shlex
+        try:
+            argv = shlex.split(cmd, posix=True)
+        except ValueError:
+            return _err(rid, 4006, "malformed command (unparseable shell syntax)")
+        if not argv:
+            return _err(rid, 4004, "empty command")
         r = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=30, cwd=os.getcwd()
+            argv, shell=False, capture_output=True, text=True, timeout=30, cwd=os.getcwd()
         )
         return _ok(
             rid,
