@@ -10,6 +10,7 @@ Usage:
     stoa claw cleanup --dry-run    # Preview what would be archived
 """
 
+import hashlib
 import importlib.util
 import logging
 import subprocess
@@ -54,6 +55,13 @@ _OPENCLAW_SCRIPT_INSTALLED = (
 
 # Known OpenClaw directory names (current + legacy)
 _OPENCLAW_DIR_NAMES = (".openclaw", ".clawdbot", ".moltbot")
+
+# SHA256 hash of the trusted openclaw_to_stoa.py migration script.
+# This pins the integrity of the migration module before dynamic loading.
+# If the script is modified (whether by user action or adversarial tampering),
+# the migration will fail with a clear integrity error rather than executing
+# untrusted code via exec_module().
+_OPENCLAW_MIGRATION_SHA256 = "0891e74053ea6f8fff6e5061b100fb2a79c354e7e9546e8286ec242528e09743"
 
 def _detect_openclaw_processes() -> list[str]:
     """Detect running OpenClaw processes and services.
@@ -202,7 +210,11 @@ def _find_migration_script() -> Path | None:
 
 
 def _load_migration_module(script_path: Path):
-    """Dynamically load the migration script as a module."""
+    """Dynamically load the migration script as a module.
+    
+    Before executing the module, verifies the SHA256 hash of the script to
+    protect against tampering or replacement via disk-writable paths.
+    """
     spec = importlib.util.spec_from_file_location("openclaw_to_stoa", script_path)
     if spec is None or spec.loader is None:
         return None
@@ -210,6 +222,31 @@ def _load_migration_module(script_path: Path):
     # Register in sys.modules so @dataclass can resolve the module
     # (Python 3.11+ requires this for dynamically loaded modules)
     sys.modules[spec.name] = mod
+    
+    # Verify script integrity before exec_module to prevent arbitrary code
+    # execution if the script path is attacker-writable or tampered with.
+    try:
+        with open(script_path, 'rb') as f:
+            script_content = f.read()
+        actual_hash = hashlib.sha256(script_content).hexdigest()
+        if actual_hash != _OPENCLAW_MIGRATION_SHA256:
+            sys.modules.pop(spec.name, None)
+            raise RuntimeError(
+                f"Migration script integrity check failed: hash mismatch.\n"
+                f"  Script:   {script_path}\n"
+                f"  Expected: {_OPENCLAW_MIGRATION_SHA256}\n"
+                f"  Actual:   {actual_hash}\n"
+                f"  The script may have been modified, replaced, or tampered with. "
+                f"Please verify the installation and try again."
+            )
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        sys.modules.pop(spec.name, None)
+        raise RuntimeError(
+            f"Failed to verify migration script integrity: {exc}"
+        ) from exc
+    
     try:
         spec.loader.exec_module(mod)
     except Exception:

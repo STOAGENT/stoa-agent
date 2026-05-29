@@ -8954,30 +8954,37 @@ def _cmd_update_impl(args, gateway_mode: bool):
         # the bad commit and the fix landing).
         pre_pull_sha = _capture_head_sha(git_cmd, PROJECT_ROOT)
 
-        # Audit v6 CRIT C-1 fix: opt-in signed-commit verification.
-        # Default behavior (STOA_REQUIRE_SIGNED_UPDATES unset) is unchanged
-        # so existing user flows don't break. Operators who care about
-        # supply-chain integrity set STOA_REQUIRE_SIGNED_UPDATES=1; we then
-        # `git verify-commit origin/master` before fast-forwarding. The user
-        # must have the upstream signing key in their GPG/SSH keyring.
-        if os.getenv("STOA_REQUIRE_SIGNED_UPDATES", "0") == "1":
-            verify_result = subprocess.run(
-                git_cmd + ["verify-commit", f"origin/{branch}"],
-                cwd=PROJECT_ROOT,
-                capture_output=True,
-                text=True,
-            )
-            if verify_result.returncode != 0:
+        # Audit deep-2026-05-29 CF-7 (F-C02-003): signed-commit verification is
+        # now the DEFAULT, not opt-in. `stoa update` fast-forwards to upstream
+        # and immediately `uv pip install`s it, so pulling an unverified commit
+        # is a supply-chain RCE. We always `git verify-commit origin/<branch>`
+        # before fast-forwarding and ABORT on failure. The prior behaviour
+        # (silently pull+install unless STOA_REQUIRE_SIGNED_UPDATES=1) is
+        # inverted: an operator whose upstream is intentionally unsigned can
+        # opt OUT with STOA_ALLOW_UNSIGNED_UPDATE=1 (informed consent), but the
+        # safe path is the default.
+        _allow_unsigned = os.getenv("STOA_ALLOW_UNSIGNED_UPDATE", "0") == "1"
+        verify_result = subprocess.run(
+            git_cmd + ["verify-commit", f"origin/{branch}"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if verify_result.returncode != 0:
+            err = (verify_result.stderr or verify_result.stdout).strip()
+            if not _allow_unsigned:
                 print()
-                print("✗ STOA_REQUIRE_SIGNED_UPDATES=1 but origin/master commit signature")
-                print("  could not be verified. Refusing to pull untrusted code.")
-                err = (verify_result.stderr or verify_result.stdout).strip()
+                print(f"✗ origin/{branch} commit signature could not be verified.")
+                print("  Refusing to pull + install unverified upstream code.")
                 if err:
                     print(f"  git verify-commit said: {err.splitlines()[0]}")
                 print()
                 print("  Either import the upstream signing key (gpg --recv-keys ...),")
-                print("  or unset STOA_REQUIRE_SIGNED_UPDATES to disable this gate.")
+                print("  or, if you trust this upstream, set STOA_ALLOW_UNSIGNED_UPDATE=1")
+                print("  to proceed without signature verification.")
                 sys.exit(1)
+            print("  ⚠ STOA_ALLOW_UNSIGNED_UPDATE=1 — proceeding WITHOUT signature verification")
+        else:
             print("  ✓ Signed-commit verification passed")
 
         try:
