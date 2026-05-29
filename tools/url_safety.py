@@ -132,6 +132,20 @@ def _global_allow_private_urls() -> bool:
     _allow_private_resolved = True
     _cached_allow_private = False  # safe default
 
+    # Audit deep-2026-05-29 CF-4 (SW-preset / ALLOW_PRIVATE_URLS): the security
+    # preset is authoritative in the TIGHTENING direction. Under the `strict`
+    # preset (is_gate_enabled("ALLOW_PRIVATE_URLS") is False) private URLs are
+    # blocked unconditionally — any env/config opt-in below is OVERRIDDEN. This
+    # makes the gate actually enforce (not dead config) while never *loosening*
+    # the default-deny: `off`/`normal` presets fall through to the existing
+    # env+config resolution, so the default-False contract is unchanged.
+    try:
+        from stoa_cli.security_preset import is_gate_enabled, active_preset
+        if active_preset() == "strict" and not is_gate_enabled("ALLOW_PRIVATE_URLS"):
+            return _cached_allow_private  # False — blocked; opt-ins ignored
+    except Exception:
+        pass
+
     # 1. Env var override (highest priority)
     env_val = os.getenv("STOA_ALLOW_PRIVATE_URLS", "").strip().lower()
     if env_val in {"true", "1", "yes"}:

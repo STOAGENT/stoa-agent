@@ -3903,10 +3903,14 @@ def _resolve_verify(
     tls_state = auth_state.get("tls") if isinstance(auth_state, dict) else {}
     tls_state = tls_state if isinstance(tls_state, dict) else {}
 
-    effective_insecure = (
-        is_truthy_value(insecure, default=False) if insecure is not None
-        else is_truthy_value(tls_state.get("insecure", False), default=False)
-    )
+    # Audit deep-2026-05-29 CF-14 (F-C03a-001): TLS verification must NEVER
+    # stay silently disabled across sessions. The persisted ``tls.insecure``
+    # flag is intentionally NOT read back here — disabling verification
+    # requires ``--insecure`` (insecure=True) to be passed THIS session, so an
+    # operator re-confirms the downgrade every run instead of it sticking
+    # invisibly in auth.json. A persisted ``ca_bundle`` (a *stronger* TLS
+    # setting, not a downgrade) is still honoured.
+    effective_insecure = is_truthy_value(insecure, default=False)
     effective_ca = (
         ca_bundle
         or tls_state.get("ca_bundle")
@@ -7325,9 +7329,23 @@ def _nous_device_code_login(
         or os.getenv("NOUS_PORTAL_BASE_URL")
         or pconfig.portal_base_url
     ).rstrip("/")
+    # Audit deep-2026-05-29 CF-14 (F-C03a-002): the NOUS_INFERENCE_BASE_URL
+    # env override previously flowed straight into requested_inference_url
+    # with no validation — a poisoned value (e.g. injected by a hostile BSM
+    # project, see F-C03b-003) would receive the freshly-minted agent_key.
+    # Route the env override through the same scheme/host allowlist validator
+    # as Portal responses. The documented staging/dev custom-host escape
+    # hatch is preserved but now requires an explicit STOA_DEV=1 (so it can't
+    # fire silently in production), and is logged loudly.
+    _dev_inference_override = (
+        os.getenv("NOUS_INFERENCE_BASE_URL")
+        if os.getenv("STOA_DEV") == "1"
+        else None
+    )
     requested_inference_url = (
         inference_base_url
-        or os.getenv("NOUS_INFERENCE_BASE_URL")
+        or _validate_nous_inference_url_from_network(os.getenv("NOUS_INFERENCE_BASE_URL"))
+        or _dev_inference_override
         or pconfig.inference_base_url
     ).rstrip("/")
     client_id = client_id or pconfig.client_id

@@ -358,6 +358,54 @@ def workspaces_root(board: Optional[str] = None) -> Path:
     return board_dir(slug) / "workspaces"
 
 
+def _workspace_containment_roots() -> list[Path]:
+    """Resolved roots under which a scratch workspace may legitimately live.
+
+    Audit deep-2026-05-29 CF-15 (F-C15-002): scratch workspace_path is read
+    verbatim from the tasks DB row and fed to shutil.rmtree() / mkdir(). A
+    poisoned row (``/`` or ``/home/user``) would otherwise let task completion
+    delete or operate on an arbitrary directory. Every legitimate scratch dir
+    is created as ``workspaces_root(board) / task.id``, so the umbrella that
+    contains all of them is ``<kanban_home>/kanban`` (default + per-board
+    workspaces) plus the explicit override root when set.
+    """
+    roots: list[Path] = []
+    override = os.environ.get("STOA_KANBAN_WORKSPACES_ROOT", "").strip()
+    if override:
+        try:
+            roots.append(Path(override).expanduser().resolve())
+        except Exception:
+            pass
+    try:
+        roots.append((kanban_home() / "kanban").resolve())
+    except Exception:
+        pass
+    return roots
+
+
+def _is_within_workspaces_root(p: Path) -> bool:
+    """True iff *p* resolves to a strict subdirectory of a containment root.
+
+    Uses commonpath (works on 3.8+) and requires p to be strictly *under* the
+    root — never the root itself — so a rmtree can't take out the whole
+    workspaces tree.
+    """
+    try:
+        rp = p.resolve()
+    except Exception:
+        return False
+    for root in _workspace_containment_roots():
+        try:
+            if rp == root:
+                return False  # refuse to operate on the root itself
+            if os.path.commonpath([str(rp), str(root)]) == str(root):
+                return True
+        except (ValueError, OSError):
+            # commonpath raises ValueError across drives (Windows) / mixed abs+rel
+            continue
+    return False
+
+
 def worker_logs_dir(board: Optional[str] = None) -> Path:
     """Return the directory under which per-task worker logs are written.
 
@@ -3064,6 +3112,17 @@ def _cleanup_workspace(conn: sqlite3.Connection, task_id: str) -> None:
             return
         import shutil
         wp = Path(path)
+        # Audit deep-2026-05-29 CF-15 (F-C15-002): workspace_path comes
+        # verbatim from the tasks DB row. Confine it to the workspaces root
+        # (relative_to/commonpath via _is_within_workspaces_root) before
+        # rmtree so a poisoned row can't delete an arbitrary directory on
+        # task completion.
+        if not _is_within_workspaces_root(wp):
+            _log.warning(
+                "Refusing to remove scratch workspace outside workspaces root: %s", wp
+            )
+            _cleanup_worker_tmux(conn, task_id)
+            return
         if wp.is_dir():
             shutil.rmtree(wp, ignore_errors=True)
             _log.debug("Removed scratch workspace: %s", wp)
@@ -3767,6 +3826,18 @@ def resolve_workspace(task: Task, *, board: Optional[str] = None) -> Path:
                 raise ValueError(
                     f"task {task.id} has non-absolute workspace_path "
                     f"{task.workspace_path!r}; workspace paths must be absolute"
+                )
+            # Audit deep-2026-05-29 CF-15 (F-C15-002): a scratch workspace is
+            # ephemeral and gets rmtree'd on completion, so its path MUST stay
+            # within the workspaces root. is_absolute() alone let a poisoned
+            # row resolve to an arbitrary external directory. Confine it here
+            # (commonpath/relative_to via _is_within_workspaces_root) — a
+            # user-chosen external directory is what the ``dir`` kind is for.
+            if not _is_within_workspaces_root(p):
+                raise ValueError(
+                    f"task {task.id} scratch workspace_path {task.workspace_path!r} "
+                    f"resolves outside the workspaces root; refusing (use kind='dir' "
+                    f"for an external directory that must not be auto-removed)"
                 )
         else:
             p = workspaces_root(board=board) / task.id

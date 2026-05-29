@@ -218,6 +218,25 @@ HARDLINE_PATTERNS = [
     (_CMDPOS + r'init\s+[06]\b', "init 0/6 (shutdown/reboot)"),
     (_CMDPOS + r'systemctl\s+(poweroff|reboot|halt|kexec)\b', "systemctl poweroff/reboot"),
     (_CMDPOS + r'telinit\s+[06]\b', "telinit 0/6 (shutdown/reboot)"),
+    # Audit deep-2026-05-29 CF-2 (F-C07a-001): structural obfuscation that
+    # cannot be safely decoded is blocked outright. These two classes are
+    # the residue after _decompose_shell_obfuscation handles IFS/ANSI-C/
+    # quote-splitting.
+    #
+    # base64-decode piped into a shell interpreter — the canonical
+    # "stage an encoded payload then exec it" obfuscation. There is no
+    # legitimate agent reason to base64 -d straight into sh/bash. Catches
+    # `echo <b64> | base64 -d | sh` AND `cat /etc/shadow | base64 -d | bash`.
+    (r'\bbase64\s+(?:-d|--decode|-D)\b[^\n]*\|\s*\\?\s*(?:[\w./]*/)?(?:sh|bash|zsh|dash|ksh|fish|ash)\b',
+     "base64-decode piped into a shell (obfuscated exec)"),
+    # Glob-reconstructed binary in command position: a `/`-rooted path that
+    # carries a shell glob metacharacter (?, *, [) in the EXECUTABLE token
+    # (start-of-command or after a separator). Legitimate commands never
+    # glob their own argv0 — `/b?n/r?` is `/bin/rm` smuggled past the
+    # literal `\brm\b` anchor. The command-position anchor means ordinary
+    # arg globs (`rm /tmp/*`, `ls *.txt`) are NOT matched here.
+    (r'(?:^|[;&|`\n(]|&&|\|\|)\s*[\'"]?/(?:[\w.@~-]*[?*\[][\w.?*\[\]@~-]*/?)+',
+     "glob-obfuscated binary path in command position"),
 ]
 
 # Pre-compiled variant used by the hot-path matcher. Building these at module
@@ -469,6 +488,96 @@ def _normalize_command_for_detection(command: str) -> str:
     # appear in legitimate binary inputs); but for command-detection
     # they're always suspect because shells treat them as terminators.
     command = command.replace('\x00', '')
+
+    # Audit deep-2026-05-29 CF-2 (F-C07a-001, the single CRIT): the
+    # deny-list sat in front of a shell interpreter and was defeated by
+    # shell-syntactic obfuscation that this normalizer never decomposed.
+    # We decompose the decode-able classes here so the literal-token
+    # DANGEROUS/HARDLINE patterns see the real command; the two classes
+    # that cannot be safely decoded (base64-pipe-to-shell, glob-in-argv0)
+    # are caught structurally by dedicated HARDLINE patterns instead.
+    command = _decompose_shell_obfuscation(command)
+    return command
+
+
+# ── Shell-obfuscation decomposition (CF-2 / F-C07a-001) ──────────────────
+# These collapse the *decode-able* bypass classes so the literal-token
+# deny-list matches the resolved command. ${IFS} word-splitting, ANSI-C
+# ($'\xHH') quoting, and adjacent empty-quote splitting (r""m) all let an
+# attacker write `rm -rf /` in a form the raw patterns miss.
+_IFS_RE = re.compile(r"\$\{IFS(?:[^}]*)\}|\$IFS\b")
+_ANSI_C_QUOTE_RE = re.compile(r"\$'((?:[^'\\]|\\.)*)'")
+_ADJACENT_EMPTY_QUOTE_RE = re.compile(r"(['\"])\1")
+_BACKTICK_EMPTY_RE = re.compile(r"``")
+
+
+def _decode_ansi_c_quote(match: "re.Match") -> str:
+    """Decode the body of a $'...' ANSI-C quoted string.
+
+    Handles \\xHH hex, \\NNN octal, \\uHHHH / \\UHHHHHHHH unicode, and the
+    common C escapes. Best-effort: anything undecodable is left as-is so
+    we never raise on a malformed payload.
+    """
+    body = match.group(1)
+    out = []
+    i = 0
+    simple = {"n": "\n", "t": "\t", "r": "\r", "a": "\a", "b": "\b",
+              "f": "\f", "v": "\v", "\\": "\\", "'": "'", '"': '"', "e": "\x1b"}
+    while i < len(body):
+        c = body[i]
+        if c == "\\" and i + 1 < len(body):
+            nxt = body[i + 1]
+            if nxt == "x" and i + 3 < len(body) + 1:
+                hexs = body[i + 2:i + 4]
+                if len(hexs) == 2 and all(h in "0123456789abcdefABCDEF" for h in hexs):
+                    out.append(chr(int(hexs, 16)))
+                    i += 4
+                    continue
+            if nxt in ("u", "U"):
+                width = 4 if nxt == "u" else 8
+                hexs = body[i + 2:i + 2 + width]
+                if hexs and all(h in "0123456789abcdefABCDEF" for h in hexs):
+                    try:
+                        out.append(chr(int(hexs, 16)))
+                        i += 2 + len(hexs)
+                        continue
+                    except (ValueError, OverflowError):
+                        pass
+            if nxt in "01234567":
+                octs = ""
+                j = i + 1
+                while j < len(body) and len(octs) < 3 and body[j] in "01234567":
+                    octs += body[j]
+                    j += 1
+                try:
+                    out.append(chr(int(octs, 8) & 0xFF))
+                    i = j
+                    continue
+                except (ValueError, OverflowError):
+                    pass
+            if nxt in simple:
+                out.append(simple[nxt])
+                i += 2
+                continue
+        out.append(c)
+        i += 1
+    return "".join(out)
+
+
+def _decompose_shell_obfuscation(command: str) -> str:
+    """Collapse decode-able shell-obfuscation classes for detection."""
+    # ${IFS} / $IFS word-splitting → real whitespace.
+    command = _IFS_RE.sub(" ", command)
+    # ANSI-C quoting $'\x72\x6d' → rm.
+    command = _ANSI_C_QUOTE_RE.sub(_decode_ansi_c_quote, command)
+    # Adjacent empty quotes r""m / r''m / `` → splice out so the token
+    # rejoins (`r""m` → `rm`). Loop until stable for chains like a""""b.
+    for _ in range(8):
+        new = _ADJACENT_EMPTY_QUOTE_RE.sub("", command)
+        new = _BACKTICK_EMPTY_RE.sub("", new)
+        if new == command:
+            break
+        command = new
     return command
 
 

@@ -540,11 +540,21 @@ def apply_bitwarden_secrets(
         # BSM-supplied value as authoritative would give an attacker who
         # compromised the BSM project a free RCE on every subprocess STOA
         # spawns.
-        if key in _BWS_ENV_NAME_DENYLIST:
+        # Audit deep-2026-05-29 CF-14 (F-C03b-003): the static denylist covered
+        # OS/loader names only. STOA's own security-critical env vars
+        # (STOA_CA_BUNDLE, STOA_PORTAL_BASE_URL, STOA_AGENT_KEY,
+        # NOUS_INFERENCE_BASE_URL, …) were not guarded, so a hostile BSM
+        # project could inject one and subvert TLS verification, endpoint
+        # routing, or credential resolution. Refuse the whole STOA_/NOUS_
+        # namespace via a prefix rule — these are configured by the operator,
+        # never legitimately rotated through a third-party secrets manager.
+        _ku = key.upper()
+        if key in _BWS_ENV_NAME_DENYLIST or _ku.startswith("STOA_") or _ku.startswith("NOUS_"):
             result.warnings.append(
                 f"Refused to apply BSM secret {key!r}: name is in the "
                 f"runtime-injection denylist (PATH / LD_PRELOAD / PYTHONPATH "
-                f"class). Rename the secret in Bitwarden if it must be applied."
+                f"class, or the protected STOA_/NOUS_ namespace). Rename the "
+                f"secret in Bitwarden if it must be applied."
             )
             result.skipped.append(key)
             continue

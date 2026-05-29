@@ -2,7 +2,7 @@
 # Six sovereign LLMs as your local agent. Council-mode default. On-chain verifiable.
 #
 # Usage:
-#   iex (irm https://raw.githubusercontent.com/STOAGENT/stoa-agent/master/scripts/install.ps1)
+#   iex (irm https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.7/scripts/install.ps1)
 #
 # What it does:
 #   1. Installs uv (Astral's fast Python package manager) into ~/.local/bin
@@ -141,16 +141,18 @@ function Get-PortableGitAsset {
     if ([Environment]::Is64BitOperatingSystem) {
         if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64" -or $env:PROCESSOR_ARCHITEW6432 -eq "ARM64") {
             $asset = "PortableGit-$gitVer-arm64.7z.exe"
-            $sha   = ""   # arm64 — fill on next release bump
+            # git-for-windows v2.54.0.windows.1 — SHA-256 from the GitHub
+            # release asset digest (CF-7 / F-C17-001).
+            $sha   = "f8e92cd3359fcbb96998cfd606a536ccc6dbfb23c04e12b29042f9ba45b6b0c7"
         } else {
             $asset = "PortableGit-$gitVer-64-bit.7z.exe"
-            $sha   = ""   # x64 — fill on next release bump
+            $sha   = "bea006a6cc69673f27b1647e84ab3a68e912fbc175ab6320c5987e012897f311"
         }
     } else {
         Write-StoaWarn "32-bit Windows detected. PortableGit is 64-bit only; using MinGit 32-bit as a last resort."
         Write-StoaWarn "Bash-dependent features (terminal tool, agent-browser) won't work on this box."
         $asset = "MinGit-$gitVer-32-bit.zip"
-        $sha   = ""   # 32-bit MinGit — fill on next release bump
+        $sha   = "52fc36c9b22611f0a6a7fabdc68c763b914400e3af0e35ad822468dc64cb7981"
     }
     return @{
         Url           = "https://github.com/git-for-windows/git/releases/download/$gitTag/$asset"

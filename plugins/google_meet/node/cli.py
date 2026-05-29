@@ -27,7 +27,7 @@ def register_cli(subparser: argparse.ArgumentParser) -> None:
     sp = subparser.add_subparsers(dest="node_cmd", required=True)
 
     run = sp.add_parser("run", help="Start a node server on this machine.")
-    run.add_argument("--host", default="0.0.0.0")
+    run.add_argument("--host", default="127.0.0.1")
     run.add_argument("--port", type=int, default=18789)
     run.add_argument("--display-name", default="stoa-meet-node")
     run.set_defaults(func=node_command)

@@ -268,6 +268,23 @@ async def run_server(
             "pip install 'stoa-agent[messaging]' or `pip install aiohttp`."
         )
 
+    # Enforce loopback/bind guard directly in run_server (not just cli.py).
+    # The proxy re-attaches the operator's credential to every forwarded request,
+    # so binding on a non-loopback interface exposes the operator key to LAN clients.
+    _safe_loopback = {"127.0.0.1", "localhost", "::1"}
+    if host not in _safe_loopback:
+        import os
+        if os.environ.get("STOA_PROXY_ALLOW_REMOTE_BIND", "").lower() not in ("1", "true", "yes"):
+            raise RuntimeError(
+                f"proxy: refusing to bind {host}:{port} â€” non-loopback host\n"
+                "  The proxy re-attaches your provider credential to every\n"
+                "  forwarded request. Binding on a LAN-reachable interface\n"
+                "  lets any client on the local network impersonate you to\n"
+                "  the upstream provider.\n"
+                "  If you ARE intentionally exposing the proxy (e.g. on a\n"
+                "  trusted private subnet), set STOA_PROXY_ALLOW_REMOTE_BIND=1."
+            )
+
     app = create_app(adapter)
     runner = web.AppRunner(app, access_log=None)
     await runner.setup()

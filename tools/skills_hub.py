@@ -65,15 +65,41 @@ def _safe_httpx_get(url: str, **kwargs):
     on an operator-trusted private mirror (rare; the default is fail-
     closed)."""
     import httpx as _httpx
-    if not is_safe_url(url):
-        # is_safe_url already logs the rejection reason via
-        # logger.warning; raise so callers don't accidentally proceed
-        # on a None response object.
-        raise ValueError(
-            f"skills_hub: refusing to fetch {url!r} — flagged by "
-            "url_safety (private / internal / metadata range)."
-        )
-    return _httpx.get(url, **kwargs)
+
+    # Audit deep-2026-05-29 CF-10 (F-C10b-001): is_safe_url was checked on the
+    # INITIAL url only, then httpx.get(url, **kwargs) ran with caller-supplied
+    # follow_redirects=True — so httpx would chase a 3xx Location into a
+    # private / IMDS host (169.254.169.254, metadata.google.internal) without
+    # re-validating the hop. We now disable httpx's own redirect handling and
+    # follow manually, running is_safe_url on EVERY hop (initial + each
+    # Location) before fetching it. The caller's follow_redirects intent is
+    # honoured (default False = httpx's default, so non-redirect callers are
+    # unchanged; True = manual, per-hop-validated following).
+    _follow = bool(kwargs.pop("follow_redirects", False))
+    current = url
+    for _hop in range(_MAX_SKILL_FETCH_REDIRECTS + 1):
+        if not is_safe_url(current):
+            # is_safe_url already logs the rejection reason via
+            # logger.warning; raise so callers don't accidentally proceed
+            # on a None response object.
+            raise ValueError(
+                f"skills_hub: refusing to fetch {current!r} — flagged by "
+                "url_safety (private / internal / metadata range)."
+            )
+        resp = _httpx.get(current, follow_redirects=False, **kwargs)
+        if _follow and resp.status_code in _REDIRECT_STATUS_CODES:
+            location = resp.headers.get("Location") or resp.headers.get("location")
+            if not location:
+                return resp
+            # Resolve relative Location against the current URL, then re-loop
+            # so the next hop is is_safe_url-validated before we fetch it.
+            current = str(_httpx.URL(current).join(location))
+            continue
+        return resp
+    raise ValueError(
+        f"skills_hub: too many redirects (>{_MAX_SKILL_FETCH_REDIRECTS}) "
+        f"while fetching {url!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -3026,7 +3052,19 @@ def install_from_quarantine(
             f"Install refused — {rev.reason}"
         )
 
-    if is_signature_required():
+    # Audit deep-2026-05-29 CF-4 (SW-preset / REQUIRE_DOWNLOAD_HASH): when the
+    # download-hash gate is on (strict preset / STOA_REQUIRE_DOWNLOAD_HASH), a
+    # downloaded skill bundle's integrity MUST be cryptographically established
+    # before install — so we require signature verification (which binds
+    # pre_install_hash to a trusted signer) even if signing wasn't otherwise
+    # mandatory. This makes the gate enforce instead of being dead config.
+    _require_download_hash = False
+    try:
+        from stoa_cli.security_preset import is_gate_enabled as _is_gate_enabled
+        _require_download_hash = _is_gate_enabled("REQUIRE_DOWNLOAD_HASH")
+    except Exception:
+        pass
+    if is_signature_required() or _require_download_hash:
         sig_verdict = verify_bundle_signature(quarantine_path, pre_install_hash)
         if sig_verdict.ok is False:
             append_audit_log(

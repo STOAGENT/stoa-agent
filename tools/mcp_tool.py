@@ -288,6 +288,52 @@ _CREDENTIAL_PATTERN = re.compile(
 # so providers like MY-VAR or my.var work correctly.
 _ENV_VAR_PATTERN = re.compile(r"\$\{([^}]+)\}")
 
+# Denylist of credential-bearing environment variable names that are NOT safe
+# to interpolate from os.environ into MCP server config (url/headers).
+# Prevents a hostile MCP server config from leaking API keys, tokens, or
+# cloud credentials into request headers or URLs.
+_CREDENTIAL_ENV_DENY = frozenset({
+    # AWS credential names
+    "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+    "AWS_SECURITY_TOKEN", "AWS_PROFILE", "AWS_ROLE_ARN",
+})
+
+def _is_safe_env_var_for_interpolation(name: str) -> bool:
+    """Check if an environment variable name is safe to interpolate into MCP config.
+    
+    Denies variable names matching credential patterns (API_KEY, SECRET, TOKEN, etc.)
+    to prevent a hostile MCP server config from extracting secrets from os.environ.
+    """
+    if not isinstance(name, str):
+        return False
+    upper = name.upper()
+    # Deny known credential-bearing variables
+    if upper in _CREDENTIAL_ENV_DENY:
+        return False
+    # Deny patterns matching *_API_KEY, *_SECRET, *_TOKEN
+    if upper.endswith("_API_KEY") or upper.endswith("_API_SECRET"):
+        return False
+    if upper.endswith("_SECRET") or upper.endswith("_PASSWORD"):
+        return False
+    if upper.endswith("_TOKEN"):
+        return False
+    # Deny AWS_* family (covered above, but explicit for clarity)
+    if upper.startswith("AWS_"):
+        return False
+    # Deny other cloud credential families
+    if upper.startswith("GOOGLE_") and any(x in upper for x in ["KEY", "SECRET", "TOKEN"]):
+        return False
+    if upper.startswith("AZURE_") and any(x in upper for x in ["KEY", "SECRET", "TOKEN"]):
+        return False
+    if upper.startswith("GCP_") and any(x in upper for x in ["KEY", "SECRET", "TOKEN"]):
+        return False
+    # Deny STOA_* and NOUS_* security keys (from F-C03b-003)
+    if upper.startswith("STOA_") or upper.startswith("NOUS_"):
+        # Allow non-credential STOA/NOUS vars (but be conservative)
+        if any(x in upper for x in ["KEY", "SECRET", "TOKEN", "CREDENTIAL", "PASSWORD", "URL"]):
+            return False
+    return True
+
 
 # ---------------------------------------------------------------------------
 # Security helpers
@@ -2311,10 +2357,27 @@ def _interrupted_call_result() -> str:
 # ---------------------------------------------------------------------------
 
 def _interpolate_env_vars(value):
-    """Recursively resolve ``${VAR}`` placeholders from ``os.environ``."""
+    """Recursively resolve ``${VAR}`` placeholders from ``os.environ``.
+    
+    Variable names are filtered through an allowlist to prevent interpolation
+    of credential-bearing environment variables (API keys, tokens, secrets, etc.)
+    from MCP server config. A hostile MCP marketplace configuration cannot
+    extract secrets by embedding ${AWS_SECRET_ACCESS_KEY} in url/headers.
+    """
     if isinstance(value, str):
         def _replace(m):
-            return os.environ.get(m.group(1), m.group(0))
+            var_name = m.group(1)
+            # Gate: only interpolate safe variable names
+            if not _is_safe_env_var_for_interpolation(var_name):
+                # Return the placeholder unchanged; config author should use a
+                # non-credential variable or pass it via the file directly.
+                logger.warning(
+                    "MCP config: refusing to interpolate credential-bearing "
+                    "environment variable '%s' into url/headers "
+                    "(denied by allowlist)", var_name
+                )
+                return m.group(0)
+            return os.environ.get(var_name, m.group(0))
         return _ENV_VAR_PATTERN.sub(_replace, value)
     if isinstance(value, dict):
         return {k: _interpolate_env_vars(v) for k, v in value.items()}
@@ -2444,6 +2507,14 @@ def _make_tool_handler(server_name: str, tool_name: str, tool_timeout: float):
             # both too stale to cherry-pick. #10848's approach (integrate with
             # STOA' MEDIA tag + cache_image_from_bytes) was the cleaner of
             # the two — plugs into existing infrastructure.
+            # Audit deep-2026-05-29 CF-1 (F-L74-C08-003 / F-C08b-003): an MCP
+            # server is outside the trust boundary — its text blocks are
+            # untrusted input. Run each block through sanitize_untrusted_text
+            # so ANSI/bidi/zero-width/tag-plane bytes in a malicious or
+            # compromised MCP server's reply cannot inject hidden instructions
+            # into the agent turn. (The success path previously json.dumps()'d
+            # raw block.text; only the error path was sanitized.)
+            from tools.ansi_strip import sanitize_untrusted_text
             parts: List[str] = []
             for block in (result.content or []):
                 if hasattr(block, "text") and block.text:
@@ -2452,7 +2523,7 @@ def _make_tool_handler(server_name: str, tool_name: str, tool_timeout: float):
                 image_tag = _cache_mcp_image_block(block)
                 if image_tag:
                     parts.append(image_tag)
-            text_result = "\n".join(parts) if parts else ""
+            text_result = sanitize_untrusted_text("\n".join(parts)) if parts else ""
 
             # Combine content + structuredContent when both are present.
             # MCP spec: content is model-oriented (text), structuredContent
@@ -2599,11 +2670,13 @@ def _make_read_resource_handler(server_name: str, tool_timeout: float):
             async with server._rpc_lock:
                 result = await server.session.read_resource(uri)
             # read_resource returns ReadResourceResult with .contents list
+            # CF-1: resource contents from an untrusted MCP server — sanitize.
+            from tools.ansi_strip import sanitize_untrusted_text
             parts: List[str] = []
             contents = result.contents if hasattr(result, "contents") else []
             for block in contents:
                 if hasattr(block, "text"):
-                    parts.append(block.text)
+                    parts.append(sanitize_untrusted_text(block.text))
                 elif hasattr(block, "blob"):
                     parts.append(f"[binary data, {len(block.blob)} bytes]")
             return json.dumps({"result": "\n".join(parts) if parts else ""}, ensure_ascii=False)

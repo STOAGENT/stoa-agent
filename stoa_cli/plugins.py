@@ -1404,6 +1404,50 @@ class PluginManager:
         module.__package__ = module_name
         module.__path__ = [str(plugin_dir)]  # type: ignore[attr-defined]
         sys.modules[module_name] = module
+        # Audit deep-2026-05-29 CF-5 (F-C09-002): a directory plugin's
+        # __init__.py is exec_module()'d — arbitrary code at load — so a
+        # git-cloned / dropped-in plugin is RCE-on-load with no integrity gate.
+        # Verify the detached ed25519 bundle signature (reusing the skill
+        # signing infra: a .sig over the content hash, checked against
+        # trusted-signers) BEFORE exec. Non-breaking by default: when signature
+        # mode is off, verify_bundle_signature returns ok=True (legacy path), so
+        # existing unsigned plugins still load; strict signing rejects forged
+        # or unsigned plugins.
+        # Whether strict signing is required is an EXPLICIT config flag
+        # (STOA_SKILL_REQUIRE_SIGNATURE=1), read independently of the verifier
+        # so a thrown verifier exception is never silently treated as "off".
+        _signing_required = os.environ.get("STOA_SKILL_REQUIRE_SIGNATURE", "").strip() == "1"
+        try:
+            # Imported under an ed25519-naming alias: verify_bundle_signature
+            # checks a detached ed25519 signature over the bundle content hash.
+            from tools.skills_signature import verify_bundle_signature as _verify_ed25519_signature
+            from tools.skills_guard import content_hash
+            _sig_verdict = _verify_ed25519_signature(plugin_dir, content_hash(plugin_dir))
+        except Exception as _sig_exc:
+            # FAIL CLOSED when signing is required: a verifier that can't run is
+            # NOT a pass. In the default (signing-off) posture the verifier
+            # would have returned ok=True anyway, so a broken verifier there is
+            # logged and the legacy load proceeds — gated on the explicit flag,
+            # never inferred from the exception.
+            if _signing_required:
+                sys.modules.pop(module_name, None)
+                raise PermissionError(
+                    f"Refusing to load plugin {plugin_dir.name!r}: ed25519 signature "
+                    f"verifier error while signing is required — {_sig_exc!r}"
+                )
+            logging.getLogger(__name__).warning(
+                "plugin signature verifier unavailable for %s (signing not "
+                "required) — loading unverified: %s", plugin_dir, _sig_exc,
+            )
+        else:
+            if _sig_verdict.ok is not True:
+                # ok is False (bad/missing sig) OR None (untrusted signer) —
+                # refuse either way.
+                sys.modules.pop(module_name, None)
+                raise PermissionError(
+                    f"Refusing to load plugin {plugin_dir.name!r}: ed25519 "
+                    f"signature check did not pass — {_sig_verdict.reason}"
+                )
         spec.loader.exec_module(module)
         return module
 

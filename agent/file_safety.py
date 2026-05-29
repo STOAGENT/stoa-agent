@@ -102,7 +102,30 @@ def is_write_denied(path: str) -> bool:
     # profile-mode session leaves <root>/auth.json + <root>/config.yaml
     # writable — letting a prompt-injected write_file overwrite the global
     # files that every profile inherits from (same shape as #15981).
-    control_file_names = ("auth.json", "config.yaml", "webhook_subscriptions.json")
+    # Audit deep-2026-05-29 CF-3 (F-C02-001, FH-configwrite-002): the control
+    # plane is wider than credentials. Each of these files is consumed by the
+    # CLI / activation scripts as *trusted configuration*, so an agent-authored
+    # copy is an injection / RCE primitive:
+    #   .container-mode → backend/container_name/exec_user/stoa_bin fed to
+    #                     os.execvp() (F-C04-002 chain) — write-protect the root.
+    #   active_profile  → selects which profile dir (and thus which auth.json /
+    #                     config.yaml) the next session trusts.
+    #   cli-config.yaml → CLI behaviour/policy toggles.
+    #   personas.yaml   → persona reroute body (CF-14) is read as trusted config.
+    #   cron/jobs.json  → a planted no_agent job is a scheduled-RCE primitive
+    #                     (FH-cron-001 chain).
+    # These are written by the CLI/activation, never by the agent, so denying
+    # agent writes is non-breaking.
+    control_file_names = (
+        "auth.json",
+        "config.yaml",
+        "webhook_subscriptions.json",
+        ".container-mode",
+        "active_profile",
+        "cli-config.yaml",
+        "personas.yaml",
+        os.path.join("cron", "jobs.json"),
+    )
     mcp_tokens_dir_name = "mcp-tokens"
 
     stoa_dirs = []

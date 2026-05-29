@@ -32,10 +32,34 @@ from __future__ import annotations
 
 import logging
 import os
+import string
 import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+
+
+class _SafeI18nFormatter(string.Formatter):
+    """A ``str.format``-style formatter that refuses attribute/index access.
+
+    Audit deep-2026-05-29 CF-9 (FH-locales-001): locale catalog values are
+    DATA (potentially community-contributed / poisoned), not trusted code.
+    A plain ``value.format(**kwargs)`` treats the catalog string as the format
+    string, so a translation like ``{user.__class__.__init__.__globals__}`` or
+    ``{0[secret]}`` would walk argument internals and exfiltrate globals/state.
+    This formatter permits ONLY bare ``{name}`` / ``{0}`` substitution and
+    raises on any field that contains a ``.`` attribute or ``[`` index accessor.
+    """
+
+    def get_field(self, field_name: str, args, kwargs):  # type: ignore[override]
+        if "." in field_name or "[" in field_name:
+            raise ValueError(
+                f"i18n: disallowed accessor in format field {field_name!r}"
+            )
+        return super().get_field(field_name, args, kwargs)
+
+
+_SAFE_I18N_FORMATTER = _SafeI18nFormatter()
 
 logger = logging.getLogger(__name__)
 
@@ -239,7 +263,12 @@ def t(key: str, lang: str | None = None, **format_kwargs: Any) -> str:
 
     if format_kwargs:
         try:
-            return value.format(**format_kwargs)
+            # SECURITY (FH-locales-001): do NOT call value.format(**format_kwargs)
+            # directly on a locale catalog value — str.format permits attribute
+            # and index access, so a poisoned translation could traverse object
+            # internals. Route through the restricted _SafeI18nFormatter, which
+            # rejects '.'/'[' accessors and allows only plain {name} fields.
+            return _SAFE_I18N_FORMATTER.vformat(value, (), format_kwargs)
         except (KeyError, IndexError, ValueError) as exc:
             logger.warning(
                 "i18n format failed for key=%r lang=%r kwargs=%r: %s",

@@ -18,6 +18,7 @@ from typing import Optional
 from agent.skill_utils import (
     extract_skill_conditions,
     extract_skill_description,
+    extract_skill_name,
     get_all_skills_dirs,
     get_disabled_skill_names,
     iter_skill_index_files,
@@ -950,6 +951,17 @@ def _build_snapshot_entry(
         category = "general"
         skill_name = skill_file.parent.name
 
+    # Audit deep-2026-05-29 CF-16 (F-C10A-001 / F-C10b-002 / FH-skills-003 /
+    # F-SW-regress-001): the v13-HIGH-3 skill-name fence-escape fix
+    # (extract_skill_name) was DEAD CODE — defined but never called, so the
+    # raw frontmatter `name:` and the path-derived `category` reached the
+    # <available_skills> system-prompt block unsanitized. A crafted skill
+    # name containing `</available_skills>` or a homoglyph/zero-width XML
+    # closer could break out of the fence and inject agent-level
+    # instructions. Wire the sanitizer here at the snapshot seam so every
+    # downstream render reads the cleaned values.
+    category = re.sub(r"[^A-Za-z0-9._/-]+", "-", str(category)).strip("-._/") or "general"
+
     platforms = frontmatter.get("platforms") or []
     if isinstance(platforms, str):
         platforms = [platforms]
@@ -957,7 +969,7 @@ def _build_snapshot_entry(
     return {
         "skill_name": skill_name,
         "category": category,
-        "frontmatter_name": str(frontmatter.get("name", skill_name)),
+        "frontmatter_name": extract_skill_name(frontmatter, fallback=skill_name),
         "description": description,
         "platforms": [str(p).strip() for p in platforms if str(p).strip()],
         "conditions": extract_skill_conditions(frontmatter),

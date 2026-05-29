@@ -361,7 +361,9 @@ def _connect():
 
 def _call(tool_name, args):
     """Send a tool call to the parent process and return the parsed result."""
-    request = json.dumps({"tool": tool_name, "args": args}) + "\\n"
+    # CF-9: authenticate to the parent RPC dispatcher with the per-execution
+    # nonce the parent injected into our environment (STOA_RPC_NONCE).
+    request = json.dumps({"tool": tool_name, "args": args, "nonce": os.environ.get("STOA_RPC_NONCE", "")}) + "\\n"
     with _call_lock:
         conn = _connect()
         conn.sendall(request.encode())
@@ -461,11 +463,23 @@ def _rpc_server_loop(
     tool_call_counter: list,   # mutable [int] so the thread can increment
     max_tool_calls: int,
     allowed_tools: frozenset,
+    expected_nonce: str = "",
 ):
     """
     Accept one client connection and dispatch tool-call requests until
     the client disconnects or the call limit is reached.
+
+    Audit deep-2026-05-29 CF-9 (F-C07a-002 / F-C07b-002): on Windows the
+    RPC transport is an AF_INET loopback TCP socket with NO filesystem
+    permission gate, so *any* local process could connect and drive the
+    tool dispatcher (the AF_UNIX path is chmod 0600, the TCP path was
+    unprotected). Every request must now carry the per-execution
+    ``nonce`` that the parent injected into the sandbox child's
+    environment (STOA_RPC_NONCE); it is checked with a constant-time
+    ``secrets.compare_digest`` before any tool is dispatched, so a
+    foreign local process that doesn't hold the nonce is rejected.
     """
+    import secrets as _secrets
     from model_tools import handle_function_call
 
     conn = None
@@ -498,6 +512,23 @@ def _rpc_server_loop(
                     resp = tool_error(f"Invalid RPC request: {exc}")
                     conn.sendall((resp + "\n").encode())
                     continue
+
+                # CF-9 (F-C07a-002 / F-C07b-002): authenticate every request
+                # with the per-execution nonce before doing ANYTHING with it.
+                # A foreign local process that connected to the loopback TCP
+                # socket won't hold the nonce (it's injected only into the
+                # sandbox child's environment), so it is rejected here.
+                if expected_nonce:
+                    _req_nonce = request.get("nonce", "")
+                    if not (
+                        isinstance(_req_nonce, str)
+                        and _secrets.compare_digest(_req_nonce, expected_nonce)
+                    ):
+                        resp = json.dumps({
+                            "error": "RPC authentication failed: missing or invalid nonce"
+                        })
+                        conn.sendall((resp + "\n").encode())
+                        continue
 
                 tool_name = request.get("tool", "")
                 tool_args = request.get("args", {})
@@ -1170,11 +1201,20 @@ def execute_code(
             os.chmod(sock_path, 0o600)
         server_sock.listen(1)
 
+        # CF-9 (F-C07a-002 / F-C07b-002): mint a per-execution RPC nonce. The
+        # loopback TCP transport (Windows) has no filesystem permission gate,
+        # so the nonce — injected only into the sandbox child's environment
+        # below — is what proves a connecting client is *our* child and not
+        # some other local process.
+        import secrets as _secrets_mod
+        _rpc_nonce = _secrets_mod.token_hex(32)
+
         rpc_thread = threading.Thread(
             target=_rpc_server_loop,
             args=(
                 server_sock, task_id, tool_call_log,
                 tool_call_counter, max_tool_calls, sandbox_tools,
+                _rpc_nonce,
             ),
             daemon=True,
         )
@@ -1192,6 +1232,10 @@ def execute_code(
         # or spawn a subprocess.  See ``_scrub_child_env`` for the rules.
         child_env = _scrub_child_env(os.environ)
         child_env["STOA_RPC_SOCKET"] = rpc_endpoint
+        # CF-9: hand the child the RPC nonce so its generated stubs can
+        # authenticate to the parent's tool dispatcher. Set AFTER the scrub so
+        # it isn't filtered out.
+        child_env["STOA_RPC_NONCE"] = _rpc_nonce
         child_env["PYTHONDONTWRITEBYTECODE"] = "1"
         # Force UTF-8 for the child's stdio and default file encoding.
         #
