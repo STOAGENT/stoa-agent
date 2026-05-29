@@ -132,24 +132,18 @@ def _global_allow_private_urls() -> bool:
     _allow_private_resolved = True
     _cached_allow_private = False  # safe default
 
-    # Audit deep-2026-05-29 CF-4 (SW-preset): the security-preset gate is the
-    # authoritative toggle and folds in the STOA_ALLOW_PRIVATE_URLS env
-    # override + the active preset default (off=allow [legacy], normal/strict=
-    # block). Consulting it here makes flipping the preset actually change
-    # private-URL blocking instead of the gate being dead config.
+    # Audit deep-2026-05-29 CF-4 (SW-preset / ALLOW_PRIVATE_URLS): the security
+    # preset is authoritative in the TIGHTENING direction. Under the `strict`
+    # preset (is_gate_enabled("ALLOW_PRIVATE_URLS") is False) private URLs are
+    # blocked unconditionally — any env/config opt-in below is OVERRIDDEN. This
+    # makes the gate actually enforce (not dead config) while never *loosening*
+    # the default-deny: `off`/`normal` presets fall through to the existing
+    # env+config resolution, so the default-False contract is unchanged.
     try:
-        from stoa_cli.security_preset import is_gate_enabled as _is_gate_enabled
-        if _is_gate_enabled("ALLOW_PRIVATE_URLS"):
-            _cached_allow_private = True
-            return _cached_allow_private
-        # An explicit STOA_ALLOW_PRIVATE_URLS=false (which is_gate_enabled has
-        # already honoured as False above) must NOT fall through to a config
-        # opt-in — respect the explicit denial.
-        if os.getenv("STOA_ALLOW_PRIVATE_URLS", "").strip().lower() in {"false", "0", "no", "off"}:
-            return _cached_allow_private
+        from stoa_cli.security_preset import is_gate_enabled, active_preset
+        if active_preset() == "strict" and not is_gate_enabled("ALLOW_PRIVATE_URLS"):
+            return _cached_allow_private  # False — blocked; opt-ins ignored
     except Exception:
-        # Preset module unavailable (early import / tests) — fall back to the
-        # legacy env + config resolution below.
         pass
 
     # 1. Env var override (highest priority)
