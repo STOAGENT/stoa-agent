@@ -51,6 +51,7 @@ class FactRetriever:
         category: str | None = None,
         min_trust: float = 0.3,
         limit: int = 10,
+        owner_principal: str | None = None,
     ) -> list[dict]:
         """Hybrid search: FTS5 candidates → Jaccard rerank → trust weighting.
 
@@ -63,7 +64,7 @@ class FactRetriever:
         Returns list of dicts with fact data + 'score' field, sorted by score desc.
         """
         # Stage 1: Get FTS5 candidates (more than limit for reranking headroom)
-        candidates = self._fts_candidates(query, category, min_trust, limit * 3)
+        candidates = self._fts_candidates(query, category, min_trust, limit * 3, owner_principal=owner_principal)
 
         if not candidates:
             return []
@@ -116,6 +117,7 @@ class FactRetriever:
         entity: str,
         category: str | None = None,
         limit: int = 10,
+        owner_principal: str | None = None,
     ) -> list[dict]:
         """Compositional entity query using HRR algebra.
 
@@ -127,7 +129,7 @@ class FactRetriever:
         """
         if not hrr._HAS_NUMPY:
             # Fallback to keyword search on entity name
-            return self.search(entity, category=category, limit=limit)
+            return self.search(entity, category=category, limit=limit, owner_principal=owner_principal)
 
         conn = self.store._conn
 
@@ -154,6 +156,11 @@ class FactRetriever:
         # Score against individual fact vectors directly
         where = "WHERE hrr_vector IS NOT NULL"
         params: list = []
+        if owner_principal is None:
+            where += " AND owner_principal IS NULL"
+        else:
+            where += " AND owner_principal = ?"
+            params.append(owner_principal)
         if category:
             where += " AND category = ?"
             params.append(category)
@@ -171,7 +178,7 @@ class FactRetriever:
 
         if not rows:
             # Final fallback: keyword search
-            return self.search(entity, category=category, limit=limit)
+            return self.search(entity, category=category, limit=limit, owner_principal=owner_principal)
 
         scored = []
         for row in rows:
@@ -194,6 +201,7 @@ class FactRetriever:
         entity: str,
         category: str | None = None,
         limit: int = 10,
+        owner_principal: str | None = None,
     ) -> list[dict]:
         """Discover facts that share structural connections with an entity.
 
@@ -204,7 +212,7 @@ class FactRetriever:
         Falls back to FTS5 search if numpy unavailable.
         """
         if not hrr._HAS_NUMPY:
-            return self.search(entity, category=category, limit=limit)
+            return self.search(entity, category=category, limit=limit, owner_principal=owner_principal)
 
         conn = self.store._conn
 
@@ -214,6 +222,11 @@ class FactRetriever:
         # Get all facts with vectors
         where = "WHERE hrr_vector IS NOT NULL"
         params: list = []
+        if owner_principal is None:
+            where += " AND owner_principal IS NULL"
+        else:
+            where += " AND owner_principal = ?"
+            params.append(owner_principal)
         if category:
             where += " AND category = ?"
             params.append(category)
@@ -230,7 +243,7 @@ class FactRetriever:
         ).fetchall()
 
         if not rows:
-            return self.search(entity, category=category, limit=limit)
+            return self.search(entity, category=category, limit=limit, owner_principal=owner_principal)
 
         # Score each fact by how much the entity's atom appears in its vector
         # This catches both role-bound entity matches AND content word matches
@@ -262,6 +275,7 @@ class FactRetriever:
         entities: list[str],
         category: str | None = None,
         limit: int = 10,
+        owner_principal: str | None = None,
     ) -> list[dict]:
         """Multi-entity compositional query — vector-space JOIN.
 
@@ -277,7 +291,7 @@ class FactRetriever:
         if not hrr._HAS_NUMPY or not entities:
             # Fallback: search with all entities as keywords
             query = " ".join(entities)
-            return self.search(query, category=category, limit=limit)
+            return self.search(query, category=category, limit=limit, owner_principal=owner_principal)
 
         conn = self.store._conn
         role_entity = hrr.encode_atom("__hrr_role_entity__", self.hrr_dim)
@@ -293,6 +307,11 @@ class FactRetriever:
         # Get all facts with vectors
         where = "WHERE hrr_vector IS NOT NULL"
         params: list = []
+        if owner_principal is None:
+            where += " AND owner_principal IS NULL"
+        else:
+            where += " AND owner_principal = ?"
+            params.append(owner_principal)
         if category:
             where += " AND category = ?"
             params.append(category)
@@ -310,7 +329,7 @@ class FactRetriever:
 
         if not rows:
             query = " ".join(entities)
-            return self.search(query, category=category, limit=limit)
+            return self.search(query, category=category, limit=limit, owner_principal=owner_principal)
 
         # Score each fact by how much EACH entity is structurally present.
         # A fact scores high only if ALL entities have structural presence
@@ -340,6 +359,7 @@ class FactRetriever:
         category: str | None = None,
         threshold: float = 0.3,
         limit: int = 10,
+        owner_principal: str | None = None,
     ) -> list[dict]:
         """Find potentially contradictory facts via entity overlap + content divergence.
 
@@ -358,6 +378,11 @@ class FactRetriever:
         # Get all facts with vectors and their linked entities
         where = "WHERE f.hrr_vector IS NOT NULL"
         params: list = []
+        if owner_principal is None:
+            where += " AND f.owner_principal IS NULL"
+        else:
+            where += " AND f.owner_principal = ?"
+            params.append(owner_principal)
         if category:
             where += " AND f.category = ?"
             params.append(category)
@@ -446,12 +471,18 @@ class FactRetriever:
         target_vec: "np.ndarray",
         category: str | None = None,
         limit: int = 10,
+        owner_principal: str | None = None,
     ) -> list[dict]:
         """Score facts by similarity to a target vector."""
         conn = self.store._conn
 
         where = "WHERE hrr_vector IS NOT NULL"
         params: list = []
+        if owner_principal is None:
+            where += " AND owner_principal IS NULL"
+        else:
+            where += " AND owner_principal = ?"
+            params.append(owner_principal)
         if category:
             where += " AND category = ?"
             params.append(category)
@@ -484,6 +515,7 @@ class FactRetriever:
         category: str | None,
         min_trust: float,
         limit: int,
+        owner_principal: str | None = None,
     ) -> list[dict]:
         """Get raw FTS5 candidates from the store.
 
@@ -497,6 +529,12 @@ class FactRetriever:
         params: list = []
         where_clauses = ["facts_fts MATCH ?"]
         params.append(query)
+
+        if owner_principal is None:
+            where_clauses.append("f.owner_principal IS NULL")
+        else:
+            where_clauses.append("f.owner_principal = ?")
+            params.append(owner_principal)
 
         if category:
             where_clauses.append("f.category = ?")

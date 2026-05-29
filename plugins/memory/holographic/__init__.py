@@ -207,7 +207,7 @@ class HolographicMemoryProvider(MemoryProvider):
         if not self._retriever or not query:
             return ""
         try:
-            results = self._retriever.search(query, min_trust=self._min_trust, limit=5)
+            results = self._retriever.search(query, min_trust=self._min_trust, limit=5, owner_principal=None)
             if not results:
                 return ""
             lines = []
@@ -288,6 +288,7 @@ class HolographicMemoryProvider(MemoryProvider):
                     category=args.get("category"),
                     min_trust=float(args.get("min_trust", self._min_trust)),
                     limit=int(args.get("limit", 10)),
+                    owner_principal=args.get("owner_principal"),
                 )
                 return json.dumps({"results": results, "count": len(results)})
 
@@ -296,6 +297,7 @@ class HolographicMemoryProvider(MemoryProvider):
                     args["entity"],
                     category=args.get("category"),
                     limit=int(args.get("limit", 10)),
+                    owner_principal=args.get("owner_principal"),
                 )
                 return json.dumps({"results": results, "count": len(results)})
 
@@ -304,6 +306,7 @@ class HolographicMemoryProvider(MemoryProvider):
                     args["entity"],
                     category=args.get("category"),
                     limit=int(args.get("limit", 10)),
+                    owner_principal=args.get("owner_principal"),
                 )
                 return json.dumps({"results": results, "count": len(results)})
 
@@ -315,6 +318,7 @@ class HolographicMemoryProvider(MemoryProvider):
                     entities,
                     category=args.get("category"),
                     limit=int(args.get("limit", 10)),
+                    owner_principal=args.get("owner_principal"),
                 )
                 return json.dumps({"results": results, "count": len(results)})
 
@@ -322,6 +326,7 @@ class HolographicMemoryProvider(MemoryProvider):
                 results = retriever.contradict(
                     category=args.get("category"),
                     limit=int(args.get("limit", 10)),
+                    owner_principal=args.get("owner_principal"),
                 )
                 return json.dumps({"results": results, "count": len(results)})
 
