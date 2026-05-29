@@ -24,6 +24,7 @@ from __future__ import annotations
 import importlib
 import importlib.util
 import logging
+import os
 import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -207,18 +208,33 @@ def _load_provider_from_dir(provider_dir: Path) -> Optional["MemoryProvider"]:
     # trusted-signers) before ANY exec_module below. Non-breaking by default:
     # when signature mode is off, verify_bundle_signature returns ok=True
     # (legacy path); strict signing rejects forged/unsigned provider dirs.
+    # Strict signing is an EXPLICIT flag (STOA_SKILL_REQUIRE_SIGNATURE=1), read
+    # independently so a thrown verifier exception is never silently a "skip".
+    _signing_required = os.environ.get("STOA_SKILL_REQUIRE_SIGNATURE", "").strip() == "1"
     try:
         from tools.skills_signature import verify_bundle_signature
         from tools.skills_guard import content_hash
         _sig_verdict = verify_bundle_signature(provider_dir, content_hash(provider_dir))
-        if _sig_verdict.ok is False or _sig_verdict.ok is None:
+    except Exception as _sig_exc:
+        # FAIL CLOSED when signing is required; otherwise (default posture, where
+        # the verifier would have returned ok=True anyway) log + proceed legacy.
+        if _signing_required:
             logger.error(
-                "Refusing to load memory provider %r: signature verification "
-                "failed — %s", name, _sig_verdict.reason,
+                "Refusing to load memory provider %r: signature verifier error "
+                "while signing is required — %r", name, _sig_exc,
             )
             return None
-    except Exception as _sig_exc:
-        logger.debug("memory provider signature check skipped for %s: %s", name, _sig_exc)
+        logger.warning(
+            "memory provider signature verifier unavailable for %r (signing not "
+            "required) — loading unverified: %s", name, _sig_exc,
+        )
+    else:
+        if _sig_verdict.ok is not True:
+            logger.error(
+                "Refusing to load memory provider %r: signature check did not "
+                "pass — %s", name, _sig_verdict.reason,
+            )
+            return None
 
     # Check if already loaded
     if module_name in sys.modules:
