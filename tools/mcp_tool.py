@@ -288,6 +288,52 @@ _CREDENTIAL_PATTERN = re.compile(
 # so providers like MY-VAR or my.var work correctly.
 _ENV_VAR_PATTERN = re.compile(r"\$\{([^}]+)\}")
 
+# Denylist of credential-bearing environment variable names that are NOT safe
+# to interpolate from os.environ into MCP server config (url/headers).
+# Prevents a hostile MCP server config from leaking API keys, tokens, or
+# cloud credentials into request headers or URLs.
+_CREDENTIAL_ENV_DENY = frozenset({
+    # AWS credential names
+    "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+    "AWS_SECURITY_TOKEN", "AWS_PROFILE", "AWS_ROLE_ARN",
+})
+
+def _is_safe_env_var_for_interpolation(name: str) -> bool:
+    """Check if an environment variable name is safe to interpolate into MCP config.
+    
+    Denies variable names matching credential patterns (API_KEY, SECRET, TOKEN, etc.)
+    to prevent a hostile MCP server config from extracting secrets from os.environ.
+    """
+    if not isinstance(name, str):
+        return False
+    upper = name.upper()
+    # Deny known credential-bearing variables
+    if upper in _CREDENTIAL_ENV_DENY:
+        return False
+    # Deny patterns matching *_API_KEY, *_SECRET, *_TOKEN
+    if upper.endswith("_API_KEY") or upper.endswith("_API_SECRET"):
+        return False
+    if upper.endswith("_SECRET") or upper.endswith("_PASSWORD"):
+        return False
+    if upper.endswith("_TOKEN"):
+        return False
+    # Deny AWS_* family (covered above, but explicit for clarity)
+    if upper.startswith("AWS_"):
+        return False
+    # Deny other cloud credential families
+    if upper.startswith("GOOGLE_") and any(x in upper for x in ["KEY", "SECRET", "TOKEN"]):
+        return False
+    if upper.startswith("AZURE_") and any(x in upper for x in ["KEY", "SECRET", "TOKEN"]):
+        return False
+    if upper.startswith("GCP_") and any(x in upper for x in ["KEY", "SECRET", "TOKEN"]):
+        return False
+    # Deny STOA_* and NOUS_* security keys (from F-C03b-003)
+    if upper.startswith("STOA_") or upper.startswith("NOUS_"):
+        # Allow non-credential STOA/NOUS vars (but be conservative)
+        if any(x in upper for x in ["KEY", "SECRET", "TOKEN", "CREDENTIAL", "PASSWORD", "URL"]):
+            return False
+    return True
+
 
 # ---------------------------------------------------------------------------
 # Security helpers
@@ -2311,10 +2357,27 @@ def _interrupted_call_result() -> str:
 # ---------------------------------------------------------------------------
 
 def _interpolate_env_vars(value):
-    """Recursively resolve ``${VAR}`` placeholders from ``os.environ``."""
+    """Recursively resolve ``${VAR}`` placeholders from ``os.environ``.
+    
+    Variable names are filtered through an allowlist to prevent interpolation
+    of credential-bearing environment variables (API keys, tokens, secrets, etc.)
+    from MCP server config. A hostile MCP marketplace configuration cannot
+    extract secrets by embedding ${AWS_SECRET_ACCESS_KEY} in url/headers.
+    """
     if isinstance(value, str):
         def _replace(m):
-            return os.environ.get(m.group(1), m.group(0))
+            var_name = m.group(1)
+            # Gate: only interpolate safe variable names
+            if not _is_safe_env_var_for_interpolation(var_name):
+                # Return the placeholder unchanged; config author should use a
+                # non-credential variable or pass it via the file directly.
+                logger.warning(
+                    "MCP config: refusing to interpolate credential-bearing "
+                    "environment variable '%s' into url/headers "
+                    "(denied by allowlist)", var_name
+                )
+                return m.group(0)
+            return os.environ.get(var_name, m.group(0))
         return _ENV_VAR_PATTERN.sub(_replace, value)
     if isinstance(value, dict):
         return {k: _interpolate_env_vars(v) for k, v in value.items()}
