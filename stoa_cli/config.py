@@ -345,6 +345,30 @@ def get_container_exec_info() -> Optional[dict]:
 
     container_mode_file = get_stoa_home() / ".container-mode"
 
+    # Residual-closure 2026-06-01 (F-C04-002 defence-in-depth): even in managed
+    # mode, only trust .container-mode if it is NOT writable by group/other. A
+    # legitimate NixOS activation writes it root-owned with restrictive perms;
+    # a group/world-writable file is a sign a non-root local process could have
+    # planted the exec params (backend/container_name/exec_user/stoa_bin feed
+    # os.execvp). Refuse it rather than route on attacker-controlled values.
+    # POSIX-only — the mode bits are unreliable on Windows, where managed
+    # container routing does not apply anyway.
+    if os.name == "posix":
+        try:
+            import stat as _stat
+            _mode = container_mode_file.stat().st_mode
+            if _mode & (_stat.S_IWGRP | _stat.S_IWOTH):
+                logger.warning(
+                    "Refusing .container-mode: group/other-writable (mode %o) — "
+                    "not a trusted root-authored file; not routing to container.",
+                    _stat.S_IMODE(_mode),
+                )
+                return None
+        except FileNotFoundError:
+            return None
+        except OSError:
+            pass  # stat failed — fall through; the read below is still is_managed-gated
+
     try:
         info = {}
         with open(container_mode_file, "r", encoding="utf-8") as f:
