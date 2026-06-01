@@ -2,7 +2,7 @@
 # Six sovereign LLMs as your local agent. Council-mode default. On-chain verifiable.
 #
 # Usage:
-#   iex (irm https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.8/scripts/install.ps1)
+#   iex (irm https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.9/scripts/install.ps1)
 #
 # ─── SECURITY: how to install this safely (WIN-04) ───────────────────
 #   The `iex (irm ...)` one-liner above is the convenience path, but it pipes
@@ -13,7 +13,7 @@
 #
 #   RECOMMENDED secure path — download, verify the hash, THEN run:
 #     1. Invoke-WebRequest `
-#          https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.8/scripts/install.ps1 `
+#          https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.9/scripts/install.ps1 `
 #          -OutFile install.ps1
 #     2. Get-FileHash .\install.ps1 -Algorithm SHA256
 #     3. Compare that SHA-256 against the value published on the GitHub
