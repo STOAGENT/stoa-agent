@@ -13,6 +13,8 @@ Sidebar is updated to nest all per-skill pages under Skills → Bundled / Option
 """
 
 from __future__ import annotations
+import html
+import json
 import re
 import sys
 from collections import defaultdict
@@ -62,6 +64,84 @@ def _wrap_ascii_art_code_blocks(code_segment: str) -> str:
         f"{code_segment}\n"
         "<!-- ascii-guard-ignore-end -->"
     )
+
+
+# Per-tag attribute allowlist for the whitelisted HTML tags that may legitimately
+# carry attributes. Any attribute not listed here is dropped. URL-bearing
+# attributes (href/src) are additionally validated to http/https only.
+_ATTR_ALLOWLIST: dict[str, set[str]] = {
+    "a": {"href", "title"},
+    "img": {"src", "alt", "title", "width", "height"},
+    "span": {"title"},
+    "div": {"title"},
+}
+_URL_ATTRS = {"href", "src"}
+# Attribute name=value pairs (double/single quoted or bare), tolerant of spacing.
+_ATTR_RE = re.compile(
+    r"""\s*([A-Za-z_:][-A-Za-z0-9_:.]*)\s*(?:=\s*("[^"]*"|'[^']*'|[^\s"'=<>`]+))?""",
+)
+
+
+def _is_http_url(value: str) -> bool:
+    """True only for http:// or https:// URLs (case-insensitive scheme)."""
+    v = value.strip()
+    low = v.lower()
+    return low.startswith("http://") or low.startswith("https://")
+
+
+def _sanitize_html_tag(
+    *, is_close: bool, tag: str, raw_attrs: str, full_match: str
+) -> str:
+    """Re-emit a whitelisted HTML tag through an attribute allowlist.
+
+    - event-handler (on*), style, and unknown attributes are stripped;
+    - javascript:/data: (and any non-http(s)) URIs in href/src are rejected;
+    - href/src must be http/https; alt/title (and other text attrs) are escaped;
+    - if a tag cannot be safely allowlisted, HTML-escape the whole tag instead.
+    """
+    if is_close:
+        return f"</{tag}>"
+
+    allowed = _ATTR_ALLOWLIST.get(tag)
+    # Detect a self-closing tag (e.g. <img ... />) and strip the trailing slash
+    # from the attribute string so it isn't parsed as a bogus bare attribute.
+    self_closing = raw_attrs.rstrip().endswith("/")
+    attr_src = raw_attrs.rstrip()
+    if self_closing:
+        attr_src = attr_src[:-1]
+
+    safe_attrs: list[str] = []
+    for m in _ATTR_RE.finditer(attr_src):
+        name = m.group(1)
+        if not name:
+            continue
+        name_lc = name.lower()
+        raw_val = m.group(2)
+        # Unwrap quotes if present.
+        if raw_val is None:
+            val = ""
+        elif len(raw_val) >= 2 and raw_val[0] in "\"'" and raw_val[-1] == raw_val[0]:
+            val = raw_val[1:-1]
+        else:
+            val = raw_val
+        # Drop event handlers, style, and anything not in this tag's allowlist.
+        if name_lc.startswith("on") or name_lc == "style":
+            continue
+        if allowed is None or name_lc not in allowed:
+            continue
+        if name_lc in _URL_ATTRS:
+            if not _is_http_url(val):
+                # A URL tag whose URL can't be made safe is not safely
+                # allowlistable — fall back to escaping the whole tag.
+                return html.escape(full_match)
+            safe_attrs.append(f'{name_lc}="{html.escape(val, quote=True)}"')
+        else:
+            safe_attrs.append(f'{name_lc}="{html.escape(val, quote=True)}"')
+
+    attrs_str = (" " + " ".join(safe_attrs)) if safe_attrs else ""
+    if self_closing:
+        return f"<{tag}{attrs_str} />"
+    return f"<{tag}{attrs_str}>"
 
 
 def mdx_escape_body(body: str) -> str:
@@ -206,7 +286,13 @@ def mdx_escape_body(body: str) -> str:
                             "h6",
                         }
                         if tag in safe_tags:
-                            out.append(m.group(0))
+                            safe_html = _sanitize_html_tag(
+                                is_close=bool(m.group(1)),
+                                tag=tag,
+                                raw_attrs=m.group(3),
+                                full_match=m.group(0),
+                            )
+                            out.append(safe_html)
                             i += len(m.group(0))
                             continue
                     # Escape the `<`
@@ -629,19 +715,36 @@ def build_sidebar_items(entries: list[tuple[dict[str, Any], dict[str, Any]]]) ->
     }
 
 
+# Categories/slugs are derived from the on-disk skill directory layout and must
+# never reach the generated TypeScript sidebar unescaped. Restrict them to the
+# safe pattern of lowercase letters, digits, and hyphens.
+_SAFE_SLUG_RE = re.compile(r"^[a-z0-9-]+$")
+
+
 def _render_sidebar_item(item: Any, indent: int) -> list[str]:
-    """Render one sidebar item (string doc id, or category dict) as ts lines."""
+    """Render one sidebar item (string doc id, or category dict) as ts lines.
+
+    Every interpolated value (doc id, label, key) is emitted via ``json.dumps``
+    so it is JS-string-safe; categories/slugs that do not match the safe pattern
+    of lowercase letters, digits, and hyphens are rejected outright.
+    """
     pad = " " * indent
     lines: list[str] = []
     if isinstance(item, str):
-        lines.append(f"{pad}'{item}',")
+        lines.append(f"{pad}{json.dumps(item)},")
         return lines
     # category dict
+    label = item["label"]
+    if not _SAFE_SLUG_RE.match(str(label)):
+        raise ValueError(
+            f"Unsafe sidebar category/slug rejected: {label!r} "
+            "(must match ^[a-z0-9-]+$)"
+        )
     lines.append(f"{pad}{{")
     lines.append(f"{pad}  type: 'category',")
-    lines.append(f"{pad}  label: '{item['label']}',")
+    lines.append(f"{pad}  label: {json.dumps(label)},")
     if item.get("key"):
-        lines.append(f"{pad}  key: '{item['key']}',")
+        lines.append(f"{pad}  key: {json.dumps(item['key'])},")
     if item.get("collapsed", True):
         lines.append(f"{pad}  collapsed: true,")
     lines.append(f"{pad}  items: [")

@@ -7,6 +7,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { sanitizeDisplay } from "@/lib/sanitizeDisplay";
 
 /**
  * Expandable tool call row — the web equivalent of Ink's ToolTrail node.
@@ -105,7 +106,7 @@ export function ToolCall({ tool }: { tool: ToolEntry }) {
         <span className="font-mono font-medium shrink-0">{tool.name}</span>
 
         <span className="font-mono text-text-secondary truncate min-w-0 flex-1">
-          {tool.context ?? ""}
+          {sanitizeDisplay(tool.context)}
         </span>
 
         {tool.status === "running" && (
@@ -136,7 +137,9 @@ export function ToolCall({ tool }: { tool: ToolEntry }) {
 
       {open && hasBody && (
         <div className="border-t border-border/60 px-3 py-2 space-y-2 text-xs font-mono">
-          {tool.context && <Section label="context">{tool.context}</Section>}
+          {tool.context && (
+            <Section label="context">{sanitizeDisplay(tool.context)}</Section>
+          )}
 
           {tool.preview && tool.status === "running" && (
             <Section label="streaming">
@@ -156,7 +159,7 @@ export function ToolCall({ tool }: { tool: ToolEntry }) {
           {tool.summary && (
             <Section label="result">
               <span className="text-foreground/90 whitespace-pre-wrap">
-                {tool.summary}
+                {sanitizeDisplay(tool.summary)}
               </span>
             </Section>
           )}
@@ -164,7 +167,7 @@ export function ToolCall({ tool }: { tool: ToolEntry }) {
           {tool.error && (
             <Section label="error" tone="error">
               <span className="text-destructive whitespace-pre-wrap">
-                {tool.error}
+                {sanitizeDisplay(tool.error)}
               </span>
             </Section>
           )}

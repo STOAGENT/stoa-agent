@@ -1545,14 +1545,15 @@ def write_txn(conn: sqlite3.Connection):
 def _new_task_id() -> str:
     """Generate a short, URL-safe task id.
 
-    4 hex bytes = ~4.3B possibilities. At 10k tasks the collision
-    probability is ~1.2e-5; at 100k it's ~1.2e-3. Previously we used 2
-    hex bytes (65k possibilities) which hit the birthday paradox hard:
-    ~5% collision probability at 1k tasks, ~50% at 10k. Callers that
-    care about idempotency should pass ``idempotency_key`` to
-    :func:`create_task` rather than rely on id uniqueness.
+    GAP-09-21: 8 hex bytes = 64 bits of entropy. The previous 4 bytes
+    (32 bits) were brute-forceable by a worker enumerating sibling task
+    ids to poison coordination state (combined with the un-gated
+    ``add_comment``/``kanban_link``). 64 bits makes blind enumeration
+    infeasible while keeping ids short. Callers that care about
+    idempotency should pass ``idempotency_key`` to :func:`create_task`
+    rather than rely on id uniqueness.
     """
-    return "t_" + secrets.token_hex(4)
+    return "t_" + secrets.token_hex(8)
 
 
 def _claimer_id() -> str:
@@ -2041,6 +2042,14 @@ def add_comment(
 ) -> int:
     if not body or not body.strip():
         raise ValueError("comment body is required")
+    # GAP-09-20: the model-facing comment tool (or a swarm worker) could write
+    # an arbitrarily large body, growing state.db without bound (local DoS /
+    # disk fill). Cap at ~64 KiB.
+    _MAX_COMMENT_BYTES = 64 * 1024
+    if len(body.encode("utf-8")) > _MAX_COMMENT_BYTES:
+        raise ValueError(
+            f"comment body too large (max {_MAX_COMMENT_BYTES} bytes)"
+        )
     if not author or not author.strip():
         raise ValueError("comment author is required")
     now = int(time.time())

@@ -30,6 +30,23 @@ else
 fi
 
 # ── 2. Ensure twozero.tox exists ──
+# Set TWOZERO_SHA256 to the SHA-256 you independently obtained from a trusted
+# source (the 404zero release page / maintainer). When set, the download is
+# verified against it and the script aborts on mismatch. When empty, the
+# checksum is only PRINTED for you to verify manually — it is NOT trusted.
+TWOZERO_SHA256="${TWOZERO_SHA256:-}"
+
+sha256_of() {
+    # Cross-platform SHA-256 of a file → lowercase hex on stdout (empty on failure)
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$1" 2>/dev/null | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$1" 2>/dev/null | awk '{print $1}'
+    else
+        echo ""
+    fi
+}
+
 if [[ -f "$TOX_PATH" ]]; then
     echo -e " ${OK} twozero.tox already exists at ${TOX_PATH}"
 else
@@ -43,36 +60,50 @@ else
     fi
 fi
 
-# ── 3. Ensure STOA config has twozero_td MCP entry ──
-if [[ ! -f "$STOA_CFG" ]]; then
-    echo -e " ${FAIL} STOA config not found at ${STOA_CFG}"
-    manual_steps+=("Create ${STOA_CFG} with twozero_td MCP server entry")
-elif grep -q 'twozero_td' "$STOA_CFG" 2>/dev/null; then
-    echo -e " ${OK} twozero_td MCP entry exists in STOA config"
+# ── 2b. Verify the downloaded .tox (SHA-256) ──
+if [[ -f "$TOX_PATH" ]]; then
+    actual_sha="$(sha256_of "$TOX_PATH")"
+    if [[ -z "$actual_sha" ]]; then
+        echo -e " ${WARN} Cannot compute SHA-256 (no sha256sum/shasum). VERIFY ${TOX_PATH} MANUALLY before use."
+        manual_steps+=("Manually verify the SHA-256 / provenance of ${TOX_PATH} before opening it in TouchDesigner")
+    elif [[ -n "$TWOZERO_SHA256" ]]; then
+        if [[ "$actual_sha" == "$TWOZERO_SHA256" ]]; then
+            echo -e " ${OK} twozero.tox SHA-256 matches the expected value"
+        else
+            echo -e " ${FAIL} twozero.tox SHA-256 MISMATCH — refusing to proceed."
+            echo "       expected: ${TWOZERO_SHA256}"
+            echo "       actual:   ${actual_sha}"
+            echo "       The download may be corrupted or tampered. Delete it and re-verify the source."
+            exit 1
+        fi
+    else
+        echo -e " ${WARN} No TWOZERO_SHA256 pinned. A .tox is executable content for TouchDesigner."
+        echo "       Downloaded SHA-256: ${actual_sha}"
+        echo "       VERIFY this against the maintainer's published hash before opening it in TD,"
+        echo "       then re-run with TWOZERO_SHA256=<that-hash> to enforce it."
+        manual_steps+=("Verify ${TOX_PATH} (SHA-256 ${actual_sha}) against the maintainer's published hash before use")
+    fi
+fi
+
+# ── 3. STOA config: PRINT the twozero_td MCP stanza for the user to add manually ──
+# We deliberately do NOT auto-write mcp_servers. Registering an MCP peer grants it
+# tool-providing access to the agent on every future session, and the endpoint is
+# whatever is listening on localhost:${MCP_PORT}. The user must add it consciously.
+if [[ -f "$STOA_CFG" ]] && grep -q 'twozero_td' "$STOA_CFG" 2>/dev/null; then
+    echo -e " ${OK} twozero_td MCP entry already exists in STOA config"
 else
-    echo -e " ${WARN} Adding twozero_td MCP entry to STOA config..."
-    python3 -c "
-import yaml, sys, copy
-
-cfg_path = '$STOA_CFG'
-with open(cfg_path, 'r') as f:
-    cfg = yaml.safe_load(f) or {}
-
-if 'mcp_servers' not in cfg:
-    cfg['mcp_servers'] = {}
-
-if 'twozero_td' not in cfg['mcp_servers']:
-    cfg['mcp_servers']['twozero_td'] = {
-        'url': '${MCP_ENDPOINT}',
-        'timeout': 120,
-        'connect_timeout': 60
-    }
-    with open(cfg_path, 'w') as f:
-        yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
-" 2>/dev/null && echo -e " ${OK} twozero_td MCP entry added to config" \
-              || { echo -e " ${FAIL} Could not update config (is PyYAML installed?)"; \
-                   manual_steps+=("Add twozero_td MCP entry to ${STOA_CFG} manually"); }
-    manual_steps+=("Restart STOA session to pick up config change")
+    echo -e " ${WARN} STOA config will NOT be modified automatically."
+    echo "       Review the stanza below, then add it under 'mcp_servers:' in ${STOA_CFG} yourself."
+    echo "       Only add it if you trust whatever is serving ${MCP_ENDPOINT}."
+    echo ""
+    echo "  mcp_servers:"
+    echo "    twozero_td:"
+    echo "      url: \"${MCP_ENDPOINT}\""
+    echo "      timeout: 120"
+    echo "      connect_timeout: 60"
+    echo ""
+    manual_steps+=("Add the twozero_td 'mcp_servers' stanza (printed above) to ${STOA_CFG} manually")
+    manual_steps+=("Restart STOA session to pick up the config change")
 fi
 
 # ── 4. Test if MCP port is responding ──

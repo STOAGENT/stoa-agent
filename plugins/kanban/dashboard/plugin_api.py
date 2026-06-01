@@ -61,25 +61,42 @@ router = APIRouter()
 # existing plugin-bypass; this is documented above).
 # ---------------------------------------------------------------------------
 
+def _ws_token_testing_sentinel() -> bool:
+    """True only inside an explicit test context.
+
+    The fail-open branch of :func:`_check_ws_token` (accept when the
+    dashboard ``web_server`` module can't import or the session token is
+    unset) is gated behind this sentinel so it can NEVER trigger in a real
+    process. A non-test process with no token fails CLOSED.
+    """
+    return bool(os.environ.get("STOA_TESTING")) or ("PYTEST_CURRENT_TEST" in os.environ)
+
+
 def _check_ws_token(provided: Optional[str]) -> bool:
     """Constant-time compare against the dashboard session token.
 
     Imported lazily so the plugin still loads in test contexts where the
     dashboard web_server module isn't importable (e.g. the bare-FastAPI
     test harness).
+
+    Fails CLOSED: if the dashboard ``web_server`` module is unimportable or
+    ``_SESSION_TOKEN`` is unset/falsy, access is denied unless an explicit
+    test sentinel (``STOA_TESTING`` / pytest) is present.
     """
     if not provided:
         return False
     try:
         from stoa_cli import web_server as _ws
     except Exception:
-        # No dashboard context (tests). Accept so the tail loop is still
-        # testable; in production the dashboard module always imports
-        # cleanly because it's the caller.
-        return True
+        # No dashboard context. In a real process this is a misconfig and
+        # must deny; only an explicit test harness is allowed through so
+        # the tail loop stays testable.
+        return _ws_token_testing_sentinel()
     expected = getattr(_ws, "_SESSION_TOKEN", None)
     if not expected:
-        return True
+        # Token not provisioned. Fail closed in production; allow only when
+        # an explicit test sentinel is set.
+        return _ws_token_testing_sentinel()
     return hmac.compare_digest(str(provided), str(expected))
 
 
@@ -1376,24 +1393,18 @@ def specify_task_endpoint(
     ``async def`` without an explicit ``run_in_executor``.
     """
     board = _resolve_board(board)
-    # Pin the board for the duration of this call so the specifier module
-    # (which calls ``kb.connect()`` with no args) hits the right DB.
-    prev_env = os.environ.get("STOA_KANBAN_BOARD")
-    try:
-        os.environ["STOA_KANBAN_BOARD"] = board or kanban_db.DEFAULT_BOARD
-        # Import lazily so a missing auxiliary client at import time
-        # doesn't break plugin load.
-        from stoa_cli import kanban_specify  # noqa: WPS433 (intentional)
+    # Thread the board explicitly so concurrent threadpool requests can't
+    # cross-wire: the specifier opens its connections with this board rather
+    # than reading a process-global ``STOA_KANBAN_BOARD`` env var.
+    # Import lazily so a missing auxiliary client at import time
+    # doesn't break plugin load.
+    from stoa_cli import kanban_specify  # noqa: WPS433 (intentional)
 
-        outcome = kanban_specify.specify_task(
-            task_id,
-            author=(payload.author or None),
-        )
-    finally:
-        if prev_env is None:
-            os.environ.pop("STOA_KANBAN_BOARD", None)
-        else:
-            os.environ["STOA_KANBAN_BOARD"] = prev_env
+    outcome = kanban_specify.specify_task(
+        task_id,
+        author=(payload.author or None),
+        board=board or kanban_db.DEFAULT_BOARD,
+    )
 
     return {
         "ok": bool(outcome.ok),

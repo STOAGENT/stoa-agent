@@ -10,6 +10,10 @@ const TITLE_CACHE_LIMIT = 500
 const TITLE_MAX_LENGTH = 240
 const TITLE_BYTE_BUDGET = 96 * 1024
 const TITLE_TIMEOUT_MS = 5000
+// Gap-audit 2026-06-01 (TUI-203): bound the manual redirect chain so a
+// redirect loop cannot hang the render-time fetch; each hop is re-validated
+// against isPrivateOrLocalHost before being followed.
+const TITLE_MAX_REDIRECTS = 5
 
 const TITLE_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
@@ -332,15 +336,58 @@ async function fetchHtmlTitle(normalizedUrl: string): Promise<string> {
   const timeout = setTimeout(() => controller.abort(), TITLE_TIMEOUT_MS)
 
   try {
-    const response = await fetch(normalizedUrl, {
-      headers: {
-        Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.5',
-        'Accept-Language': 'en-US,en;q=0.7',
-        'User-Agent': TITLE_USER_AGENT
-      },
-      redirect: 'follow',
-      signal: controller.signal
-    })
+    // Gap-audit 2026-06-01 (TUI-203): the initial URL is SSRF-guarded
+    // (isTitleFetchable → isPrivateOrLocalHost), but `redirect: 'follow'`
+    // would let a public URL 302-redirect to http://169.254.169.254/ or
+    // http://127.0.0.1 and be fetched without re-validation. Follow redirects
+    // manually and re-run the private/local-host guard on every Location hop
+    // before following it.
+    let current = normalizedUrl
+    let response: Response | null = null
+
+    for (let hop = 0; hop < TITLE_MAX_REDIRECTS; hop++) {
+      const hopUrl = parseUrl(current)
+
+      // Re-validate every hop: must be http(s) and not private/local.
+      if (!hopUrl || !/^https?:$/.test(hopUrl.protocol) || isPrivateOrLocalHost(hopUrl.hostname)) {
+        return ''
+      }
+
+      const res = await fetch(current, {
+        headers: {
+          Accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.5',
+          'Accept-Language': 'en-US,en;q=0.7',
+          'User-Agent': TITLE_USER_AGENT
+        },
+        redirect: 'manual',
+        signal: controller.signal
+      })
+
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get('location')
+
+        if (!location) {
+          return ''
+        }
+
+        // Resolve relative redirect targets against the current hop, then loop
+        // to re-validate the resolved absolute URL before following it.
+        try {
+          current = new URL(location, current).toString()
+        } catch {
+          return ''
+        }
+
+        continue
+      }
+
+      response = res
+      break
+    }
+
+    if (!response) {
+      return ''
+    }
 
     if (!response.ok) {
       return ''

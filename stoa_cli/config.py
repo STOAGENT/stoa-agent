@@ -4530,6 +4530,17 @@ def _load_config_impl(*, want_deepcopy: bool) -> Dict[str, Any]:
                 config = _deep_merge(config, user_config)
             except Exception as e:
                 _warn_config_parse_failure(config_path, e)
+                # GAP-09-12: a parse failure must NOT silently fall open to
+                # DEFAULT_CONFIG — that drops every operator security override
+                # (approval policy, redaction, preset keys). Retain the last
+                # known-good fully-built config if we have one cached from a
+                # prior successful load, so hardening keeps applying until the
+                # YAML is fixed. Only the genuine first-load-with-no-history
+                # case falls back to defaults (happy path is untouched: this
+                # branch only runs on exception).
+                _lkg = _LAST_EXPANDED_CONFIG_BY_PATH.get(path_key)
+                if _lkg is not None:
+                    config = copy.deepcopy(_lkg)
 
         normalized = _normalize_root_model_keys(_normalize_max_turns_config(config))
         expanded = _expand_env_vars(normalized)

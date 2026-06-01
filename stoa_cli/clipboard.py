@@ -174,12 +174,35 @@ _PS_CHECK_FILEDROP_IMAGE = (
     "} catch { 'False' }"
 )
 
+# GAP-09-10: a FileDropList entry is only extension-gated, so a renamed
+# secret (`.png`) would be read into model context and a multi-GB file
+# could OOM the process. Enforce a hard byte cap (32 MiB) and sniff the
+# leading magic bytes BEFORE reading the whole file. Reject anything that
+# is oversize or whose header is not a recognised raster image.
+_FILEDROP_IMAGE_MAX_BYTES = 32 * 1024 * 1024  # 32 MiB
+
 _PS_EXTRACT_FILEDROP_IMAGE = (
     "try { "
     "$files = Get-Clipboard -Format FileDropList -ErrorAction Stop;"
     f"$exts = @({_FILEDROP_IMAGE_EXTS});"
     "$hit = $files | Where-Object { $exts -contains ([System.IO.Path]::GetExtension($_).ToLowerInvariant()) } | Select-Object -First 1;"
     "if ($null -eq $hit) { exit 1 }"
+    f"$cap = {_FILEDROP_IMAGE_MAX_BYTES};"
+    "$fi = New-Object System.IO.FileInfo $hit;"
+    "if (-not $fi.Exists -or $fi.Length -le 0 -or $fi.Length -gt $cap) { exit 3 }"
+    # Magic-byte sniff: PNG, JPEG, GIF, BMP, WEBP(RIFF), TIFF (II*/MM*).
+    "$fs = [System.IO.File]::OpenRead($hit);"
+    "$hdr = New-Object byte[] 12;"
+    "$n = $fs.Read($hdr, 0, 12); $fs.Close();"
+    "if ($n -lt 4) { exit 4 }"
+    "$isImg = $false;"
+    "if ($hdr[0] -eq 0x89 -and $hdr[1] -eq 0x50 -and $hdr[2] -eq 0x4E -and $hdr[3] -eq 0x47) { $isImg = $true }"  # PNG
+    "elseif ($hdr[0] -eq 0xFF -and $hdr[1] -eq 0xD8 -and $hdr[2] -eq 0xFF) { $isImg = $true }"  # JPEG
+    "elseif ($hdr[0] -eq 0x47 -and $hdr[1] -eq 0x49 -and $hdr[2] -eq 0x46 -and $hdr[3] -eq 0x38) { $isImg = $true }"  # GIF8
+    "elseif ($hdr[0] -eq 0x42 -and $hdr[1] -eq 0x4D) { $isImg = $true }"  # BMP
+    "elseif ($n -ge 12 -and $hdr[0] -eq 0x52 -and $hdr[1] -eq 0x49 -and $hdr[2] -eq 0x46 -and $hdr[3] -eq 0x46 -and $hdr[8] -eq 0x57 -and $hdr[9] -eq 0x45 -and $hdr[10] -eq 0x42 -and $hdr[11] -eq 0x50) { $isImg = $true }"  # WEBP
+    "elseif (($hdr[0] -eq 0x49 -and $hdr[1] -eq 0x49 -and $hdr[2] -eq 0x2A -and $hdr[3] -eq 0x00) -or ($hdr[0] -eq 0x4D -and $hdr[1] -eq 0x4D -and $hdr[2] -eq 0x00 -and $hdr[3] -eq 0x2A)) { $isImg = $true }"  # TIFF
+    "if (-not $isImg) { exit 5 }"
     "[System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($hit))"
     "} catch { exit 1 }"
 )
@@ -206,6 +229,11 @@ def _run_powershell(exe: str, script: str, timeout: int) -> subprocess.Completed
 
 def _write_base64_image(dest: Path, b64_data: str) -> bool:
     image_bytes = base64.b64decode(b64_data, validate=True)
+    # GAP-09-10: belt-and-suspenders byte cap in case the extractor was
+    # bypassed — never persist an oversize blob into model context.
+    if len(image_bytes) > _FILEDROP_IMAGE_MAX_BYTES:
+        logger.debug("clipboard image rejected: %d bytes exceeds cap", len(image_bytes))
+        return False
     dest.write_bytes(image_bytes)
     return dest.exists() and dest.stat().st_size > 0
 

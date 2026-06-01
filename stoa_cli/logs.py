@@ -52,6 +52,28 @@ _LOGGER_NAME_RE = re.compile(
 # Level ordering for >= filtering
 _LEVEL_ORDER = {"DEBUG": 0, "INFO": 1, "WARNING": 2, "ERROR": 3, "CRITICAL": 4}
 
+# GAP-09-14: log lines can carry attacker-controlled tool/web content that was
+# captured verbatim. When tailing logs we must not let raw terminal-control
+# bytes (ANSI/OSC escapes, C0/C1 control chars) reach the operator's terminal,
+# where they could move the cursor, set the window title, smuggle hyperlinks,
+# or rewrite the clipboard. Strip ESC-introduced sequences and bare control
+# chars while preserving newline/tab so the output stays readable.
+# OSC: ESC ] ... (BEL | ESC \) ; CSI: ESC [ params; lone/other ESC sequences.
+_LOG_ESC_RE = re.compile(
+    r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)"  # OSC ... BEL/ST
+    r"|\x1b\[[0-?]*[ -/]*[@-~]"            # CSI (incl. SGR colors)
+    r"|\x1b[ -/]*[0-~]"                    # other 2+ char ESC sequences
+    r"|\x1b"                                # lone ESC
+)
+# C0 (0x00-0x1F) and C1 (0x80-0x9F) and DEL (0x7F), except \t and \n.
+_LOG_CTRL_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
+
+
+def _sanitize_log_line(line: str) -> str:
+    """Strip ANSI/OSC escapes + C0/C1 control bytes, preserving \\n and \\t."""
+    line = _LOG_ESC_RE.sub("", line)
+    return _LOG_CTRL_RE.sub("", line)
+
 
 def _parse_since(since_str: str) -> Optional[datetime]:
     """Parse a relative time string like '1h', '30m', '2d' into a datetime cutoff.
@@ -233,7 +255,7 @@ def tail_log(
         print(f"--- {display_stoa_home()}/logs/{filename}{filter_desc} (last {num_lines}) ---")
 
     for line in lines:
-        print(line, end="")
+        print(_sanitize_log_line(line), end="")
 
     if not follow:
         return
@@ -349,7 +371,7 @@ def _follow_log(
                 if _matches_filters(line, min_level=min_level,
                                     session_filter=session_filter, since=since,
                                     component_prefixes=component_prefixes):
-                    print(line, end="")
+                    print(_sanitize_log_line(line), end="")
                     sys.stdout.flush()
             else:
                 time.sleep(0.3)

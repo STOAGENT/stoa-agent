@@ -8,6 +8,34 @@ import { api, type OAuthProvider, type OAuthStartResponse } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/i18n";
 import { cn, themedBody } from "@/lib/utils";
+import { isSafeHref } from "@/components/Markdown";
+
+/**
+ * GAP-09-01: OAuth `auth_url` / `verification_url` come from the provider's
+ * (RFC 8628) device-authorization or PKCE response — a malicious/compromised
+ * provider (or on-path MITM) can return `javascript:…`, `data:…`, etc., which
+ * `window.open` would execute in the dashboard origin (exposing the privileged
+ * plugin SDK + session token), and a bound `<a href>` would be a one-click
+ * variant. Only http/https are permitted for these provider-supplied URLs;
+ * anything else is rejected to `undefined` (anchors) or refused (window.open).
+ */
+function httpsOnlyHref(url: string | undefined): string | undefined {
+  if (!url || !isSafeHref(url)) return undefined;
+  try {
+    const proto = new URL(url).protocol.toLowerCase();
+    return proto === "https:" || proto === "http:" ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Open an external URL only if it is a safe http/https URL. */
+function safeWindowOpen(url: string | undefined): boolean {
+  const safe = httpsOnlyHref(url);
+  if (!safe) return false;
+  window.open(safe, "_blank", "noopener,noreferrer");
+  return true;
+}
 
 interface Props {
   provider: OAuthProvider;
@@ -45,10 +73,13 @@ export function OAuthLoginModal({ provider, onClose, onSuccess }: Props) {
         setStart(resp);
         setSecondsLeft(resp.expires_in);
         setPhase(resp.flow === "device_code" ? "polling" : "awaiting_user");
-        if (resp.flow === "pkce") {
-          window.open(resp.auth_url, "_blank", "noopener,noreferrer");
-        } else {
-          window.open(resp.verification_url, "_blank", "noopener,noreferrer");
+        const opened =
+          resp.flow === "pkce"
+            ? safeWindowOpen(resp.auth_url)
+            : safeWindowOpen(resp.verification_url);
+        if (!opened) {
+          setPhase("error");
+          setErrorMsg("Login URL rejected: unsupported or unsafe scheme");
         }
       })
       .catch((e) => {
@@ -226,10 +257,10 @@ export function OAuthLoginModal({ provider, onClose, onSuccess }: Props) {
                 />
                 <div className="flex items-center gap-2 justify-between">
                   <a
-                    href={
+                    href={httpsOnlyHref(
                       (start as Extract<OAuthStartResponse, { flow: "pkce" }>)
-                        .auth_url
-                    }
+                        .auth_url,
+                    )}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
@@ -283,14 +314,14 @@ export function OAuthLoginModal({ provider, onClose, onSuccess }: Props) {
                 />
               </div>
               <a
-                href={
+                href={httpsOnlyHref(
                   (
                     start as Extract<
                       OAuthStartResponse,
                       { flow: "device_code" }
                     >
-                  ).verification_url
-                }
+                  ).verification_url,
+                )}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
@@ -341,17 +372,14 @@ export function OAuthLoginModal({ provider, onClose, onSuccess }: Props) {
                             ? "polling"
                             : "awaiting_user",
                         );
-                        if (resp.flow === "pkce") {
-                          window.open(
-                            resp.auth_url,
-                            "_blank",
-                            "noopener,noreferrer",
-                          );
-                        } else {
-                          window.open(
-                            resp.verification_url,
-                            "_blank",
-                            "noopener,noreferrer",
+                        const opened =
+                          resp.flow === "pkce"
+                            ? safeWindowOpen(resp.auth_url)
+                            : safeWindowOpen(resp.verification_url);
+                        if (!opened) {
+                          setPhase("error");
+                          setErrorMsg(
+                            "Login URL rejected: unsupported or unsafe scheme",
                           );
                         }
                       })

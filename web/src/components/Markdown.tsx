@@ -22,12 +22,18 @@ import { useMemo, type ReactNode } from "react";
  * else falls through to '#'.
  */
 const _ALLOWED_HREF_SCHEMES = new Set(["https:", "http:", "mailto:", "tel:"]);
-function isSafeHref(href: string | undefined): boolean {
+export function isSafeHref(href: string | undefined): boolean {
   if (!href) return false;
   const trimmed = href.trim();
   if (!trimmed) return false;
+  // Reject protocol-relative URLs (`//host/…`) BEFORE the relative
+  // short-circuit: they look path-shaped (firstChar === "/") but actually
+  // navigate cross-origin, so they must go through the scheme check (which
+  // they cannot pass since they have no scheme). Treat them as unsafe.
+  if (trimmed.startsWith("//")) return false;
   // Relative links + fragment-only links (`/path`, `#anchor`, `?q=…`)
-  // are never script-bearing, so allow them.
+  // are never script-bearing, so allow them. Only a single leading slash,
+  // hash, or question-mark qualifies as relative.
   const firstChar = trimmed[0];
   if (firstChar === "/" || firstChar === "#" || firstChar === "?") return true;
   try {

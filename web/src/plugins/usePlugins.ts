@@ -64,20 +64,26 @@ export function usePlugins() {
         loadedScripts.current.add(baseUrl);
       }
 
+      // SRI integrity verification is MANDATORY (GAP-09-02). A plugin
+      // bundle runs in the dashboard origin with the full mutating SDK, so
+      // a compromised/MITM'd plugin host or a tampered manifest must not be
+      // able to inject arbitrary JS. Without a declared `integrity` hash the
+      // browser cannot verify the bundle before executing it, so we refuse
+      // to inject the script entirely rather than silently running it.
+      if (!manifest.integrity || typeof manifest.integrity !== "string") {
+        setPluginLoadError(manifest.name, "MISSING_INTEGRITY");
+        console.warn(
+          `[plugins] Refusing to load ${manifest.name}: manifest has no SRI integrity hash`,
+        );
+        continue;
+      }
+
       const script = document.createElement("script");
       script.setAttribute("data-stoa-plugin", manifest.name);
       script.src = scriptSrc;
       script.async = true;
-      // SRI integrity verification — defense against compromised plugin
-      // delivery. Plugin manifests can declare an integrity hash
-      // (e.g. "sha384-...") which the browser verifies before executing.
-      // Without this, a man-in-the-middle or compromised plugin server
-      // can substitute the JS bundle silently. Opt-in: when no integrity
-      // is declared in the manifest, behavior is unchanged.
-      if (manifest.integrity && typeof manifest.integrity === "string") {
-        script.integrity = manifest.integrity;
-        script.crossOrigin = "anonymous";
-      }
+      script.integrity = manifest.integrity;
+      script.crossOrigin = "anonymous";
       script.onerror = () => {
         setPluginLoadError(manifest.name, "LOAD_FAILED");
         console.warn(

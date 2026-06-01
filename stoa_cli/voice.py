@@ -395,6 +395,19 @@ def start_continuous(
     global _continuous_on_transcript, _continuous_on_status, _continuous_on_silent_limit
     global _continuous_no_speech_count
 
+    # GAP-09-22: a config/RPC-supplied huge ``silence_duration`` would make the
+    # VAD loop never stop (runaway mic capture / resource exhaustion), and an
+    # out-of-range threshold can wedge detection. Clamp both to sane bounds
+    # before they reach the recorder.
+    try:
+        silence_threshold = max(50, min(5000, int(silence_threshold)))
+    except (TypeError, ValueError):
+        silence_threshold = 200
+    try:
+        silence_duration = max(0.5, min(30.0, float(silence_duration)))
+    except (TypeError, ValueError):
+        silence_duration = 3.0
+
     with _continuous_lock:
         if _continuous_active:
             _debug("start_continuous: already active — no-op")

@@ -135,8 +135,9 @@ pixel_art("in.png", "out.png", preset="snes", palette="PICO_8", block=6)
 ### Python (import)
 
 ```python
-import sys
-sys.path.insert(0, "/home/teknium/.stoa/skills/creative/pixel-art/scripts")
+import os, sys
+_stoa_home = os.environ.get("STOA_HOME", os.path.expanduser("~/.stoa"))
+sys.path.insert(0, os.path.join(_stoa_home, "skills/creative/pixel-art/scripts"))
 from pixel_art import pixel_art
 from pixel_art_video import pixel_art_video
 
@@ -158,7 +159,7 @@ pixel_art_video(
 ### CLI
 
 ```bash
-cd /home/teknium/.stoa/skills/creative/pixel-art/scripts
+cd "${STOA_HOME:-$HOME/.stoa}/skills/creative/pixel-art/scripts"
 
 python pixel_art.py in.jpg out.png --preset gameboy
 python pixel_art.py in.jpg out.png --preset snes --palette PICO_8 --block 6

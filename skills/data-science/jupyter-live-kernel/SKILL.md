@@ -52,14 +52,19 @@ Check if a server is already running:
 uv run "$SCRIPT" servers
 ```
 
-If no servers found, start one:
+If no servers found, start one (bound to loopback, with the auto-generated
+token kept — do NOT disable the token or password):
 ```
-jupyter-lab --no-browser --port=8888 --notebook-dir=$HOME/notebooks \
-  --IdentityProvider.token='' --ServerApp.password='' > /tmp/jupyter.log 2>&1 &
+jupyter-lab --no-browser --ip=127.0.0.1 --port=8888 --notebook-dir=$HOME/notebooks \
+  > /tmp/jupyter.log 2>&1 &
 sleep 3
 ```
 
-Note: Token/password disabled for local agent access. The server runs headless.
+Note: The server binds to 127.0.0.1 only and keeps its auto-generated token.
+A token-less Jupyter is an unauthenticated remote-code-execution endpoint for
+anything that can reach the port — never disable the token/password. Retrieve
+the tokenized URL with `jupyter server list` and use that token on every
+request. The server runs headless.
 
 ### Creating a Notebook for REPL Use
 

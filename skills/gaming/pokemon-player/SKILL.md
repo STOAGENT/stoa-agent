@@ -22,8 +22,9 @@ set up a Python 3.10+ virtual environment. Use uv (preferred for speed)
 to create the venv and install the package in editable mode with the
 pyboy extra. If uv is not available, fall back to python3 -m venv + pip.
 
-On this machine it is already set up at /home/teknium/pokemon-agent
-with a venv ready — just cd there and source .venv/bin/activate.
+If it is already set up on this machine, it lives under your STOA home,
+e.g. $STOA_HOME/pokemon-agent (defaulting to ~/.stoa/pokemon-agent) with a
+venv ready — just cd there and source .venv/bin/activate.
 
 You also need a ROM file. Ask the user for theirs. On this machine
 one exists at roms/pokemon_red.gb inside that directory.
@@ -32,17 +33,30 @@ NEVER download or provide ROM files — always ask the user.
 ### 2. Start the game server
 From inside the pokemon-agent directory with the venv activated, run
 pokemon-agent serve with --rom pointing to the ROM and --port 9876.
+ALWAYS bind it to loopback only — pass --host 127.0.0.1 so the server is
+reachable only from this machine (the dashboard drives game actions and
+save/load and has NO authentication).
 Run it in the background with &.
 To resume from a saved game, add --load-state with the save name.
-Wait 4 seconds for startup, then verify with GET /health.
+Wait 4 seconds for startup, then verify with GET http://127.0.0.1:9876/health.
 
-### 3. Set up live dashboard for user to watch
-Use an SSH reverse tunnel via localhost.run so the user can view
-the dashboard in their browser. Connect with ssh, forwarding local
-port 9876 to remote port 80 on nokey@localhost.run. Redirect output
-to a log file, wait 10 seconds, then grep the log for the .lhr.life
-URL. Give the user the URL with /dashboard/ appended.
-The tunnel URL changes each time — give the user the new one if restarted.
+### 3. Set up live dashboard for user to watch (OPTIONAL — requires consent)
+The dashboard is UNAUTHENTICATED: anyone who can reach it can drive the game,
+save, and load. Do NOT tunnel it to the public Internet by default.
+
+Only set up a tunnel if, in THIS invocation, the user has explicitly asked to
+watch in their browser and accepted that the public URL is unauthenticated.
+The localhost.run reverse tunnel and any `.lhr.life` URL it produces are
+unauthenticated — whoever discovers the URL controls the game. Tell the user
+this before tunneling and ask them to confirm.
+
+If consent is given: use an SSH reverse tunnel via localhost.run, forwarding
+local port 9876 to remote port 80 on nokey@localhost.run. Redirect output to a
+log file, wait 10 seconds, then grep the log for the .lhr.life URL. Give the
+user the URL with /dashboard/ appended, and remind them it is publicly
+reachable and unauthenticated. The tunnel URL changes each time — give the user
+the new one if restarted. If the user did not ask for remote viewing, keep the
+dashboard local-only at http://127.0.0.1:9876/dashboard/.
 
 ## Save and Load
 

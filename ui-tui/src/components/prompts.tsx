@@ -2,10 +2,15 @@ import { Box, Text, useInput } from '@stoa/ink'
 import { useState } from 'react'
 
 import { isMac } from '../lib/platform.js'
+import { stripAnsi } from '../lib/text.js'
 import type { Theme } from '../theme.js'
 import type { ApprovalReq, ClarifyReq, ConfirmReq } from '../types.js'
 
 import { TextInput } from './textInput.js'
+
+// Gap-audit 2026-06-01 (JS-GW-01): defense-in-depth render budget so a gateway
+// that bypassed the ingest clamp still cannot blow up Ink layout.
+const CLARIFY_RENDER_MAX = 50
 
 const OPTS = ['once', 'session', 'always', 'deny'] as const
 const LABELS = { always: 'Always allow', deny: 'Deny', once: 'Allow once', session: 'Allow this session' } as const
@@ -146,13 +151,17 @@ export function ClarifyPrompt({ cols = 80, onAnswer, onCancel, req, t }: Clarify
     }
 
     if (key.return) {
-      sel === choices.length ? setTyping(true) : choices[sel] && onAnswer(choices[sel]!)
+      sel === choices.length ? setTyping(true) : choices[sel] && onAnswer(stripAnsi(choices[sel]!))
     }
 
+    // Gap-audit 2026-06-01 (JS-GW-02): a number key MOVES the selection only;
+    // it no longer auto-commits an attacker-chosen string on one digit press.
+    // The operator must press Enter to confirm, and the committed string is
+    // routed through stripAnsi so homoglyph/bidi/escape bytes are sanitized.
     const n = parseInt(ch)
 
     if (n >= 1 && n <= choices.length) {
-      onAnswer(choices[n - 1]!)
+      setSel(n - 1)
     }
   })
 
@@ -178,11 +187,11 @@ export function ClarifyPrompt({ cols = 80, onAnswer, onCancel, req, t }: Clarify
     <Box flexDirection="column">
       {heading}
 
-      {[...choices, 'Other (type your answer)'].map((c, i) => (
+      {[...choices.slice(0, CLARIFY_RENDER_MAX), 'Other (type your answer)'].map((c, i) => (
         <Text key={i}>
           <Text bold={sel === i} color={sel === i ? t.color.label : t.color.muted} inverse={sel === i}>
             {sel === i ? '▸ ' : '  '}
-            {i + 1}. {c}
+            {i + 1}. {stripAnsi(c)}
           </Text>
         </Text>
       ))}

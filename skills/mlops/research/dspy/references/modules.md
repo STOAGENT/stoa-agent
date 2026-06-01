@@ -131,8 +131,15 @@ def search_wikipedia(query: str) -> str:
     return search_results
 
 def calculate(expression: str) -> float:
-    """Evaluate a mathematical expression."""
-    return eval(expression)
+    """Evaluate a mathematical literal expression.
+
+    SECURITY: never use `eval()` here — `expression` may be LLM/tool output and
+    `eval()` would execute arbitrary code. `ast.literal_eval` only parses Python
+    literals (numbers, etc.). Do NOT pass untrusted input to a real eval; for
+    arithmetic beyond literals use a sandboxed expression evaluator.
+    """
+    import ast
+    return ast.literal_eval(expression)
 
 # Create ReAct agent
 class ResearchQA(dspy.Signature):

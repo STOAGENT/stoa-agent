@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 
 import type { GatewayClient } from '../gatewayClient.js'
 import { rpcErrorMessage } from '../lib/rpc.js'
+import { stripAnsi } from '../lib/text.js'
 import type { Theme } from '../theme.js'
 
 import { OverlayHint, useOverlayKeys, windowItems, windowOffset } from './overlayControls.js'
@@ -283,7 +284,7 @@ export function SkillsHub({ gw, onClose, t }: SkillsHubProps) {
       </Text>
 
       <Text color={t.color.muted}>{info?.category ?? selectedCat}</Text>
-      {info?.description ? <Text color={t.color.text}>{info.description}</Text> : null}
+      {info?.description ? <Text color={t.color.text}>{stripAnsi(info.description)}</Text> : null}
       {info?.path ? <Text color={t.color.muted}>path: {info.path}</Text> : null}
       {!info && !err ? <Text color={t.color.muted}>loading…</Text> : null}
       {err ? <Text color={t.color.label}>error: {err}</Text> : null}
