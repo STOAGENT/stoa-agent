@@ -345,10 +345,14 @@ class SessionDB:
         # from a pre-fix install also tightens the perms; the connection
         # call below will create the file if missing, and we re-chmod in
         # that case after init.
+        # Gap-audit 2026-06-01 (WIN-02): owner-lock the session DB on ALL
+        # platforms (was POSIX-only → the Windows branch did nothing, leaving
+        # the full plaintext transcript readable per the inherited dir ACL).
         try:
-            if os.name == "posix" and self.db_path.exists():
-                os.chmod(self.db_path, 0o600)
-        except (OSError, NotImplementedError):
+            if self.db_path.exists():
+                from stoa_cli.win_acl import lock_to_owner
+                lock_to_owner(self.db_path)
+        except (OSError, NotImplementedError, ImportError):
             pass
 
         self._lock = threading.Lock()
@@ -380,11 +384,16 @@ class SessionDB:
             self._conn.execute("PRAGMA foreign_keys=ON")
 
             self._init_schema()
-            # Audit S-06: re-chmod after init for newly-created databases.
+            # Audit S-06 + gap-audit WIN-02: re-lock after init for
+            # newly-created databases, on ALL platforms, incl. the -wal/-shm
+            # sidecars created by WAL mode (they carry the same plaintext).
             try:
-                if os.name == "posix" and self.db_path.exists():
-                    os.chmod(self.db_path, 0o600)
-            except (OSError, NotImplementedError):
+                from stoa_cli.win_acl import lock_to_owner
+                for _sfx in ("", "-wal", "-shm"):
+                    _f = self.db_path.parent / (self.db_path.name + _sfx)
+                    if _f.exists():
+                        lock_to_owner(_f)
+            except (OSError, NotImplementedError, ImportError):
                 pass
         except Exception as exc:
             # Capture the cause so /resume and friends can surface WHY the
@@ -2569,15 +2578,37 @@ class SessionDB:
         """
         if sessions_dir is None:
             return
+        # GAP-09-17: ``session_id`` is treated as raw text when building unlink
+        # paths and a glob pattern. A malicious id containing ``../`` (path
+        # traversal) or glob metacharacters (``*``/``?``/``[``) would widen the
+        # deletion beyond this session. Resolve the sessions dir once, assert
+        # each target stays inside it, and escape the id before using it in a
+        # glob pattern.
+        import glob as _glob
+        try:
+            _sessions_root = sessions_dir.resolve()
+        except OSError:
+            _sessions_root = sessions_dir
         for suffix in (".json", ".jsonl"):
             p = sessions_dir / f"{session_id}{suffix}"
+            try:
+                if not p.resolve().is_relative_to(_sessions_root):
+                    continue
+            except (OSError, ValueError):
+                continue
             try:
                 p.unlink(missing_ok=True)
             except OSError:
                 pass
         # request_dump files use session_id as a prefix component
         try:
-            for p in sessions_dir.glob(f"request_dump_{session_id}_*.json"):
+            _pattern = f"request_dump_{_glob.escape(session_id)}_*.json"
+            for p in sessions_dir.glob(_pattern):
+                try:
+                    if not p.resolve().is_relative_to(_sessions_root):
+                        continue
+                except (OSError, ValueError):
+                    continue
                 try:
                     p.unlink(missing_ok=True)
                 except OSError:

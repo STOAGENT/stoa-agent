@@ -466,20 +466,24 @@ def _is_container() -> bool:
 
 
 def _secure_file(path):
-    """Set file to owner-only read/write (0600). No-op on Windows.
+    """Set file to owner-only access. Real ACL on Windows (not a chmod no-op).
 
-    Skipped in managed mode — the NixOS activation script sets
-    group-readable permissions (0640) on config files.
+    Gap-audit 2026-06-01 (WIN-01): previously `os.chmod(path, 0o600)` only
+    toggled the read-only bit on Windows, leaving secret confidentiality to the
+    inherited directory ACL. Route through ``win_acl.lock_to_owner`` which sets
+    a real owner-only DACL on Windows (icacls) and keeps 0600 on POSIX.
 
-    Skipped in containers — Docker/Podman volume mounts often need broader
-    permissions.  Set STOA_SKIP_CHMOD=1 to force-skip on other systems.
+    Skipped in managed mode — the NixOS activation script sets group-readable
+    permissions (0640) on config files. Skipped in containers — volume mounts
+    often need broader permissions. Set STOA_SKIP_CHMOD=1 to force-skip.
     """
     if is_managed() or _is_container():
         return
     try:
         if os.path.exists(str(path)):
-            os.chmod(path, 0o600)
-    except (OSError, NotImplementedError):
+            from stoa_cli.win_acl import lock_to_owner
+            lock_to_owner(path)
+    except (OSError, NotImplementedError, ImportError):
         pass
 
 
@@ -4526,6 +4530,17 @@ def _load_config_impl(*, want_deepcopy: bool) -> Dict[str, Any]:
                 config = _deep_merge(config, user_config)
             except Exception as e:
                 _warn_config_parse_failure(config_path, e)
+                # GAP-09-12: a parse failure must NOT silently fall open to
+                # DEFAULT_CONFIG — that drops every operator security override
+                # (approval policy, redaction, preset keys). Retain the last
+                # known-good fully-built config if we have one cached from a
+                # prior successful load, so hardening keeps applying until the
+                # YAML is fixed. Only the genuine first-load-with-no-history
+                # case falls back to defaults (happy path is untouched: this
+                # branch only runs on exception).
+                _lkg = _LAST_EXPANDED_CONFIG_BY_PATH.get(path_key)
+                if _lkg is not None:
+                    config = copy.deepcopy(_lkg)
 
         normalized = _normalize_root_model_keys(_normalize_max_turns_config(config))
         expanded = _expand_env_vars(normalized)

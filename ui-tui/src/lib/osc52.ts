@@ -69,5 +69,22 @@ export async function readOsc52Clipboard(querier: null | OscQuerier, timeoutMs =
   return response ? parseOsc52ClipboardData(response.data) : null
 }
 
-export const writeOsc52Clipboard = (s: string) =>
-  process.stdout.write(`\x1b]52;c;${Buffer.from(s, 'utf8').toString('base64')}\x07`)
+// Gap-audit 2026-06-01 (JS-GW-04): this is the one path that writes raw
+// terminal-control bytes straight to stdout, outside the Ink scrubber. Assert
+// the encoded payload is strict base64 before emitting the OSC 52 frame so a
+// future regression in the encoder can never let unescaped control bytes (a
+// premature BEL/ST, a nested ESC) terminate the frame early and inject a
+// second control sequence into the terminal.
+const BASE64_RE = /^[A-Za-z0-9+/]*={0,2}$/
+
+export const writeOsc52Clipboard = (s: string) => {
+  const payload = Buffer.from(s, 'utf8').toString('base64')
+
+  if (!BASE64_RE.test(payload)) {
+    // Should be unreachable (toString('base64') is canonical), but fail closed
+    // rather than write a control sequence we cannot vouch for.
+    return false
+  }
+
+  return process.stdout.write(`\x1b]52;c;${payload}\x07`)
+}

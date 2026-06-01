@@ -200,17 +200,29 @@ class NodeServer:
         ssl_context = None
         if self.host not in _safe_loopback:
             import os
-            if os.environ.get("STOA_MEET_NODE_ALLOW_REMOTE_BIND", "").lower() in ("1", "true", "yes"):
-                # Non-loopback bind requires TLS to protect the token in transit.
-                try:
-                    import ssl
-                    ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-                    # In production, use real certs; for development, generate self-signed.
-                    # For now, this serves as the enforcement point â€” a real implementation
-                    # would load certs from config or generate them on first run.
-                    ssl_context = None  # Will be set up properly in full implementation
-                except Exception:
-                    pass
+            if os.environ.get("STOA_MEET_NODE_ALLOW_REMOTE_BIND", "").lower() not in ("1", "true", "yes"):
+                raise RuntimeError(
+                    f"Refusing to bind NodeServer to non-loopback host {self.host!r}: "
+                    "set STOA_MEET_NODE_ALLOW_REMOTE_BIND=1 to opt in (and configure TLS)."
+                )
+            # JS-MEET-01: a non-loopback bind sends the 32-hex bearer token over
+            # the wire, so it MUST run over TLS. Load a real cert from
+            # STOA_MEET_NODE_TLS_CERT / STOA_MEET_NODE_TLS_KEY. Previously this
+            # block built an SSLContext and then reset it to None ("full
+            # implementation" TODO), silently downgrading to plaintext ws://
+            # and leaking the token on-path. Fail closed instead.
+            cert_path = os.environ.get("STOA_MEET_NODE_TLS_CERT", "")
+            key_path = os.environ.get("STOA_MEET_NODE_TLS_KEY", "")
+            if not cert_path or not key_path:
+                raise RuntimeError(
+                    "Non-loopback NodeServer bind requires TLS but no certificate is "
+                    "configured. Set STOA_MEET_NODE_TLS_CERT and STOA_MEET_NODE_TLS_KEY "
+                    "to PEM paths (the RPC bearer token would otherwise be sent in "
+                    "cleartext over ws://)."
+                )
+            import ssl
+            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ssl_context.load_cert_chain(certfile=cert_path, keyfile=key_path)
         async with websockets.serve(_handler, self.host, self.port, ssl=ssl_context):
             # Run until cancelled.
             import asyncio

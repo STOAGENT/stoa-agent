@@ -35,14 +35,18 @@ Talk to Notion two ways. Same integration token works for both — pick by what'
 ### 2. Install `ntn` (preferred path on macOS / Linux)
 
 ```bash
-# Recommended
-curl -fsSL https://ntn.dev | bash
-
-# Or via npm (needs Node 22+, npm 10+)
+# Recommended — pinned via npm (needs Node 22+, npm 10+)
 npm install --global ntn
 
 ntn --version    # verify
 ```
+
+Avoid the `curl -fsSL https://ntn.dev | bash` one-liner: it pipes an unpinned
+remote script straight to a shell (single-hop RCE if the domain is repointed or
+compromised, or if injected content nudges a "set up Notion" action). Use the
+`npm` path above. If you must use the installer script, download it first, pin a
+versioned GitHub release, verify its published SHA-256, and run it only after
+explicit user approval — never pipe it directly to `bash`.
 
 **Skip `ntn login` — use the integration token instead.** This works headlessly, no browser needed:
 ```bash

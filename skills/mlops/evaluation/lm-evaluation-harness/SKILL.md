@@ -202,8 +202,13 @@ Integrate with training script:
 if step % eval_interval == 0:
     model.save_pretrained(f"checkpoints/step-{step}")
 
-    # Run evaluation
-    os.system(f"./eval_checkpoint.sh checkpoints step-{step}")
+    # Run evaluation.
+    # SECURITY: use subprocess.run with an argument LIST (no shell) instead of
+    # os.system(f"..."). os.system runs the formatted string through a shell, so
+    # any shell metacharacter in an interpolated value is an injection point. Do
+    # NOT build these commands from untrusted (LLM/tool/user) input.
+    import subprocess
+    subprocess.run(["./eval_checkpoint.sh", "checkpoints", f"step-{step}"], check=True)
 ```
 
 Or use PyTorch Lightning callbacks:
@@ -219,8 +224,17 @@ class EvalHarnessCallback(Callback):
         # Save checkpoint
         trainer.save_checkpoint(checkpoint_path)
 
-        # Run lm-eval
-        os.system(f"lm_eval --model hf --model_args pretrained={checkpoint_path} ...")
+        # Run lm-eval.
+        # SECURITY: use subprocess.run with an argument LIST (no shell) instead
+        # of os.system(f"..."), which would run the formatted string through a
+        # shell and make any metacharacter in checkpoint_path an injection
+        # point. Do NOT build this command from untrusted (LLM/tool/user) input.
+        import subprocess
+        subprocess.run(
+            ["lm_eval", "--model", "hf",
+             "--model_args", f"pretrained={checkpoint_path}", "..."],
+            check=True,
+        )
 ```
 
 **Step 4: Plot learning curves**

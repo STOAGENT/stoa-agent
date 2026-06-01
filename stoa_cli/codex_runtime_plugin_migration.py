@@ -237,7 +237,20 @@ def _format_toml_value(value: Any) -> str:
 
 
 def _quote_key(key: str) -> str:
-    """Return key bare-or-quoted depending on whether it's a valid bare key."""
+    """Return key bare-or-quoted depending on whether it's a valid bare key.
+
+    GAP-09-15: the previous escaping only handled ``\\`` and ``"``, so a
+    plugin/MCP name containing a newline/CR/tab (or other control char)
+    could break out of the quoted TOML key and inject an attacker-chosen
+    ``[table]`` / ``key = "val"`` line into ``~/.codex/config.toml``,
+    influencing codex's permission/MCP behaviour. Reject any control
+    character outright — names are not legitimately allowed to contain them.
+    """
+    if any(ord(c) < 0x20 or ord(c) == 0x7f for c in key):
+        raise ValueError(
+            "control character not allowed in TOML key name: "
+            f"{key!r}"
+        )
     if all(c.isalnum() or c in "-_" for c in key) and key:
         return key
     escaped = key.replace("\\", "\\\\").replace('"', '\\"')

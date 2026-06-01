@@ -2,7 +2,27 @@
 # Six sovereign LLMs as your local agent. Council-mode default. On-chain verifiable.
 #
 # Usage:
-#   iex (irm https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.8/scripts/install.ps1)
+#   iex (irm https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.9/scripts/install.ps1)
+#
+# ─── SECURITY: how to install this safely (WIN-04) ───────────────────
+#   The `iex (irm ...)` one-liner above is the convenience path, but it pipes
+#   remote code straight into your shell with NO integrity check — it is
+#   MITM-EXPOSED. A TLS-intercepting proxy, a downstream CA, a poisoned mirror,
+#   or a force-moved release tag can substitute hostile code that runs the
+#   instant you press Enter.
+#
+#   RECOMMENDED secure path — download, verify the hash, THEN run:
+#     1. Invoke-WebRequest `
+#          https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.9/scripts/install.ps1 `
+#          -OutFile install.ps1
+#     2. Get-FileHash .\install.ps1 -Algorithm SHA256
+#     3. Compare that SHA-256 against the value published on the GitHub
+#        Release page (https://github.com/STOAGENT/stoa-agent/releases).
+#        If it does NOT match exactly, STOP — do not run the file.
+#     4. powershell -ExecutionPolicy Bypass -File .\install.ps1
+#
+#   The same caveat applies to every `irm <url> | iex` below (e.g. the uv
+#   bootstrap): prefer download → Get-FileHash → compare → -File when you can.
 #
 # What it does:
 #   1. Installs uv (Astral's fast Python package manager) into ~/.local/bin
@@ -85,6 +105,13 @@ function Ensure-Uv {
     }
     Write-StoaInfo "Installing uv (fast Python interpreter + package manager)..."
     try {
+        # SECURITY (WIN-04): `irm | iex` pipes third-party code (astral.sh) into
+        # the shell with no integrity check — MITM-exposed. For a hardened
+        # install, fetch it first and verify against Astral's published hash:
+        #   irm https://astral.sh/uv/install.ps1 -OutFile uv-install.ps1
+        #   Get-FileHash .\uv-install.ps1 -Algorithm SHA256   # compare to upstream
+        #   powershell -ExecutionPolicy Bypass -File .\uv-install.ps1
+        # The convenience one-liner below is kept for low-friction setup.
         irm https://astral.sh/uv/install.ps1 | iex
     } catch {
         Stop-WithError "uv install failed: $_. Install manually from https://docs.astral.sh/uv/getting-started/installation/ and re-run."

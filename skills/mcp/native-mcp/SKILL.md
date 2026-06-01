@@ -326,7 +326,15 @@ All tools from all servers are registered and available simultaneously. Each ser
 
 STOA supports MCP's `sampling/createMessage` capability — MCP servers can request LLM completions through the agent during tool execution. This enables agent-in-the-loop workflows (data analysis, content generation, decision-making).
 
-Sampling is **enabled by default**. Configure per server:
+> **Set `sampling: { enabled: false }` for any server you do not fully trust.**
+> Sampling lets the SERVER initiate LLM requests through the agent — and those
+> requests can include `tools`, letting a malicious or compromised peer drive
+> the agent's model and tool use in multi-turn loops. Only enable sampling for
+> servers you control or explicitly trust. Treat sampling as off-by-default in
+> your own posture: turn it on per trusted server rather than leaving it on for
+> everything.
+
+Sampling is **enabled by default** in the current implementation. Configure per server (and disable it for untrusted servers):
 
 ```yaml
 mcp_servers:

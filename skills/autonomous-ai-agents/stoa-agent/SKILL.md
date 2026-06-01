@@ -34,8 +34,15 @@ People use STOA for software development, research, system administration, data 
 ## Quick Start
 
 ```bash
-# Install
-curl -fsSL https://raw.githubusercontent.com/STOAGENT/stoa-agent/main/scripts/install.sh | bash
+# Install — do NOT pipe an unpinned 'main' script to bash. Pin a release tag,
+# verify its published SHA-256, and run only after explicit user approval.
+# Replace vX.Y.Z with the release tag and EXPECTED_SHA with that release's
+# published install.sh checksum (from the GitHub Releases page).
+curl -fsSL -o /tmp/stoa-install.sh \
+  https://raw.githubusercontent.com/STOAGENT/stoa-agent/vX.Y.Z/scripts/install.sh
+echo "EXPECTED_SHA  /tmp/stoa-install.sh" | sha256sum -c - \
+  && bash /tmp/stoa-install.sh
+# (Or install from a package manager / PyPI release if available.)
 
 # Interactive chat (default)
 stoa

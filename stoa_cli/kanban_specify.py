@@ -142,6 +142,7 @@ def specify_task(
     *,
     author: Optional[str] = None,
     timeout: Optional[int] = None,
+    board: Optional[str] = None,
 ) -> SpecifyOutcome:
     """Specify a single triage task and promote it to ``todo``.
 
@@ -149,8 +150,13 @@ def specify_task(
     failure modes (task not in triage, no aux client configured, API
     error, malformed response) — those surface via ``ok=False`` so the
     ``--all`` sweep can continue past individual failures.
+
+    ``board`` pins every DB connection to a specific board. Callers (e.g.
+    the dashboard ``/specify`` endpoint) thread it explicitly so concurrent
+    requests don't cross-wire via a process-global env var. ``None`` falls
+    back to the normal ``kb.connect()`` resolution (env / current board).
     """
-    with kb.connect() as conn:
+    with kb.connect(board=board) as conn:
         task = kb.get_task(conn, task_id)
     if task is None:
         return SpecifyOutcome(task_id, False, "unknown task id")
@@ -239,7 +245,7 @@ def specify_task(
                 task_id, False, "LLM response missing title and body"
             )
 
-    with kb.connect() as conn:
+    with kb.connect(board=board) as conn:
         ok = kb.specify_triage_task(
             conn,
             task_id,

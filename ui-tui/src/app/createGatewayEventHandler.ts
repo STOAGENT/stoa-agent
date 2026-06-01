@@ -562,13 +562,26 @@ export function createGatewayEventHandler(ctx: GatewayEventHandlerContext): (ev:
         return
       }
 
-      case 'clarify.request':
+      case 'clarify.request': {
+        // Gap-audit 2026-06-01 (JS-GW-01): a hostile attach-mode gateway can
+        // send 100k clarify choices (each huge) → render-amplification DoS via
+        // Yoga layout + grapheme clustering. Clamp count and per-entry length at
+        // the ingest boundary, and ANSI/bidi-strip each entry (JS-GW-03) so the
+        // gateway-sourced strings can never smuggle escapes/bidi into display.
+        const rawChoices = Array.isArray(ev.payload.choices) ? ev.payload.choices : []
+        const choices = rawChoices.slice(0, 50).map(c => stripAnsi(String(c)).slice(0, 500))
+
         patchOverlayState({
-          clarify: { choices: ev.payload.choices, question: ev.payload.question, requestId: ev.payload.request_id }
+          clarify: {
+            choices,
+            question: stripAnsi(String(ev.payload.question ?? '')).slice(0, 2000),
+            requestId: ev.payload.request_id
+          }
         })
         setStatus('waiting for input…')
 
         return
+      }
       case 'approval.request': {
         const description = String(ev.payload.description ?? 'dangerous command')
 

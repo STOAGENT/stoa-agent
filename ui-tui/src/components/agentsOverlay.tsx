@@ -29,7 +29,7 @@ import {
   treeTotals,
   widthByDepth
 } from '../lib/subagentTree.js'
-import { compactPreview } from '../lib/text.js'
+import { compactPreview, stripAnsi } from '../lib/text.js'
 import type { Theme } from '../theme.js'
 import type { SubagentNode, SubagentProgress } from '../types.js'
 
@@ -424,7 +424,7 @@ function Detail({ id, node, t }: { id?: string; node: SubagentNode; t: Theme }) 
     <Box flexDirection="column">
       <Text bold color={t.color.text} wrap="wrap">
         {id ? <Text color={t.color.accent}>#{id} </Text> : null}
-        <Text color={color}>{glyph}</Text> {item.goal}
+        <Text color={color}>{glyph}</Text> {stripAnsi(item.goal ?? '')}
       </Text>
 
       <Box flexDirection="column" marginTop={1}>

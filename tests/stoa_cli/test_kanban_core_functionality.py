@@ -2476,9 +2476,11 @@ def test_task_ids_dont_collide_at_scale(kanban_home):
         ids = [kb.create_task(conn, title=f"scale-{i}") for i in range(500)]
         assert len(ids) == len(set(ids)), "ID collision at N=500"
         # Sanity: every id matches the expected format
+        # Gap-audit 2026-06-01 (GAP-09-21): task ids are now 64-bit
+        # (token_hex(8) = 16 hex chars) instead of the brute-forceable 32-bit.
         for tid in ids[:10]:
             assert tid.startswith("t_")
-            assert len(tid) == 10  # "t_" + 8 hex chars
+            assert len(tid) == 18  # "t_" + 16 hex chars
     finally:
         conn.close()
 

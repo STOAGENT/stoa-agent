@@ -35,6 +35,16 @@ export interface SlashExecCallbacks {
   sys(text: string): void;
   /** Submit a user message to the agent (prompt.submit). */
   send(message: string): Promise<void> | void;
+  /**
+   * GAP-09-04: stage a gateway-supplied `send`/`skill` directive message
+   * into the composer for the user to review and submit themselves, instead
+   * of auto-firing it as a user turn. A hostile/compromised gateway can
+   * answer `command.dispatch` with `{type:"send", message:"<attacker
+   * prompt>"}`; without this gate that prompt was silently submitted to the
+   * privileged local agent. When provided, the message is surfaced (never
+   * auto-sent); when absent, the directive is refused (fail closed).
+   */
+  stageInComposer?(message: string): void;
 }
 
 export interface SlashExecOptions {
@@ -56,7 +66,7 @@ export async function executeSlash({
   command,
   sessionId,
   gw,
-  callbacks: { sys, send },
+  callbacks: { sys, send, stageInComposer },
 }: SlashExecOptions): Promise<SlashExecResult> {
   const { name, arg } = parseSlash(command);
 
@@ -103,7 +113,7 @@ export async function executeSlash({
           command: `/${d.target}${arg ? ` ${arg}` : ""}`,
           sessionId,
           gw,
-          callbacks: { sys, send },
+          callbacks: { sys, send, stageInComposer },
         });
 
       case "skill":
@@ -116,8 +126,21 @@ export async function executeSlash({
           return "error";
         }
         if (d.type === "skill") sys(`⚡ loading skill: ${d.name}`);
-        await send(msg);
-        return "sent";
+        // GAP-09-04: do NOT auto-submit a gateway-supplied directive into the
+        // privileged local agent. Surface it in the composer for explicit
+        // user review/confirmation; if no composer staging hook is wired,
+        // fail closed and refuse rather than auto-firing.
+        if (stageInComposer) {
+          stageInComposer(msg);
+          sys(
+            `/${name}: review the staged message in the composer and press Enter to send`,
+          );
+          return "done";
+        }
+        sys(
+          `/${name}: refused to auto-submit a gateway-supplied message (requires explicit confirmation)`,
+        );
+        return "error";
       }
     }
   } catch (err) {

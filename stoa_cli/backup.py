@@ -396,6 +396,17 @@ def run_import(args) -> None:
         members = [n for n in zf.namelist() if not n.endswith("/")]
         file_count = len(members)
 
+        # GAP-09-11: defend against a decompression bomb. The previous code
+        # read each member fully into memory (`src.read()`) BEFORE any size
+        # check, so a crafted member declaring a huge uncompressed size OOMed
+        # the process during restore. Enforce a per-member cap and an
+        # aggregate cap using ``ZipInfo.file_size`` *before* reading, and
+        # stream the bytes through a fixed-size buffer instead of slurping.
+        _MAX_MEMBER_BYTES = 512 * 1024 * 1024  # 512 MiB per member
+        _MAX_TOTAL_BYTES = 4 * 1024 * 1024 * 1024  # 4 GiB aggregate
+        _COPY_CHUNK = 1024 * 1024  # 1 MiB
+        _bytes_restored_total = 0
+
         # Audit deep-2026-05-29 (F-C19-001): load the sidecar manifest written
         # at backup time and verify every extracted member's sha256 against it
         # (the manifest itself is integrity-bound by top_hash). Without this,
@@ -507,23 +518,65 @@ def run_import(args) -> None:
                 continue
 
             try:
-                with zf.open(member) as src:
-                    data = src.read()
-                # F-C19-001: verify this member against the manifest sha256
-                # before writing it to disk. A member missing from the manifest
-                # or with a mismatched hash is a tampered/forged archive — skip.
+                # GAP-09-11: enforce per-member + aggregate uncompressed-size
+                # caps from the ZipInfo header BEFORE reading any bytes, so a
+                # bomb is rejected without ever materialising it in memory.
+                try:
+                    _zinfo = zf.getinfo(member)
+                    _declared = int(_zinfo.file_size)
+                except (KeyError, ValueError):
+                    _declared = -1
+                if _declared > _MAX_MEMBER_BYTES:
+                    errors.append(f"  {rel}: member size {_declared} exceeds per-member cap — refusing (bomb)")
+                    continue
+                if _declared >= 0 and _bytes_restored_total + _declared > _MAX_TOTAL_BYTES:
+                    errors.append(f"  {rel}: aggregate restore size cap exceeded — refusing")
+                    continue
+
+                # F-C19-001: verify this member against the manifest sha256.
+                # Stream the member through a fixed-size buffer (never slurp the
+                # whole thing), hashing as we go and enforcing the same caps on
+                # the actual byte count in case the declared size lied.
+                if _manifest_present and _manifest_hashes.get(member) is None:
+                    errors.append(f"  {rel}: not listed in manifest — refusing (extra/tampered member)")
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                _tmp = target.with_name(target.name + ".part")
+                _hasher = _hashlib_imp.sha256()
+                _written = 0
+                _aborted: Optional[str] = None
+                with zf.open(member) as src, open(_tmp, "wb") as dst:
+                    while True:
+                        chunk = src.read(_COPY_CHUNK)
+                        if not chunk:
+                            break
+                        _written += len(chunk)
+                        if _written > _MAX_MEMBER_BYTES:
+                            _aborted = "per-member cap"
+                            break
+                        if _bytes_restored_total + _written > _MAX_TOTAL_BYTES:
+                            _aborted = "aggregate cap"
+                            break
+                        _hasher.update(chunk)
+                        dst.write(chunk)
+                if _aborted is not None:
+                    try:
+                        _tmp.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+                    errors.append(f"  {rel}: {_aborted} exceeded mid-stream — refusing (bomb)")
+                    continue
                 if _manifest_present:
                     _expected = _manifest_hashes.get(member)
-                    if _expected is None:
-                        errors.append(f"  {rel}: not listed in manifest — refusing (extra/tampered member)")
-                        continue
-                    _actual = _hashlib_imp.sha256(data).hexdigest()
-                    if _actual != _expected:
+                    if _hasher.hexdigest() != _expected:
+                        try:
+                            _tmp.unlink(missing_ok=True)
+                        except OSError:
+                            pass
                         errors.append(f"  {rel}: sha256 mismatch — refusing (tampered member)")
                         continue
-                target.parent.mkdir(parents=True, exist_ok=True)
-                with open(target, "wb") as dst:
-                    dst.write(data)
+                os.replace(_tmp, target)
+                _bytes_restored_total += _written
                 if target.name in _SECRET_FILE_NAMES:
                     os.chmod(target, 0o600)
                 restored += 1

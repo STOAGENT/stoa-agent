@@ -32,6 +32,26 @@ from stoa_constants import get_stoa_home
 logger = logging.getLogger(__name__)
 
 
+def _int_env(name: str, default: int) -> int:
+    """Read an int env var, warning and falling back on a non-numeric value.
+
+    GAP-09-19: ``int(os.getenv(name, ...))`` at module import time raises
+    ``ValueError`` on a poisoned/non-numeric env value (e.g. via a corrupted
+    ``.env`` or a config→env bridge), which crashes ``import stoa_cli.wallet``
+    on the council/attest flow. Degrade gracefully to the default instead.
+    """
+    raw = os.getenv(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        logger.warning(
+            "%s=%r is not an integer — falling back to default %d", name, raw, default
+        )
+        return default
+
+
 # V-AGENT-006 — STOA token launch was dropped per the 2026-05-17 product
 # decision. No STOA token is deployed on Monad mainnet. The contract
 # address default is now empty so the gate auto-disables; council mode
@@ -47,7 +67,7 @@ MONAD_RPC = os.getenv("STOA_MONAD_RPC", "https://rpc.monad.xyz")
 # Monad-mainnet product (see feedback_stoa_chain_invariant.md memory +
 # README), so the default is 143. Operators wiring against testnet
 # during development set STOA_CHAIN_ID=10143 explicitly.
-MONAD_CHAIN_ID = int(os.getenv("STOA_CHAIN_ID", "143"))
+MONAD_CHAIN_ID = _int_env("STOA_CHAIN_ID", 143)
 
 # Boot-time crosscheck: drift between the chainId the runtime defaults
 # to and the chainId of any deployed contract reference is a class of
@@ -66,13 +86,13 @@ if MONAD_CHAIN_ID != 143 and os.getenv("STOA_CHAIN_ID") is not None:
 # Audit v7 CRIT-25-1 fix: SIWE Issued At freshness. A signature is only
 # valid for SIWE_FRESHNESS_WINDOW_MS milliseconds from its bound_at. Any
 # replay outside that window is rejected at verify time.
-SIWE_FRESHNESS_WINDOW_MS = int(os.getenv("STOA_SIWE_FRESHNESS_MS", str(10 * 60 * 1000)))  # 10 min
+SIWE_FRESHNESS_WINDOW_MS = _int_env("STOA_SIWE_FRESHNESS_MS", 10 * 60 * 1000)  # 10 min
 
 # Minimum STOA holding (in wei-equivalent 18-decimal units) to unlock
 # council mode + on-chain attestation. v0.x default is 0 (no gate);
 # set in env to enforce. The point when enforced is "skin in the game",
 # not "must be whale".
-COUNCIL_MIN_HOLDING = int(os.getenv("STOA_COUNCIL_MIN_HOLDING_WEI", "0"))
+COUNCIL_MIN_HOLDING = _int_env("STOA_COUNCIL_MIN_HOLDING_WEI", 0)
 
 WALLET_FILE = "wallet.json"
 
@@ -287,12 +307,13 @@ def bind_wallet(
     # Audit Phase-1A (PROBE-HIGH-031 / F-L28-005): owner-only mode.
     # Wallet bindings are the canonical "this is who I am" record;
     # any user on the same host with broad read access can lift them.
-    # Best-effort chmod 0o600 — Windows ACLs ignore POSIX modes, but
-    # the call is a no-op there rather than an error.
+    # Gap-audit 2026-06-01 (WIN-01): real owner-only ACL on Windows via
+    # win_acl.lock_to_owner, not a chmod no-op.
     try:
-        p.chmod(0o600)
-    except OSError as _chmod_exc:
-        logger.debug("wallet: chmod 0o600 failed (%s)", _chmod_exc)
+        from stoa_cli.win_acl import lock_to_owner
+        lock_to_owner(p)
+    except (OSError, ImportError) as _chmod_exc:
+        logger.debug("wallet: owner-lock failed (%s)", _chmod_exc)
     logger.info("wallet bound: %s", address)
     return binding
 

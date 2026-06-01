@@ -60,8 +60,8 @@ export default function DocsPage() {
           // theme or the user's prefers-color-scheme.
           "[color-scheme:light] bg-white",
         )}
-        sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-        referrerPolicy="no-referrer-when-downgrade"
+        sandbox="allow-scripts allow-popups allow-forms"
+        referrerPolicy="no-referrer"
       />
       <PluginSlot name="docs:bottom" />
     </div>

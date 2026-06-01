@@ -72,8 +72,15 @@ process(action="kill", session_id="<id>")
 | Flag | Effect |
 |------|--------|
 | `exec "prompt"` | One-shot execution, exits when done |
-| `--full-auto` | Sandboxed but auto-approves file changes in workspace |
+| `--full-auto` | Sandboxed but auto-approves file changes in workspace (prefer this) |
 | `--yolo` | No sandbox, no approvals (fastest, most dangerous) |
+
+> **Never use `--yolo` with externally-sourced task text** (GitHub issue/PR
+> bodies, web content, email, user-pasted prompts, or anything the agent did
+> not author). `--yolo` removes the sandbox AND approvals, so attacker-
+> controlled task text becomes an unsandboxed objective — a confused-deputy
+> RCE. For untrusted task text, use `--full-auto` inside an isolated
+> `git worktree` or a fresh `mktemp -d` checkout so the run is confined.
 
 ## PR Reviews
 
@@ -90,9 +97,13 @@ terminal(command="REVIEW=$(mktemp -d) && git clone https://github.com/user/repo.
 terminal(command="git worktree add -b fix/issue-78 /tmp/issue-78 main", workdir="~/project")
 terminal(command="git worktree add -b fix/issue-99 /tmp/issue-99 main", workdir="~/project")
 
-# Launch Codex in each
-terminal(command="codex --yolo exec 'Fix issue #78: <description>. Commit when done.'", workdir="/tmp/issue-78", background=true, pty=true)
-terminal(command="codex --yolo exec 'Fix issue #99: <description>. Commit when done.'", workdir="/tmp/issue-99", background=true, pty=true)
+# Launch Codex in each — use --full-auto inside the isolated worktree, NOT --yolo.
+# --full-auto keeps the sandbox and approvals while auto-applying changes within
+# the workspace. Each worktree (/tmp/issue-NN) is an isolated git checkout, so a
+# bad change can't escape it. Never use --yolo here: issue text is externally
+# sourced and attacker-controllable (see caution below).
+terminal(command="codex --full-auto exec 'Fix issue #78: <description>. Commit when done.'", workdir="/tmp/issue-78", background=true, pty=true)
+terminal(command="codex --full-auto exec 'Fix issue #99: <description>. Commit when done.'", workdir="/tmp/issue-99", background=true, pty=true)
 
 # Monitor
 process(action="list")

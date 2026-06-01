@@ -17,6 +17,7 @@ from typing import Dict, List, Optional
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from rich.markup import escape as _rich_escape
 
 from prompt_toolkit import print_formatted_text as _pt_print
 from prompt_toolkit.formatted_text import ANSI as _PT_ANSI
@@ -634,14 +635,21 @@ def build_welcome_banner(console: Console, model: str, cwd: str,
         right_lines.append("")
         right_lines.append(f"[bold {accent}]MCP Servers[/]")
         for srv in mcp_status:
+            # GAP-09-13: MCP server name/transport/tools come from config keys
+            # / peer-supplied data. Escape Rich markup so a malicious name like
+            # "[red][link=http://evil]x[/]" cannot spoof the banner or smuggle
+            # a clickable link.
+            _name = _rich_escape(str(srv["name"]))
+            _transport = _rich_escape(str(srv["transport"]))
+            _tools = _rich_escape(str(srv["tools"]))
             if srv["connected"]:
                 right_lines.append(
-                    f"[dim {dim}]{srv['name']}[/] [{text}]({srv['transport']})[/] "
-                    f"[dim {dim}]—[/] [{text}]{srv['tools']} tool(s)[/]"
+                    f"[dim {dim}]{_name}[/] [{text}]({_transport})[/] "
+                    f"[dim {dim}]—[/] [{text}]{_tools} tool(s)[/]"
                 )
             else:
                 right_lines.append(
-                    f"[red]{srv['name']}[/] [dim]({srv['transport']})[/] "
+                    f"[red]{_name}[/] [dim]({_transport})[/] "
                     f"[red]— failed[/]"
                 )
 
@@ -667,7 +675,11 @@ def build_welcome_banner(console: Console, model: str, cwd: str,
                 skills_str = ", ".join(skill_names)
             if len(skills_str) > 50:
                 skills_str = skills_str[:47] + "..."
-            right_lines.append(f"[dim {dim}]{category}:[/] [{text}]{skills_str}[/]")
+            # GAP-09-13: category + skill names are filesystem/plugin-derived;
+            # escape Rich markup before interpolating into the banner.
+            right_lines.append(
+                f"[dim {dim}]{_rich_escape(category)}:[/] [{text}]{_rich_escape(skills_str)}[/]"
+            )
     else:
         right_lines.append(f"[dim {dim}]No skills installed[/]")
 

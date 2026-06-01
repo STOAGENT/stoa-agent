@@ -1066,10 +1066,11 @@ def _save_auth_store(auth_store: Dict[str, Any]) -> Path:
                 tmp_path.unlink()
         except OSError:
             pass
-    # Restrict file permissions to owner only
+    # Restrict to owner only — real ACL on Windows (WIN-01), not a chmod no-op.
     try:
-        auth_file.chmod(stat.S_IRUSR | stat.S_IWUSR)
-    except OSError:
+        from stoa_cli.win_acl import lock_to_owner
+        lock_to_owner(auth_file)
+    except (OSError, ImportError):
         pass
     return auth_file
 

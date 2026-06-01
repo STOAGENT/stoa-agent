@@ -52,20 +52,32 @@ App credential registration and credential rotation must be done by the user man
 
 ## Installation
 
-Pick ONE method. On Linux, the shell script or `go install` are the easiest.
+Pick ONE method. Prefer a package manager (pinned, integrity-checked) over
+piping a remote script to a shell.
 
 ```bash
-# Shell script (installs to ~/.local/bin, no sudo, works on Linux + macOS)
-curl -fsSL https://raw.githubusercontent.com/xdevplatform/xurl/main/install.sh | bash
+# Go (recommended — pulls a module by version, checksum-verified via go.sum)
+go install github.com/xdevplatform/xurl@latest
 
 # Homebrew (macOS)
 brew install --cask xdevplatform/tap/xurl
 
 # npm
 npm install -g @xdevplatform/xurl
+```
 
-# Go
-go install github.com/xdevplatform/xurl@latest
+Avoid `curl -fsSL https://raw.githubusercontent.com/xdevplatform/xurl/main/install.sh | bash`:
+it pipes an UNPINNED `main` script straight to a shell. If you must use the
+installer, download a tagged release of it, verify its published SHA-256, and
+run it only after explicit user approval — do not pipe it to bash:
+
+```bash
+# Replace vX.Y.Z with the release tag and EXPECTED_SHA with that release's
+# published install.sh checksum.
+curl -fsSL -o /tmp/xurl-install.sh \
+  https://raw.githubusercontent.com/xdevplatform/xurl/vX.Y.Z/install.sh
+echo "EXPECTED_SHA  /tmp/xurl-install.sh" | sha256sum -c - \
+  && bash /tmp/xurl-install.sh
 ```
 
 Verify:

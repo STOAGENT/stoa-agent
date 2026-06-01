@@ -368,6 +368,17 @@ def _write_task_script() -> Path:
     tmp = script_path.with_suffix(".tmp")
     tmp.write_text(content, encoding="utf-8", newline="")
     tmp.replace(script_path)
+    # Gap-audit 2026-06-01 (WIN-03): the ONLOGON task EXECUTES this .cmd at
+    # every logon. If the file or its directory is writable by a lower-priv
+    # user, modifying it yields code-exec as the victim at logon (durable
+    # persistence + lateral movement). Lock both to the owner so no
+    # non-privileged principal can rewrite the launcher.
+    try:
+        from stoa_cli.win_acl import lock_to_owner
+        lock_to_owner(script_path.parent, is_dir=True)
+        lock_to_owner(script_path)
+    except (OSError, ImportError):
+        pass
     return script_path
 
 
@@ -441,6 +452,12 @@ def _install_startup_entry(script_path: Path) -> Path:
     tmp = entry.with_suffix(".tmp")
     tmp.write_text(_build_startup_launcher(script_path), encoding="utf-8", newline="")
     tmp.replace(entry)
+    # WIN-03: this launcher is auto-executed at logon too — lock it to owner.
+    try:
+        from stoa_cli.win_acl import lock_to_owner
+        lock_to_owner(entry)
+    except (OSError, ImportError):
+        pass
     return entry
 
 

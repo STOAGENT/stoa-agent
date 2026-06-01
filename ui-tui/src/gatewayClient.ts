@@ -115,9 +115,11 @@ const redactUrl = (raw: string): string => {
     // `user:pass@` segment AND the query string so a malformed token
     // bearer can never escape into the log tail.
     const noUserInfo = raw.replace(_USERINFO_FALLBACK_RE, '$1***@')
-    const queryIdx = noUserInfo.indexOf('?')
+    // Gap-audit 2026-06-01 (JS-GW-05): also truncate at the first `#` so a
+    // credential embedded in a fragment (with no `?` present) is stripped too.
+    const cut = noUserInfo.search(/[?#]/)
 
-    return queryIdx >= 0 ? `${noUserInfo.slice(0, queryIdx)}?***` : noUserInfo
+    return cut >= 0 ? `${noUserInfo.slice(0, cut)}?***` : noUserInfo
   }
 }
 

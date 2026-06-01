@@ -22,6 +22,31 @@ from stoa_cli import __version__ as _STOA_VERSION
 # Check (error 1010) don't reject the default ``Python-urllib/*`` signature.
 _STOA_USER_AGENT = f"stoa-cli/{_STOA_VERSION}"
 
+# GAP-09-16: model-discovery fetchers read provider responses unbounded, so a
+# config-controlled ``*_BASE_URL`` returning a multi-GB ``/v1/models`` body
+# OOMs the model-picker / doctor path. Cap every JSON read with a hard byte
+# limit and reject an oversized advertised Content-Length up front.
+_MAX_MODELS_RESPONSE_BYTES = 16 * 1024 * 1024  # 16 MiB — generous for any model list
+
+
+def _read_json_capped(resp: Any, max_bytes: int = _MAX_MODELS_RESPONSE_BYTES) -> Any:
+    """Read a JSON HTTP response with a hard byte cap.
+
+    Rejects an oversized advertised ``Content-Length`` before reading, and
+    enforces the cap on the actual bytes (reads ``max_bytes + 1`` so a body
+    that lies about / omits its length still can't exceed the limit).
+    """
+    try:
+        clen = int(resp.headers.get("Content-Length") or 0)
+    except (TypeError, ValueError):
+        clen = 0
+    if clen > max_bytes:
+        raise ValueError(f"response too large: Content-Length {clen} exceeds cap {max_bytes}")
+    raw = resp.read(max_bytes + 1)
+    if len(raw) > max_bytes:
+        raise ValueError(f"response too large: exceeded cap {max_bytes} bytes")
+    return json.loads(raw.decode())
+
 COPILOT_BASE_URL = "https://api.githubcopilot.com"
 COPILOT_MODELS_URL = f"{COPILOT_BASE_URL}/models"
 COPILOT_EDITOR_VERSION = "vscode/1.104.1"
@@ -524,7 +549,7 @@ def fetch_nous_account_tier(access_token: str, portal_base_url: str = "") -> dic
     try:
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=8) as resp:
-            return json.loads(resp.read().decode())
+            return _read_json_capped(resp)
     except Exception:
         return {}
 
@@ -812,7 +837,7 @@ def fetch_nous_recommended_models(
             headers={"Accept": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode())
+            data = _read_json_capped(resp)
         if not isinstance(data, dict):
             data = {}
     except Exception:
@@ -1144,7 +1169,7 @@ def fetch_openrouter_models(
             headers={"Accept": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            payload = json.loads(resp.read().decode())
+            payload = _read_json_capped(resp)
     except Exception:
         return list(_openrouter_catalog_cache or fallback)
 
@@ -1238,7 +1263,7 @@ def fetch_ai_gateway_models(
             headers={"Accept": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            payload = json.loads(resp.read().decode())
+            payload = _read_json_capped(resp)
     except Exception:
         return list(_ai_gateway_catalog_cache or fallback)
 
@@ -1416,7 +1441,7 @@ def fetch_models_with_pricing(
     try:
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            payload = json.loads(resp.read().decode())
+            payload = _read_json_capped(resp)
     except Exception:
         _pricing_cache[cache_key] = {}
         return {}
@@ -1463,7 +1488,7 @@ def fetch_ai_gateway_pricing(
             headers={"Accept": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            payload = json.loads(resp.read().decode())
+            payload = _read_json_capped(resp)
     except Exception:
         _pricing_cache[cache_key] = {}
         return {}
@@ -1583,7 +1608,7 @@ def _fetch_novita_pricing(
     try:
         req = urllib.request.Request(url, headers=headers)
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            payload = json.loads(resp.read().decode())
+            payload = _read_json_capped(resp)
     except Exception:
         _pricing_cache[cache_key] = {}
         return {}
@@ -2341,7 +2366,7 @@ def _fetch_anthropic_models(timeout: float = 5.0) -> Optional[list[str]]:
             headers=h,
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return json.loads(resp.read().decode())
+            return _read_json_capped(resp)
 
     try:
         try:
@@ -2456,7 +2481,7 @@ def fetch_github_model_catalog(
         req = urllib.request.Request(COPILOT_MODELS_URL, headers=headers)
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
-                data = json.loads(resp.read().decode())
+                data = _read_json_capped(resp)
                 items = _payload_items(data)
                 models: list[dict[str, Any]] = []
                 seen_ids: set[str] = set()
@@ -2567,7 +2592,7 @@ def _lmstudio_fetch_raw_models(
     request = urllib.request.Request(server_root + "/api/v1/models", headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=timeout) as resp:
-            payload = json.loads(resp.read().decode())
+            payload = _read_json_capped(resp)
     except urllib.error.HTTPError as exc:
         if exc.code in {401, 403}:
             from stoa_cli.auth import AuthError
@@ -3155,7 +3180,7 @@ def probe_api_models(
         req = urllib.request.Request(url, headers=headers)
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
-                data = json.loads(resp.read().decode())
+                data = _read_json_capped(resp)
                 return {
                     "models": [m.get("id", "") for m in data.get("data", [])],
                     "probed_url": url,
@@ -3193,7 +3218,7 @@ def _fetch_ai_gateway_models(timeout: float = 5.0) -> Optional[list[str]]:
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode())
+            data = _read_json_capped(resp)
             return [
                 m["id"]
                 for m in data.get("data", [])

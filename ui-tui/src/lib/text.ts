@@ -17,6 +17,21 @@ const ANSI_NON_CSI_ESC_SEQ_RE = new RegExp(`${ESC}(?!\\[|\\]|P|X|\\^|_)[ -/]*[0-
 const ANSI_STRAY_ESC_RE = new RegExp(`${ESC}(?!\\[)[\\s\\S]?`, 'g')
 const CONTROL_RE = /[\x00-\x08\x0B\x0C\x0D\x0E-\x1A\x1C-\x1F\x7F]/g
 const WS_RE = /\s+/g
+// Gap-audit 2026-06-01 (TUI-201): Unicode bidi overrides, zero-width, and the
+// tag plane were NOT stripped on the <Ansi> tool-result path (only the
+// markdown path stripped them). A hostile tool/MCP/ACP peer or summarized web
+// page emits an ESC byte to take the <Ansi> path and smuggle bidi/ZW for
+// display spoofing. Normalize every untrusted-byte sink identically.
+const BIDI_ZW_TAG_RE = /[‪-‮⁦-⁩​-‏﻿\u{E0000}-\u{E007F}]/gu
+
+// Gap-audit 2026-06-01 (TUI-204): drop SGR conceal (8) so a hostile tool
+// result cannot render content invisible to the human while the model acted
+// on it. Keeps all other SGR (colors/styles).
+const neutralizeSgr = (seq: string, cmd: string): string => {
+  if (cmd !== 'm') return ''
+  const params = seq.slice(2, -1).split(';').filter((p) => p !== '8')
+  return `${ESC}[${params.join(';')}m`
+}
 
 export const stripAnsi = (s: string) =>
   s
@@ -28,17 +43,19 @@ export const stripAnsi = (s: string) =>
     .replace(ANSI_NON_CSI_ESC_SEQ_RE, '')
     .replace(ANSI_STRAY_ESC_RE, '')
     .replace(CONTROL_RE, '')
+    .replace(BIDI_ZW_TAG_RE, '')
 
 export const sanitizeAnsiForRender = (s: string) =>
   s
     .replace(ANSI_OSC_RE, '')
     .replace(ANSI_STRING_RE, '')
     .replace(ANSI_INCOMPLETE_CSI_RE, '')
-    .replace(ANSI_CSI_WITH_CMD_RE, (seq, cmd: string) => (cmd === 'm' ? seq : ''))
+    .replace(ANSI_CSI_WITH_CMD_RE, neutralizeSgr)
     .replace(ANSI_INCOMPLETE_CSI_RE, '')
     .replace(ANSI_NON_CSI_ESC_SEQ_RE, '')
     .replace(ANSI_STRAY_ESC_RE, '')
     .replace(CONTROL_RE, '')
+    .replace(BIDI_ZW_TAG_RE, '')
 
 export const hasAnsi = (s: string) => s.includes(ESC)
 
