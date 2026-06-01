@@ -51,13 +51,32 @@ function proxyToApi(req, res) {
   req.pipe(proxy, { end: true });
 }
 
+const DIST_ROOT = path.resolve(DIST_DIR);
+
 function serveStatic(req, res) {
-  const urlPath = req.url.split('?')[0];
-  let filePath = path.join(DIST_DIR, urlPath === '/' ? 'index.html' : urlPath);
+  // Gap-audit 2026-06-01 (JS-GNX-01): decode + reject path traversal. The raw
+  // node:http server did path.join(DIST_DIR, urlPath) with no `..` guard, so a
+  // tunnelled/LAN client could read arbitrary files (…/../../../etc/passwd).
+  let urlPath;
+  try {
+    urlPath = decodeURIComponent(req.url.split('?')[0]);
+  } catch {
+    res.writeHead(400, { 'Content-Type': 'text/plain' });
+    res.end('Bad request');
+    return;
+  }
+  let filePath = path.resolve(DIST_ROOT, '.' + (urlPath === '/' ? '/index.html' : urlPath));
+
+  // Confine to DIST_ROOT — reject anything that escaped via `..`/absolute.
+  if (filePath !== DIST_ROOT && !filePath.startsWith(DIST_ROOT + path.sep)) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('Forbidden');
+    return;
+  }
 
   // SPA fallback: if file doesn't exist and isn't a static asset, serve index.html
   if (!fs.existsSync(filePath) && !path.extname(filePath)) {
-    filePath = path.join(DIST_DIR, 'index.html');
+    filePath = path.join(DIST_ROOT, 'index.html');
   }
 
   const ext = path.extname(filePath);
@@ -84,7 +103,10 @@ const server = http.createServer((req, res) => {
   }
 });
 
-server.listen(PORT, () => {
+// Gap-audit 2026-06-01 (JS-GNX-01): bind loopback only. With no host arg the
+// server bound 0.0.0.0/::, and the skill tunnels it via cloudflared — exposing
+// the file server + the localhost /api proxy (SSRF) to the public Internet.
+server.listen(PORT, '127.0.0.1', () => {
   console.log(`GitNexus proxy listening on http://localhost:${PORT}`);
   console.log(`  Web UI: http://localhost:${PORT}/`);
   console.log(`  API:    http://localhost:${PORT}/api/repos`);

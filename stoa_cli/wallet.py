@@ -287,12 +287,13 @@ def bind_wallet(
     # Audit Phase-1A (PROBE-HIGH-031 / F-L28-005): owner-only mode.
     # Wallet bindings are the canonical "this is who I am" record;
     # any user on the same host with broad read access can lift them.
-    # Best-effort chmod 0o600 — Windows ACLs ignore POSIX modes, but
-    # the call is a no-op there rather than an error.
+    # Gap-audit 2026-06-01 (WIN-01): real owner-only ACL on Windows via
+    # win_acl.lock_to_owner, not a chmod no-op.
     try:
-        p.chmod(0o600)
-    except OSError as _chmod_exc:
-        logger.debug("wallet: chmod 0o600 failed (%s)", _chmod_exc)
+        from stoa_cli.win_acl import lock_to_owner
+        lock_to_owner(p)
+    except (OSError, ImportError) as _chmod_exc:
+        logger.debug("wallet: owner-lock failed (%s)", _chmod_exc)
     logger.info("wallet bound: %s", address)
     return binding
 
