@@ -22,12 +22,12 @@ REM      (same as before, but operating on a file we just verified).
 REM
 REM Usage:
 REM   set STOA_INSTALL_SHA256=<sha from release page>     (optional, recommended)
-REM   curl -fsSL https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.7/scripts/install.cmd -o install.cmd
+REM   curl -fsSL https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.8/scripts/install.cmd -o install.cmd
 REM   install.cmd
 REM
 REM Or use the PowerShell-native bootstrap if you're already in PS:
 REM   $env:STOA_INSTALL_SHA256 = '<sha>'
-REM   Invoke-WebRequest -Uri https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.7/scripts/install.ps1 -OutFile $env:TEMP\stoa-install.ps1
+REM   Invoke-WebRequest -Uri https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.8/scripts/install.ps1 -OutFile $env:TEMP\stoa-install.ps1
 REM   Get-FileHash $env:TEMP\stoa-install.ps1   # compare with sticker
 REM   powershell -ExecutionPolicy Bypass -File $env:TEMP\stoa-install.ps1
 REM ============================================================================
@@ -42,12 +42,12 @@ echo.
 set "STOA_INSTALL_TMP=%TEMP%\stoa-install-%RANDOM%.ps1"
 
 powershell -ExecutionPolicy ByPass -NoProfile -Command ^
-    "$ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.7/scripts/install.ps1' -OutFile '%STOA_INSTALL_TMP%' -UseBasicParsing"
+    "$ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.8/scripts/install.ps1' -OutFile '%STOA_INSTALL_TMP%' -UseBasicParsing"
 
 if not exist "%STOA_INSTALL_TMP%" (
     echo.
     echo  Download failed. Check your internet connection or download manually:
-    echo    https://github.com/STOAGENT/stoa-agent/blob/v0.14.7/scripts/install.ps1
+    echo    https://github.com/STOAGENT/stoa-agent/blob/v0.14.8/scripts/install.ps1
     echo.
     pause
     exit /b 1

@@ -2,7 +2,7 @@
 # Six sovereign LLMs as your local agent. Council-mode default. On-chain verifiable.
 #
 # Usage:
-#   iex (irm https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.7/scripts/install.ps1)
+#   iex (irm https://raw.githubusercontent.com/STOAGENT/stoa-agent/v0.14.8/scripts/install.ps1)
 #
 # What it does:
 #   1. Installs uv (Astral's fast Python package manager) into ~/.local/bin
