@@ -38,6 +38,11 @@ pip install stoa-agent
 stoa setup
 ```
 
+> ⚠️ **Install `stoa-agent`, not `stoa`.** The bare `stoa` name on PyPI is an
+> unrelated third-party package — `pip install stoa` does **not** install this
+> project. Always use `pip install stoa-agent` (or the official installer
+> scripts above).
+
 **Homebrew**
 ```sh
 brew tap stoagent/stoa

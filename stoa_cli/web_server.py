@@ -4431,36 +4431,24 @@ async def get_plugins_hub(request: Request):
 @app.post("/api/dashboard/agent-plugins/install")
 async def post_agent_plugin_install(request: Request, body: _AgentPluginInstallBody):
     _require_token(request)
-    from stoa_cli.plugins_cmd import dashboard_install_plugin
 
-    # F-C09-001: Install plugins with enable=False by default, and require
-    # a second confirmation from the caller to actually enable them.
-    # This prevents CSRF/token-capture attacks from silently enabling
-    # arbitrary git plugins that can execute code on load.
-    enable_requested = body.enable
-    
-    result = dashboard_install_plugin(
-        body.identifier.strip(),
-        force=body.force,
-        enable=False,  # Always install disabled; caller must confirm to enable
+    # Audit deep-2026-05-29 / residual-closure 2026-06-01 (F-C09-001): remote
+    # plugin install via the dashboard is DISABLED. The previous path reached
+    # `git clone --depth 1 <arbitrary-url>` + enable, so a captured/CSRF'd
+    # dashboard session was full RCE-on-load — a web endpoint must never fetch
+    # and execute arbitrary remote code on a single forged request. Installing
+    # a new plugin from a remote spec is now a deliberate, local, out-of-band
+    # action via the CLI (`stoa plugins install <spec>`), where the operator
+    # explicitly runs it. The dashboard keeps enable/disable/list of
+    # ALREADY-installed plugins (separate endpoints); it no longer clones.
+    raise HTTPException(
+        status_code=403,
+        detail=(
+            "Remote plugin install via the dashboard is disabled for security "
+            "(CSRF / RCE-on-load risk). Install plugins from the CLI instead: "
+            "`stoa plugins install <spec>`, then enable from the dashboard."
+        ),
     )
-    if not result.get("ok"):
-        raise HTTPException(
-            status_code=400,
-            detail=result.get("error") or "Install failed.",
-        )
-    
-    # If the caller requested enable=True, they must confirm it via a second request.
-    # For now, return a status indicating the plugin is installed but disabled,
-    # and the caller must call the separate /enable endpoint to activate it.
-    if enable_requested:
-        result["requires_confirmation"] = True
-        result["requires_second_step"] = "Call /api/dashboard/agent-plugins/{name}/enable to activate"
-    
-    _get_dashboard_plugins(force_rescan=True)
-    # Strip internal paths from the response
-    result.pop("after_install_path", None)
-    return result
 
 
 def _validate_plugin_name(name: str) -> str:

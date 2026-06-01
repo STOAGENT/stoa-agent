@@ -9635,9 +9635,11 @@ class STOACLI:
     def _handle_attest_command(self) -> None:
         """``/attest`` — stamp the last response hash on Monad mainnet.
 
-        Scaffold: prints the hash and the M3-pending message. Real
-        eth_sendRawTransaction lands in M3 (agent/attestation_hook.py is
-        the staging point; transport not yet wired).
+        Residual-closure 2026-06-01 (F-C13): real transport. Calls
+        agent.attestation_hook.attest_response_hash, which builds, signs and
+        broadcasts the attest() tx via eth_sendRawTransaction when a signer
+        key is configured (STOA_ATTEST_KEY / ~/.stoa/wallet.key). With no key
+        it reports that honestly instead of claiming a fake on-chain stamp.
         """
         verdict_hash = getattr(self, "_last_verdict_hash", None)
         if not verdict_hash:
@@ -9648,10 +9650,51 @@ class STOACLI:
             )
             return
         _cprint(f"  ⁂ Response hash: {verdict_hash}")
-        _cprint(
-            "  Monad attestation transport lands in M3 (AuditAttestationV2).\n"
-            "  For now the hash is queued locally and surfaces in /verdict."
-        )
+
+        class _VerdictCarrier:  # attest_response_hash only reads .response_hash
+            response_hash = verdict_hash
+
+        try:
+            import asyncio
+
+            from agent.attestation_hook import (
+                AttestationReceipt,
+                attest_response_hash,
+            )
+
+            async def _go():
+                return await attest_response_hash(_VerdictCarrier(), persona="council")
+
+            try:
+                asyncio.get_running_loop()
+                # Already inside a loop — run on a fresh loop in a worker thread.
+                import concurrent.futures
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _ex:
+                    result = _ex.submit(lambda: asyncio.run(_go())).result()
+            except RuntimeError:
+                result = asyncio.run(_go())
+
+            if isinstance(result, AttestationReceipt):
+                _cprint(
+                    f"  ✓ Attested on-chain — tx {result.tx_hash}\n"
+                    f"  contract {result.contract} via {result.rpc}"
+                )
+            else:
+                reason = getattr(result, "reason", "unknown")
+                if reason == "no_signer_key":
+                    _cprint(
+                        "  ⁂ No signer key configured — set STOA_ATTEST_KEY (or place a key in\n"
+                        "  ~/.stoa/wallet.key) to enable real on-chain attestation. Hash kept locally."
+                    )
+                elif reason == "attestation_disabled":
+                    _cprint(
+                        "  ⁂ Attestation is off — set STOA_ATTESTATION_ENABLED=1 to enable on-chain stamping."
+                    )
+                else:
+                    _cprint(f"  ⁂ Attestation not confirmed ({reason}); queued locally for retry.")
+        except Exception as exc:  # noqa: BLE001 — a slash command must never crash the REPL
+            _cprint(f"  ⁂ Attestation error: {exc}")
 
     def _handle_reasoning_command(self, cmd: str):
         """Handle /reasoning — manage effort level and display toggle.
