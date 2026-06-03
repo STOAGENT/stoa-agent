@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stoa-agent"
-version = "0.14.9"
+version = "0.14.10"
 description = "STOA Agent — a chamber of six personas + one dispatcher. Local-first, bring-your-own-key, no subscription, no lock-in. See ATTRIBUTION.md for upstream lineage."
 readme = "README.md"
 requires-python = ">=3.11"
